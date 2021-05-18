@@ -1,0 +1,6 @@
+#Sample Input
+Enter the threshold value or Press Enter for 0.2    0.2
+Enter the Template Directory /.../     D:/temp/
+Enter the Input Directory /.../        D:/test/
+Enter the Record Directory /...csv     D:/records(Book14).csv
+Enter directory for output/.../        D:/output/
