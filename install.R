@@ -1,4 +1,4 @@
-setwd("D:/")
+setwd("D:/distribution_digitizer_students/")
 library(shiny)
 library(shinydashboard)
 library(shinyWidgets)
@@ -15,7 +15,8 @@ library(EBImage)
 library(shiny)
 options(shiny.host = '0.0.0.0')
 options(shiny.port = 8888)
-runApp('DD_shiny')
+options(shiny.maxRequestSize=100*1024^2)
+runApp('app.R')
 
 
 
