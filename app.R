@@ -10,7 +10,8 @@ library(shinyFiles)
 #image_crop(tiger, "200x150+150+450")
 #image_crop()
 # A demonstration of clicking, hovering, and brushing
-outputDir <- "D:/distribution_digitizer_students/Object_Detection/"
+#outputDir <- "D:/distribution_digitizer_students/Object_Detection/"
+options(shiny.maxRequestSize=100*1024^2)
 
 shinyApp(
   ui = fluidPage(
@@ -170,7 +171,7 @@ server = function(input, output, session) {
     
     output$downloadImage <- downloadHandler(
       filename = function() {
-        paste('plot', '_',input$imgIndex,'.tif', sep='')
+        paste('map', '_',input$imgIndex,'.tif', sep='')
       },
       content = function(file) {
         #tiff(file)
