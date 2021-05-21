@@ -5,9 +5,11 @@ Installation local
 1. Clone or download  the github folder in D: or in C:/Users/~
 
 Task: User the program cmd to clone
-
+```{r}
 D:\distribution_digitizer_students> D: #or C:/Users/~
 git clone https://github.com/environmentalinformatics-marburg/distribution_digitizer_students.git
+```
+
 ----------------------------
 Task: Download as zip and extract the files in D: or in C: / Users / ~
 
