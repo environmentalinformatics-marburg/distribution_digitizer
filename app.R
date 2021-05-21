@@ -1,13 +1,45 @@
-library(magick)
-library(grid)
-library(rdrop2)
-library(shiny)
-library(shinyFiles)
+if(!require(magick)){
+  install.packages("magick", dependencies = T)
+  library(magick)
+}
+if(!require(grid)){
+  install.packages("grid", dependencies = T)
+  library(grid)
+}
+
+if(!require(rdrop2)){
+  install.packages("rdrop2", dependencies = T)
+  library(rdrop2)
+}
+
+if(!require(shiny)){
+  install.packages("shiny",dependencies = T)
+  library(shiny)
+}
+
+if(!require(shinyFiles)){
+  install.packages("shinyFiles",dependencies = T)
+  library(shinyFiles)
+}
+
+if(!require(shinyFiles)){
+  install.packages("reticulate",dependencies = T)
+  library(reticulate)
+}
+
+if(!require(shinyFiles)){
+  install.packages("shinydashboard",dependencies = T)
+  library(shinydashboard)
+}
+
 
 # Input variables
+options(shiny.host = '127.0.0.1')
+options(shiny.port = 8888)
+options(shiny.maxRequestSize=100*1024^2)
 # Change the max uploaf size
 options(shiny.maxRequestSize=100*1024^2)
-tempFile="._temp.png"
+tempImage="temp.png"
 scale =20
 rescale= (100/scale)
 
@@ -41,6 +73,9 @@ shinyApp(
                fluidRow(column(3, numericInput("imgIndex", label = h3("Select index of the croped image"),value = 1),
                                # SAVE the croped images with the given index
                                downloadButton('downloadImage', 'Save the cropped image'))),
+               
+               # Select index of the croped image
+               fluidRow(column(3, actionButton("start_tm",  label = h3("Start the template matching")))),
                
                # Number Pages on the printed Site
                fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
@@ -113,12 +148,16 @@ shinyApp(
 ######################################SERVER############################################## 
 server = function(input, output, session) {
            
+    # Template matching start
+    observeEvent(input$start_tm, {
+     
+    })
            
     # Function to show the ccrop process in the app 
     plot_png <- function(path, plot_brush, index, add=FALSE)
     {
       require('png')
-      fname=paste0(input$working_dir,tempFile)
+      fname=paste0(input$working_dir, "/", tempImage)
       png = png::readPNG(fname, native=T) # read the file
       # png <- image_read('DD_shiny/0045.png')
       res = dim(png)[2:1] # get the resolution, [x, y]
@@ -143,7 +182,7 @@ server = function(input, output, session) {
       temp <- image_read(input$image$datapath)
       file <- image_convert(temp, "png")
       temp_scale <- image_scale(file, paste0(scale,"%"))
-      fname = paste0(input$working_dir,tempFile)
+      fname = paste0(input$working_dir, "/", tempImage)
       image_write(temp_scale, path = fname, format = "png", )
       
       req(file)
@@ -171,16 +210,16 @@ server = function(input, output, session) {
         y2 = input$plot_brush$ymin
         y1 = input$plot_brush$ymax
         
-        tempImage <- image_read(input$image$datapath)
+        tempI <- image_read(input$image$datapath)
         widht=(x2*rescale-x1*rescale)
         height=(y1*rescale-y2*rescale)
        
         geometrie <- paste0(widht, "x", height, "+",x1*rescale,"+", y2*rescale)
         #"100x150+0+0")
-        tempImage <- image_crop(tempImage, geometrie)
-        image_write(tempImage, file, format = "tif")
+        tempI <- image_crop(tempI, geometrie)
+        image_write(tempI, file, format = "tif")
         #writePNG(tempImage, target = file)
-        unlink(paste0(input$working_dir,"/._temp.png"))
+        unlink(paste0(input$working_dir,"/", tempImage))
       }) 
     
     

@@ -69,12 +69,12 @@ def matchtemplatetiff(tifffile, file, outdir, records, threshold):
     PIL.Image.fromarray(img, 'RGB').save(os.path.join(tifffile))
 
 #Batch Processing
-threshold= float(input('Enter the threshold value or Press Enter for 0.2 ')or 0.2)
-temp = str(input('Enter the Template Directory /.../'))
-Input = str(input('Enter the Input Directory /.../'))
-records =str(input('Enter the Record Directory /.. .csv'))
-outdir = str(input('Enter directory for output /.../'))
-print("Entered threshold value",threshold)
-for file in glob.glob(temp + '*.tif'): 
-  for tifffile in glob.glob(Input+'*.tif'):         
-         matchtemplatetiff(tifffile, file, outdir , records, threshold)
+#threshold= float(input('Enter the threshold value or Press Enter for 0.2 ')or 0.2)
+#temp = str(input('Enter the Template Directory /.../'))
+#Input = str(input('Enter the Input Directory /.../'))
+#records =str(input('Enter the Record Directory /.. .csv'))
+#outdir = str(input('Enter directory for output /.../'))
+#print("Entered threshold value",threshold)
+#for file in glob.glob(temp + '*.tif'): 
+ # for tifffile in glob.glob(Input+'*.tif'):         
+ #        matchtemplatetiff(tifffile, file, outdir , records, threshold)
