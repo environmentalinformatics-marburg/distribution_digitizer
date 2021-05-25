@@ -4,7 +4,7 @@ from PIL import Image
 import os.path
 import glob
 import numpy as np 
-from google.colab.patches import cv2_imshow
+
 
 #Edge and Contour Detection
 def edge(tiffile,outdir,n,m):
@@ -23,8 +23,12 @@ def edge(tiffile,outdir,n,m):
   # show the image with the drawn contours
   PIL.Image.fromarray(image, 'RGB').save(os.path.join(outdir, os.path.basename(tiffile)))
   
-m = int(input(' Enter the value of Guassian filter or press enter for 9' )or 9)
-n=int(input(' Enter the value of kernel filter or press enter for 5' )or 5)
-input_tif = str(input("Enter the Input directory /..../"))
-for tiffile in glob.glob(input_tif + "*.tif"):
-    edge(tiffile,input_tif,n,m)
+#m = int(input(' Enter the value of Guassian filter or press enter for 9' )or 9)
+#n=int(input(' Enter the value of kernel filter or press enter for 5' )or 5)
+#input_tif = str(input("Enter the Input directory /..../"))
+#for tiffile in glob.glob(input_tif + "*.tif"):
+ #   edge(tiffile,input_tif,n,m)
+ 
+def mainpixelclassification(pix_inputs, out_pix, n, m):
+  for file in glob.glob(pix_inputs + '*.tif'):
+        edge(pix_inputs, out_pix, n, m)
