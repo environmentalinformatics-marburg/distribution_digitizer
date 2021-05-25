@@ -13,6 +13,8 @@ fields = ['Filename','w', 'h', 'x2', 'y2', 'size','threshold','time']
 
 #Function
 def matchtemplatetiff(tifffile, file, outdir, records, threshold):
+    print(tifffile)
+    print(file)
     img =np.array(PIL.Image.open(tifffile))
     tmp= np.array(PIL.Image.open(file))
     imgc=img.copy()
@@ -28,6 +30,7 @@ def matchtemplatetiff(tifffile, file, outdir, records, threshold):
     font = cv2.FONT_HERSHEY_SIMPLEX
     n=0
     m=0
+
     for pt in zip(*loc[::-1]):
         # check that the coords are not already in the list, if they are then skip the match
         if pt[0] not in lspoint and pt[1] not in lspoint2:
@@ -38,7 +41,8 @@ def matchtemplatetiff(tifffile, file, outdir, records, threshold):
             #cv2.imwrite('rect.png',rect)
             # data rows of csv file   
             rows = 0
-            rows = [[tifffile, w, h , pt[1] + w, pt[0] + h, size, threshold, (time.time() - start_time)]]    
+            rows = [[tifffile, w, h , pt[1] + w, pt[0] + h, size, threshold, (time.time() - start_time)]]   
+            print(outdir)        
             cv2.imwrite(outdir + os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
             #cv2.imwrite(tifffile + file.rsplit('.', 1)[0] + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
             # name of csv file   
@@ -74,7 +78,9 @@ def matchtemplatetiff(tifffile, file, outdir, records, threshold):
 #Input = str(input('Enter the Input Directory /.../'))
 #records =str(input('Enter the Record Directory /.. .csv'))
 #outdir = str(input('Enter directory for output /.../'))
-#print("Entered threshold value",threshold)
-#for file in glob.glob(temp + '*.tif'): 
- # for tifffile in glob.glob(Input+'*.tif'):         
- #        matchtemplatetiff(tifffile, file, outdir , records, threshold)
+#print("Entered threshold value",threshold) 
+
+def mainTemplateMatching(templates, inputs, outdir, records, threshold):
+    for file in glob.glob(templates + '*.tif'): 
+        for tifffile in glob.glob(inputs+'*.tif'):         
+            matchtemplatetiff(tifffile, file, outdir , records, threshold)
