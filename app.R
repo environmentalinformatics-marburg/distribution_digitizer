@@ -22,16 +22,14 @@ if(!require(shinyFiles)){
   library(shinyFiles)
 }
 
-if(!require(shinyFiles)){
+if(!require(reticulate)){
   install.packages("reticulate",dependencies = T)
   library(reticulate)
 }
 
-if(!require(shinyFiles)){
-  install.packages("shinydashboard",dependencies = T)
-  library(shinydashboard)
-}
 
+py_install(packages = "opencv-python", pip = TRUE)
+py_install(packages = "pillow", pip = FALSE)
 
 # Input variables
 options(shiny.host = '127.0.0.1')
@@ -75,7 +73,9 @@ shinyApp(
                                downloadButton('downloadImage', 'Save the cropped image'))),
                
                # Select index of the croped image
-               fluidRow(column(3, actionButton("start_tm",  label = h3("Start the template matching")))),
+               fluidRow(column(3, actionButton("templateMatching",  label = h3("Start the template matching")))),
+               # Select index of the croped image
+               #fluidRow(column(3, actionButton("startPixelClassification",  label = h3("Start the pixel classification")))),
                
                # Number Pages on the printed Site
                fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
@@ -149,8 +149,12 @@ shinyApp(
 server = function(input, output, session) {
            
     # Template matching start
-    observeEvent(input$start_tm, {
-     
+    observeEvent(input$templateMatching, {
+      #Processing template matching
+      library(reticulate)
+      source_python("D:/distribution_digitizer_students/src/template_matching.py")
+      mainTemplateMatching("D:/distribution_digitizer_students/", 0.2)
+      
     })
            
     # Function to show the ccrop process in the app 
@@ -192,6 +196,7 @@ server = function(input, output, session) {
     #plot1
     output$plot1 <- renderPlot({
       req(input$image)
+      req(input$plot_brush)
       d <- data()
       if(!is.null(input$image$datapath) && input$image$datapath!=""){
         plot_png(input$image$datapath, input$plot_brush, input$imgIndex)
