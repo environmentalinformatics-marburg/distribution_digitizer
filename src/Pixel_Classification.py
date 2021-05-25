@@ -7,8 +7,10 @@ import numpy as np
 
 
 #Edge and Contour Detection
-def edge(tiffile,outdir,n,m):
+def edge(tiffile, outdir, n, m):
   # Load image, grayscale, Otsu's threshold
+  print(tiffile)
+  
   ig = np.array(PIL.Image.open(tiffile))
   gray = cv2.cvtColor(ig, cv2.COLOR_BGR2GRAY)
   gray = cv2.GaussianBlur(gray,(m,m),0)
@@ -16,19 +18,15 @@ def edge(tiffile,outdir,n,m):
   # Morph open using elliptical shaped kernel
   kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n,n))
   opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=3)
-  #plot the mask
-  contours, hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-  # draw all contours
-  image = cv2.drawContours(ig, contours, -1, (0, 0, 255), 3)
-  # show the image with the drawn contours
-  PIL.Image.fromarray(image, 'RGB').save(os.path.join(outdir, os.path.basename(tiffile)))
-  
+ 
 #m = int(input(' Enter the value of Guassian filter or press enter for 9' )or 9)
 #n=int(input(' Enter the value of kernel filter or press enter for 5' )or 5)
 #input_tif = str(input("Enter the Input directory /..../"))
 #for tiffile in glob.glob(input_tif + "*.tif"):
  #   edge(tiffile,input_tif,n,m)
  
-def mainpixelclassification(pix_inputs, out_pix, n, m):
-  for file in glob.glob(pix_inputs + '*.tif'):
-        edge(pix_inputs, out_pix, n, m)
+def mainpixelclassification(workingDir,  n, m):
+  inputdir = workingDir+"/data/input/"
+  ouputdir = workingDir+"/data/output/pixelc/"
+  for file in glob.glob(inputdir + '*.tif'):
+        edge(file, ouputdir, n, m)
