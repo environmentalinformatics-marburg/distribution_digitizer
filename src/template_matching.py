@@ -83,9 +83,9 @@ def matchtemplatetiff(tifffile, file, outdir, records, threshold):
 def mainTemplateMatching(workingDir, threshold):
     print(workingDir)
     templates = workingDir+"/data/templates/map/"
-    inputs = workingDir + "/data/input/"
-    outdir = workingDir + "/data/output/"
+    inputdir = workingDir + "/data/input/"
+    outdir = workingDir + "/data/output/templatem/"
     records = workingDir + "/data/output/records.csv"
     for file in glob.glob(templates + '*.tif'): 
-        for tifffile in glob.glob(inputs+'*.tif'):         
+        for tifffile in glob.glob(inputdir+'*.tif'):         
             matchtemplatetiff(tifffile, file, outdir , records, threshold)
