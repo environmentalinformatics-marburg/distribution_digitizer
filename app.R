@@ -61,6 +61,8 @@ shinyApp(
     fluidRow(
       column(4,
              wellPanel(
+               fluidRow(column(3,selectInput("iformat", label = h3("Scan format"),
+                                             choices = list("tif" = 1, "png" = 2), selected = 1))),
                # Working directory
                fluidRow(column(3,textInput("working_dir", label="Working git directory", 
                                            value = "D:/distribution_digitizer_students/"))),#, width = NULL, placeholder = NULL)
@@ -71,6 +73,7 @@ shinyApp(
                fluidRow(column(3, numericInput("imgIndex", label = h3("Select index of the croped image"),value = 1),
                                # SAVE the croped images with the given index
                                downloadButton('downloadImage', 'Save the cropped image'))),
+               fluidRow(column(3,numericInput("threshold_for_TM", label="Threshold (for Template Matching)", value = 0.25))),#, width = NULL, placeholder = NULL)
                
                # Select index of the croped image
                fluidRow(column(3, actionButton("templateMatching",  label = h3("Start the template matching")))),
@@ -90,8 +93,7 @@ shinyApp(
                # Map with
                #fluidRow(column(3,numericInput("mwidth", label = h3("Map width(~)"),value = 1))),    
                # Format of the scaned page
-               fluidRow(column(3,selectInput("iformat", label = h3("Scan format"),
-                                             choices = list("tif" = 1, "png" = 2), selected = 1))),
+               
                # Number of the boor sites
                #fluidRow(column(3,numericInput("bsites", label = h3("Number book sites"),value = 1))),
                # Is the Scan color or no
@@ -109,8 +111,7 @@ shinyApp(
               # fluidRow(column(3,numericInput("batch_size", label = h3("Batch Size"),value = 128))), 
               # fluidRow(column(3,numericInput("epochs", label = h3("Epochs"),value = 1000))),
               
-               fluidRow(column(3,textInput("threshold_for_TM", label="Threshold (for Template Matching)", value = "0,25"))),#, width = NULL, placeholder = NULL)
-               fluidRow(column(3,textInput("output_directory_CI", label="Output directory (cropped images)", value = ""))),#, width = NULL, placeholder = NULL)
+                fluidRow(column(3,textInput("output_directory_CI", label="Output directory (cropped images)", value = ""))),#, width = NULL, placeholder = NULL)
                fluidRow(column(3,textInput("output_directory_TM", label="Output directory (Template matching)", value = ""))),#, width = NULL, placeholder = NULL)
                
                # SAVE FIELDS
@@ -152,9 +153,10 @@ server = function(input, output, session) {
     observeEvent(input$templateMatching, {
       #Processing template matching
       library(reticulate)
-      source_python("D:/distribution_digitizer_students/src/template_matching.py")
-      mainTemplateMatching("D:/distribution_digitizer_students/", 0.2)
-      
+      fname=paste0(input$working_dir, "/", "src/template_matching.py")
+      source_python(fname)
+      print(input$threshold_for_TM)
+      mainTemplateMatching(input$working_dir, input$threshold_for_TM)
     })
            
     # Function to show the ccrop process in the app 
@@ -225,6 +227,8 @@ server = function(input, output, session) {
         image_write(tempI, file, format = "tif")
         #writePNG(tempImage, target = file)
         unlink(paste0(input$working_dir,"/", tempImage))
+        i = input$imgIndex +1
+        updateNumericInput(session, "imgIndex", value = i)
       }) 
     
     
