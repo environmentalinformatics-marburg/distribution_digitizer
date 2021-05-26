@@ -82,9 +82,9 @@ shinyApp(
                
                fluidRow(column(3,numericInput("filterK", label="Enter the value of Kernel filter", value = 5))),#, width = NULL, placeholder = NULL)
                
-               fluidRow(column(3,numericInput("FilterG", label="Enter the value of Guassian filter)", value = 9))),#, width = NULL, placeholder = NULL)
+               fluidRow(column(3,numericInput("filterG", label="Enter the value of Guassian filter)", value = 9))),#, width = NULL, placeholder = NULL)
                
-               fluidRow(column(3, actionButton("templateMatching",  label = h3("Start the pixel classification")))),
+               fluidRow(column(3, actionButton("pixelClassification",  label = h3("Start the pixel classification")))),
                # Number Pages on the printed Site
                #fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
                #                                choices = list("1 page" = 1, "2 pages" = 2), selected = 1))), 
@@ -127,7 +127,7 @@ shinyApp(
       
       # Main panel for displaying plots of the input image and croped image ----
       column(8,
-             plotOutput("plot", width ="70%", 
+             plotOutput("plot", width="70%", 
                         click = "plot_click",  # Equiv, to click=clickOpts(id="plot_click")
                         hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
                         brush = brushOpts(id = "plot_brush")),
@@ -162,6 +162,16 @@ server = function(input, output, session) {
       source_python(fname)
       print(input$threshold_for_TM)
       mainTemplateMatching(input$working_dir, input$threshold_for_TM)
+    })
+  
+  
+    # Template matching start
+    observeEvent(input$pixelClassification, {
+      #Processing template matching
+      library(reticulate)
+      fname=paste0(input$working_dir, "/", "src/Pixel_Classification.py")
+      source_python(fname)
+      mainpixelclassification(input$working_dir, input$filterK, input$filterG)
     })
            
     # Function to show the ccrop process in the app 
