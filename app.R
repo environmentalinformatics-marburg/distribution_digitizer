@@ -80,9 +80,14 @@ shinyApp(
                # Select index of the croped image
                #fluidRow(column(3, actionButton("startPixelClassification",  label = h3("Start the pixel classification")))),
                
+               fluidRow(column(3,numericInput("filterK", label="Enter the value of Kernel filter", value = 5))),#, width = NULL, placeholder = NULL)
+               
+               fluidRow(column(3,numericInput("FilterG", label="Enter the value of Guassian filter)", value = 9))),#, width = NULL, placeholder = NULL)
+               
+               fluidRow(column(3, actionButton("templateMatching",  label = h3("Start the pixel classification")))),
                # Number Pages on the printed Site
-               fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
-                                               choices = list("1 page" = 1, "2 pages" = 2), selected = 1))), 
+               #fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
+               #                                choices = list("1 page" = 1, "2 pages" = 2), selected = 1))), 
                
                # Page orientation
                #fluidRow(column(3, selectInput("pageaxis", label = h3("Page axis"),
@@ -111,18 +116,18 @@ shinyApp(
               # fluidRow(column(3,numericInput("batch_size", label = h3("Batch Size"),value = 128))), 
               # fluidRow(column(3,numericInput("epochs", label = h3("Epochs"),value = 1000))),
               
-                fluidRow(column(3,textInput("output_directory_CI", label="Output directory (cropped images)", value = ""))),#, width = NULL, placeholder = NULL)
-               fluidRow(column(3,textInput("output_directory_TM", label="Output directory (Template matching)", value = ""))),#, width = NULL, placeholder = NULL)
+              #fluidRow(column(3,textInput("output_directory_CI", label="Output directory (cropped images)", value = ""))),#, width = NULL, placeholder = NULL)
+               #fluidRow(column(3,textInput("output_directory_TM", label="Output directory (Template matching)", value = ""))),#, width = NULL, placeholder = NULL)
                
                # SAVE FIELDS
                #actionButton("submit", "Save input fields"),
-               downloadButton("download_button", label = "Download the values as .txt")
+               #downloadButton("download_button", label = "Download the values as .txt")
              )       
       ),
       
       # Main panel for displaying plots of the input image and croped image ----
       column(8,
-             plotOutput("plot", 
+             plotOutput("plot", width ="70%", 
                         click = "plot_click",  # Equiv, to click=clickOpts(id="plot_click")
                         hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
                         brush = brushOpts(id = "plot_brush")),
