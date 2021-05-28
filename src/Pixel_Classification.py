@@ -13,10 +13,10 @@ def edge(tiffile, outdir, n, m):
   
   ig = np.array(PIL.Image.open(tiffile))
   gray = cv2.cvtColor(ig, cv2.COLOR_BGR2GRAY)
-  gray = cv2.GaussianBlur(gray,(9,9),0)
+  gray = cv2.GaussianBlur(gray,(m,m),0)
   ret, thresh = cv2.threshold(gray,120,255,cv2.THRESH_TOZERO_INV)
   # Morph open using elliptical shaped kernel
-  kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
+  kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n,n))
   opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=3)
   #plot the mask
   contours, hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
