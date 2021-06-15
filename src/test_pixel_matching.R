@@ -18,4 +18,4 @@ templates = "D:/distribution_digitizer_students/data/templates/map/"
 #
 source_python("D:/distribution_digitizer_students/src/Pixel_matching.py")
 
-mainpixelmatching( "D:/distribution_digitizer_students/r", 0.87)
+mainpixelmatching( "D:/distribution_digitizer_students/", 0.5)

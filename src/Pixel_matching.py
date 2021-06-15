@@ -18,7 +18,6 @@ def pixelmatch(tiffile, file, outputpcdir, pixel_threshold):
   res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
 # Adjust this threshold value to suit you, you may need some trial runs (critical!)
   threshold = pixel_threshold
-  threshold = 0.87
   loc = np.where(res >= threshold)
 # create empty lists to append the coord of the
   lspoint = []
@@ -44,5 +43,5 @@ def mainpixelmatching(workingDir, pixel_threshold):
   inputpcdir = workingDir + "/data/output/"
   outputpcdir = workingDir + "/data/output/pixeltemp/"
   for tiffile in glob.glob(inputpcdir + '*.tif'):
-    for file in glob.glob(pixel_templates + '*.tif'):
+    for file in glob.glob(pixel_templates + '*.tif'): 
         pixelmatch(tiffile, file, outputpcdir, pixel_threshold)
