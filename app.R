@@ -73,10 +73,12 @@ shinyApp(
                fluidRow(column(3, numericInput("imgIndex", label = h3("Select index of the croped image"),value = 1),
                                # SAVE the croped images with the given index
                                downloadButton('downloadImage', 'Save the cropped image'))),
-               fluidRow(column(3,numericInput("threshold_for_TM", label="Threshold (for Template Matching)", value = 0.25))),#, width = NULL, placeholder = NULL)
+               # Template matching
+               fluidRow(column(3,numericInput("threshold_for_TM", label="Threshold (for Template Matching)", value = 0.25))),
                
                # Select index of the croped image
                fluidRow(column(3, actionButton("templateMatching",  label = h3("Start the template matching")))),
+               
                # Select index of the croped image
                #fluidRow(column(3, actionButton("startPixelClassification",  label = h3("Start the pixel classification")))),
                
@@ -85,6 +87,8 @@ shinyApp(
                fluidRow(column(3,numericInput("filterG", label="Enter the value of Guassian filter)", value = 9))),#, width = NULL, placeholder = NULL)
                
                fluidRow(column(3, actionButton("pixelClassification",  label = h3("Start the pixel classification")))),
+               
+               fluidRow(column(3, actionButton("pixelMatching",  label = h3("Start the pixel matching")))),
                # Number Pages on the printed Site
                #fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
                #                                choices = list("1 page" = 1, "2 pages" = 2), selected = 1))), 
@@ -173,6 +177,16 @@ server = function(input, output, session) {
       source_python(fname)
       mainpixelclassification(input$working_dir, input$filterK, input$filterG)
     })
+    
+    # Pixel matching start
+    observeEvent(input$pixelMatching, {
+      #Processing template matching
+      library(reticulate)
+      fname=paste0(input$working_dir, "/", "src/Pixel_matching.py")
+      source_python(fname)
+      mainpixelmatching(input$working_dir, 0.87)
+    })
+    
            
     # Function to show the ccrop process in the app 
     plot_png <- function(path, plot_brush, index, add=FALSE)
