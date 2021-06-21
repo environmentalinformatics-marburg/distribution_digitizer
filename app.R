@@ -74,13 +74,18 @@ shinyApp(
                                # SAVE the croped images with the given index
                                downloadButton('downloadImage', 'Save the cropped image'))),
                # Template matching
-               fluidRow(column(3,numericInput("threshold_for_TM", label="Threshold (for Template Matching)", value = 0.25))),
+               fluidRow(column(3,numericInput("threshold_for_TM", label="Threshold (for template matching)", value = 0.2))),
                
                # Select index of the croped image
                fluidRow(column(3, actionButton("templateMatching",  label = h3("Start the template matching")))),
                
                # Select index of the croped image
                #fluidRow(column(3, actionButton("startPixelClassification",  label = h3("Start the pixel classification")))),
+               # Template matching
+               fluidRow(column(3,numericInput("threshold_for_PM", label="Threshold (for pixel matching)", value = 0.87))),
+               
+             
+               fluidRow(column(3, actionButton("pixelMatching",  label = h3("Start the pixel matching")))),
                
                fluidRow(column(3,numericInput("filterK", label="Enter the value of Kernel filter", value = 5))),#, width = NULL, placeholder = NULL)
                
@@ -88,7 +93,9 @@ shinyApp(
                
                fluidRow(column(3, actionButton("pixelClassification",  label = h3("Start the pixel classification")))),
                
-               fluidRow(column(3, actionButton("pixelMatching",  label = h3("Start the pixel matching")))),
+               fluidRow(column(3, actionButton("georeferencing",  label = h3("Start the Georeferencing")))),
+               
+               
                # Number Pages on the printed Site
                #fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
                #                                choices = list("1 page" = 1, "2 pages" = 2), selected = 1))), 
@@ -168,6 +175,14 @@ server = function(input, output, session) {
       mainTemplateMatching(input$working_dir, input$threshold_for_TM)
     })
   
+  # Georeferencing start
+  observeEvent(input$georeferencing, {
+    #Processing template matching
+    library(reticulate)
+    fname=paste0(input$working_dir, "/", "src/georeferencing.py")
+    source_python(fname)
+    maingeoreferencing(input$working_dir)
+  })
   
     # Template matching start
     observeEvent(input$pixelClassification, {
@@ -184,7 +199,7 @@ server = function(input, output, session) {
       library(reticulate)
       fname=paste0(input$working_dir, "/", "src/Pixel_matching.py")
       source_python(fname)
-      mainpixelmatching(input$working_dir, 0.87)
+      mainpixelmatching(input$working_dir, input$threshold_for_PM)
     })
     
            

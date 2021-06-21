@@ -14,7 +14,6 @@ import os,glob
 
 # Working with the Input GCP points from the csv file and then rearranging them according to the function
 def georeferencing(input_raster,output_raster,gcp_points):
-  print("hello")
   f=pd.read_csv(gcp_points)
   keep_col = ['mapX','mapY','pixelX', 'pixelY', 'enable', 'dX','dY', 'residual']
   new_f = f[keep_col]
@@ -40,13 +39,14 @@ def georeferencing(input_raster,output_raster,gcp_points):
   wkt = ds.GetProjection()
   gcpcount = ds.GetGCPCount( )
   ds.SetGCPs( gcp_list, wkt )
-  print("success")
+
 #Clear the output file if it is opened anywhere else
   ds=None
   
 def maingeoreferencing(workingDir):
  output_raster= workingDir + "data/output/georeferencing/"
  inputdir = workingDir +"data/output/pixelc/"
- for gcp_points in glob.glob(inputdir + "*.tif.points"):
+ g_dir = workingDir + "data/templates/geopoints/"
+ for gcp_points in glob.glob(g_dir + "*.tif.points"):
     for input_raster in glob.glob(inputdir + "*.tif"):
       georeferencing(input_raster, output_raster,gcp_points)
