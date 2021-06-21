@@ -32,7 +32,7 @@ def edge(tiffile, outdir, n, m):
  #   edge(tiffile,input_tif,n,m)
  
 def mainpixelclassification(workingDir,  n, m):
-  inputdir = workingDir+"data/output/"
+  inputdir = workingDir+"data/output/pixeltemp/"
   ouputdir = workingDir+"data/output/pixelc/"
   print(inputdir)
   print(ouputdir)
