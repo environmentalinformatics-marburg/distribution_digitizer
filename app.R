@@ -28,8 +28,8 @@ if(!require(reticulate)){
 }
 
 
-py_install(packages = "opencv-python", pip = TRUE)
-py_install(packages = "pillow", pip = FALSE)
+#py_install(packages = "opencv-python", pip = TRUE)
+#py_install(packages = "pillow", pip = FALSE)
 
 # Input variables
 options(shiny.host = '127.0.0.1')
@@ -56,44 +56,103 @@ shinyApp(
     ),
     
     # App title ----
-    titlePanel("DD Userinterface"),
-    # define a row whith columns. 
+    titlePanel("Distribution Digitizer"),
+    # define a row with columns. 
     fluidRow(
       column(4,
              wellPanel(
-               fluidRow(column(3,selectInput("iformat", label = h3("Scan format"),
-                                             choices = list("tif" = 1, "png" = 2), selected = 1))),
+               #fluidRow(column(3,selectInput("iformat", label = h3("Scan format"),
+               #                             choices = list("tif" = 1, "png" = 2), selected = 1))),
                # Working directory
-               fluidRow(column(3,textInput("working_dir", label="Working git directory", 
+               h2("1. Set your working directory", style = "color:black"),
+               
+               p("Enter the path to your working directory.", style = "color:black"),
+               
+               fluidRow(column(3,textInput("working_dir", label="Path:", 
                                            value = "D:/distribution_digitizer_students/"))),#, width = NULL, placeholder = NULL)
-               # File to choose with legend
-               fileInput("image",  label = h3("Choose legend image")),
                
-               # Select index of the croped image
-               fluidRow(column(3, numericInput("imgIndex", label = h3("Select index of the croped image"),value = 1),
+               p("Your working directory is your local folder with the content of the downloaded Digitizer repository", style = "color:black"),
+               
+               # Create templates
+               h2("2. Create templates", style = "color:black"),
+               
+               p("Select image files for creating templates.", style = "color:black"),
+               
+               
+               # File to choose 
+               fileInput("image",  label = h3("Choose image")),
+               
+               # Add number to the filename of the created template file
+               fluidRow(column(3, numericInput("imgIndex", label = h3("Add number to the filename of the created template file"),value = 1),
                                # SAVE the croped images with the given index
-                               downloadButton('downloadImage', 'Save the cropped image'))),
-               # Template matching
-               fluidRow(column(3,numericInput("threshold_for_TM", label="Threshold (for template matching)", value = 0.2))),
+                               downloadButton('downloadImage', 'Save template'))),
                
-               # Select index of the croped image
-               fluidRow(column(3, actionButton("templateMatching",  label = h3("Start the template matching")))),
+               p(strong("Save map templates in /templates/maps/ and legend symbol templates in /templates/pixels/", style = "color:black")),
                
-               # Select index of the croped image
-               #fluidRow(column(3, actionButton("startPixelClassification",  label = h3("Start the pixel classification")))),
-               # Template matching
-               fluidRow(column(3,numericInput("threshold_for_PM", label="Threshold (for pixel matching)", value = 0.87))),
+               p("The templates saved in /templates/maps will be matched to the content of the files in your input directory for extracting maps.", style = "color:black"),
+
+               p("The templates saved in /templates/pixels will be matched to the content of the files in your output directory with extracted maps (/output/pixeltemp/).", style = "color:black"),
                
-             
-               fluidRow(column(3, actionButton("pixelMatching",  label = h3("Start the pixel matching")))),
                
-               fluidRow(column(3,numericInput("filterK", label="Enter the value of Kernel filter", value = 5))),#, width = NULL, placeholder = NULL)
+               # Map detection
+               h2("3. Detect maps", style = "color:black"),
+        
+               fluidRow(column(3,numericInput("threshold_for_TM", label="Threshold (for map detection with template matching)", value = 0.2))),
                
-               fluidRow(column(3,numericInput("filterG", label="Enter the value of Guassian filter)", value = 9))),#, width = NULL, placeholder = NULL)
+               p("High threshold values will lead to few detections, low values to many detections.", style = "color:black"),
                
-               fluidRow(column(3, actionButton("pixelClassification",  label = h3("Start the pixel classification")))),
+               # Start map detection
+               fluidRow(column(3, actionButton("templateMatching",  label = h3("Start map detection")))),
                
-               fluidRow(column(3, actionButton("georeferencing",  label = h3("Start the Georeferencing")))),
+               p("You can find the extracted maps in your output directory (/output/)", style = "color:black"),
+               
+               
+               h2("4. Classify points on maps", style = "color:black"),
+               
+               p("Two methods are available: template matching and filtering.", style = "color:black"),
+               
+               p("Template matching used the same approach as for clipping maps from images. Here, the templates are symbols extracted from legend elents, which should be safed in /templates/pixels/", style = "color:black"),
+               
+               p("Two methods are available: template matching and filtering.", style = "color:black"),
+               
+               
+               h4("4.1 Using template matching", style = "color:black"),
+               
+               
+               # Threshold for pixel matching
+               fluidRow(column(3,numericInput("threshold_for_PM", label="Threshold (for symbol detection with template matching)", value = 0.87))),
+               
+               fluidRow(column(3, actionButton("pixelMatching",  label = h3("Start template matching")))),
+               
+               p("You can find the classified maps in your /output/pixeltemp folder ", style = "color:black"),
+               
+               h4("4.2 Using filtering", style = "color:black"),
+               
+               
+               fluidRow(column(3,numericInput("filterK", label="Enter value for Kernel filter", value = 5))),#, width = NULL, placeholder = NULL)
+               
+               p("You can only enter odd values.", style = "color:black"),
+               
+               p("Low values lead to xxx, high values lead to yyy", style = "color:black"),
+               
+               fluidRow(column(3,numericInput("filterG", label="Enter value for Guassian filter", value = 9))),#, width = NULL, placeholder = NULL)
+               
+               p("Low values lead to xxx, high values lead to yyy", style = "color:black"),
+               
+               fluidRow(column(3, actionButton("pixelClassification",  label = h3("Start pixel classification")))),
+               
+               p("You can find the classified maps in your /output/pixelc folder", style = "color:black"),
+               
+               
+               h2("5. Georeferencing", style = "color:black"),
+               
+               p("Magick is going to happen (or not).", style = "color:black"),
+               
+               
+               fluidRow(column(3, actionButton("georeferencing",  label = h3("Start georeferencing")))),
+               
+               
+               
                
                
                # Number Pages on the printed Site
