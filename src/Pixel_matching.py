@@ -42,6 +42,7 @@ def mainpixelmatching(workingDir, pixel_threshold):
   pixel_templates = workingDir+"/data/templates/pixels/"
   inputpcdir = workingDir + "/data/output/"
   outputpcdir = workingDir + "/data/output/pixeltemp/"
+  os.makedirs(outputpcdir, exist_ok=True)
   for tiffile in glob.glob(inputpcdir + '*.tif'):
     for file in glob.glob(pixel_templates + '*.tif'): 
         pixelmatch(tiffile, file, outputpcdir, pixel_threshold)
