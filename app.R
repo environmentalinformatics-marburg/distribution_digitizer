@@ -28,8 +28,6 @@ if(!require(reticulate)){
 }
 
 
-#py_install(packages = "opencv-python", pip = TRUE)
-#py_install(packages = "pillow", pip = FALSE)
 
 # Input variables
 options(shiny.host = '127.0.0.1')
@@ -118,6 +116,7 @@ shinyApp(
                
                h4("4.1 Using template matching", style = "color:black"),
                
+               p("Start with values between 0.2 and 0.4.", style = "color:black"),
                
                # Threshold for pixel matching
                fluidRow(column(3,numericInput("threshold_for_PM", label="Threshold (for symbol detection with template matching)", value = 0.87))),
@@ -131,15 +130,11 @@ shinyApp(
                
                fluidRow(column(3,numericInput("filterK", label="Enter value for Kernel filter", value = 5))),#, width = NULL, placeholder = NULL)
                
-               p("You can only enter odd values.", style = "color:black"),
-               
-               p("Low values lead to xxx, high values lead to yyy", style = "color:black"),
+               p("You can only enter odd values between 1 and 9. The value for the Gaussion filter should be higher than the value for the Kernel filter. The lower this value, the more points will be detected", style = "color:black"),
                
                fluidRow(column(3,numericInput("filterG", label="Enter value for Guassian filter", value = 9))),#, width = NULL, placeholder = NULL)
                
-               p("Low values lead to xxx, high values lead to yyy", style = "color:black"),
-               
-               fluidRow(column(3, actionButton("pixelClassification",  label = h3("Start pixel classification")))),
+               fluidRow(column(3, actionButton("pixelClassification",  label = h3("Start filtering")))),
                
                p("You can find the classified maps in your /output/pixelc folder", style = "color:black"),
                
@@ -147,6 +142,9 @@ shinyApp(
                h2("5. Georeferencing", style = "color:black"),
                
                p("Magick is going to happen (or not).", style = "color:black"),
+               
+               p("You need to have a file with GCP points in /templates/geopoints/ with the ending .points. The expected format is the default export of GCPs from QGIS containing the columns mapX, mapY, pixelX, and pixelY.", style = "color:black"),
+               
                
                
                fluidRow(column(3, actionButton("georeferencing",  label = h3("Start georeferencing")))),

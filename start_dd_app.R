@@ -2,9 +2,10 @@ library(reticulate) # Python binding for R. If the package is not installed, exe
 # install.packages("reticulate") # and hit Y when prompted for the miniconda installation
 use_python(Sys.which("python")) # Set the path to a local python installation.
 os <- import("os") # python module needed for managing files, folders and their paths
-py_install(packages = "opencv-python", pip = TRUE) # python module for computer vision
-py_install(packages = "pillow", pip = TRUE) # Python Imaging Library
-
+py_install(packages = "opencv-python", pip = TRUE)
+py_install(packages = "pillow", pip = FALSE)
+py_install(packages = "pandas", pip = FALSE)
+py_install(packages = "GDAL", pip = FALSE)
 
 # Set the path to app.R for being able to execute the shiny app (runApp('app.R'))
 # By default, this app.R lies at the root of this repository. 
