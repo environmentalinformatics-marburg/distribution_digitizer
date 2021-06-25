@@ -34,6 +34,7 @@ def edge(tiffile, outdir, n, m):
 def mainpixelclassification(workingDir,  n, m):
   inputdir = workingDir+"data/output/pixeltemp/"
   ouputdir = workingDir+"data/output/pixelc/"
+  os.makedirs(ouputdir, exist_ok=True)
   print(inputdir)
   print(ouputdir)
   for file in glob.glob(inputdir + '*.tif'):
