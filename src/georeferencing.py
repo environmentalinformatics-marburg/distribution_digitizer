@@ -20,7 +20,7 @@ def georeferencing(input_raster,output_raster,gcp_points):
   df = new_f.drop(columns=['enable','dX', 'dY', 'residual'])
   col=['mapX','mapY', 'pixelX','pixelY']
   modified_df = df[col]
-  modified_df['pixelY'] = modified_df['pixelY'] 
+  modified_df['pixelY'] = modified_df['pixelY']*(-1)
   gcp_list=[]
 # Create a copy of the original file and save it as the output filename:
   out_file= output_raster + 'modified' + os.path.basename(input_raster) 
