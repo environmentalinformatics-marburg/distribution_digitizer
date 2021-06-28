@@ -85,21 +85,23 @@ shinyApp(
                                # SAVE the croped images with the given index
                                downloadButton('downloadImage', 'Save template'))),
                
-               p(strong("Save map templates in /templates/maps/ and legend symbol templates in /templates/pixels/", style = "color:black")),
+               p(strong("Save map templates in /templates/maps and legend symbol templates in /templates/symbols", style = "color:black")),
                
                p("The templates saved in /templates/maps will be matched to the content of the files in your input directory for extracting maps.", style = "color:black"),
 
-               p("The templates saved in /templates/pixels will be matched to the content of the files in your output directory with extracted maps (/output/pixeltemp/).", style = "color:black"),
+               p("The templates saved in /templates/symbols will be matched to the content of the files in your output directory with extracted maps (/output/classification/matching).", style = "color:black"),
                
                
                # Map detection
+               
                h2("3. Detect maps", style = "color:black"),
         
                fluidRow(column(3,numericInput("threshold_for_TM", label="Threshold (for map detection with template matching)", value = 0.2))),
                
-               p("High threshold values will lead to few detections, low values to many detections.", style = "color:black"),
+               p("High threshold values will lead to few detections, low values to many detections. Start with the threshold value 0.4 and keep decreasing it until all the outputs are extracted. The minimum possible output value will be 0.2.", style = "color:black"),
                
                # Start map detection
+               
                fluidRow(column(3, actionButton("templateMatching",  label = h3("Start map detection")))),
                
                p("You can find the extracted maps in your output directory (/output/)", style = "color:black"),
@@ -109,21 +111,22 @@ shinyApp(
                
                p("Two methods are available: template matching and filtering.", style = "color:black"),
                
-               p("Template matching used the same approach as for clipping maps from images. Here, the templates are symbols extracted from legend elents, which should be safed in /templates/pixels/", style = "color:black"),
+               p("Template matching used the same approach as for clipping maps from images. Here, the templates are symbols extracted from legend elements, which should be saved in /templates/symbols/", style = "color:black"),
                
                p("Two methods are available: template matching and filtering.", style = "color:black"),
                
                
                h4("4.1 Using template matching", style = "color:black"),
                
-               p("Start with values between 0.2 and 0.4.", style = "color:black"),
+               p("Start with values between 0.8 and 0.9.", style = "color:black"),
                
                # Threshold for pixel matching
+               
                fluidRow(column(3,numericInput("threshold_for_PM", label="Threshold (for symbol detection with template matching)", value = 0.87))),
                
                fluidRow(column(3, actionButton("pixelMatching",  label = h3("Start template matching")))),
                
-               p("You can find the classified maps in your /output/pixeltemp folder ", style = "color:black"),
+               p("You can find the classified maps in your /output/classifcation/matching folder ", style = "color:black"),
                
                h4("4.2 Using filtering", style = "color:black"),
                
@@ -136,7 +139,7 @@ shinyApp(
                
                fluidRow(column(3, actionButton("pixelClassification",  label = h3("Start filtering")))),
                
-               p("You can find the classified maps in your /output/pixelc folder", style = "color:black"),
+               p("You can find the classified maps in your /output/classification/filtering folder", style = "color:black"),
                
                
                h2("5. Georeferencing", style = "color:black"),
