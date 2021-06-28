@@ -24,30 +24,31 @@ def georeferencing(input_raster,output_raster,gcp_points):
   gcp_list=[]
 # Create a copy of the original file and save it as the output filename:
   out_file= output_raster + 'modified' + os.path.basename(input_raster) 
-  shutil.copy(input_raster, out_file)
-# Open the output file for writing for writing:
-  ds = gdal.Open(out_file, gdalconst.GA_Update)
-# Set spatial reference:
-  sr = osr.SpatialReference()
-  #sr.ImportfromESCP() for using ESCP
-  sr.ImportFromProj4("+proj=aea +lat_1=15 +lat_2=65 +lat_0=30 +lon_0=95 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m no_defs") 
-# GCP coordinates list  
+  src_ds = gdal.Open(input_raster)
+  format = "GTiff"
+  driver = gdal.GetDriverByName(format)  
+  # Open destination dataset
+  dst_ds = driver.CreateCopy(out_file, src_ds, 0)
   for index, rows in modified_df.iterrows():
-   gcps = gdal.GCP(rows.mapX, rows.mapY, 1, rows.pixelX,rows.pixelY )
-   gcp_list.append(gcps)
-# Final Project
-  wkt = ds.GetProjection()
-  gcpcount = ds.GetGCPCount( )
-  ds.SetGCPs( gcp_list, wkt )
-
-#Clear the output file if it is opened anywhere else
-  ds=None
+     gcps = gdal.GCP(rows.mapX, rows.mapY, 1, rows.pixelX, rows.pixelY )
+     gcp_list.append(gcps)
+# Get raster projection
+  srs = osr.SpatialReference()
+  srs.ImportFromProj4("+proj=aea +lat_1=15 +lat_2=65 +lat_0=30 +lon_0=95 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m no_defs") 
+  dest_wkt = srs.ExportToWkt()
+# Set projection
+  dst_ds.SetProjection(dest_wkt)
+  dst_ds.SetGCPs(gcp_list, dest_wkt)
+  dst_ds = None
+  src_ds = None
   
 def maingeoreferencing(workingDir):
  output_raster= workingDir + "data/output/georeferencing/"
  os.makedirs(output_raster, exist_ok=True)
- inputdir = workingDir +"data/output/pixelc/"
+ inputdir = workingDir +"data/output/classification/filtering/"
  g_dir = workingDir + "data/templates/geopoints/"
- for gcp_points in glob.glob(g_dir + "*.tif.points"):
+ for gcp_points in glob.glob(g_dir + "*.points"):
     for input_raster in glob.glob(inputdir + "*.tif"):
+      print("Processing Georeferencing Module")
       georeferencing(input_raster, output_raster,gcp_points)
+      print("Successfully Executed Georeferencing Module")

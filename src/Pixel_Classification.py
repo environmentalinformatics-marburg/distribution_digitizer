@@ -32,10 +32,12 @@ def edge(tiffile, outdir, n, m):
  #   edge(tiffile,input_tif,n,m)
  
 def mainpixelclassification(workingDir,  n, m):
-  inputdir = workingDir+"data/output/pixeltemp/"
-  ouputdir = workingDir+"data/output/pixelc/"
+  inputdir = workingDir+"data/output/classification/matching/"
+  ouputdir = workingDir+"data/output/classification/filtering/"
   os.makedirs(ouputdir, exist_ok=True)
   print(inputdir)
   print(ouputdir)
   for file in glob.glob(inputdir + '*.tif'):
+        print("Processing Filtering Module")
         edge(file, ouputdir, n, m)
+        print("Successfully Executed Filtering Module")
