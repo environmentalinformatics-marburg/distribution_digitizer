@@ -39,7 +39,6 @@ def pixelmatch(tiffile, file, outputpcdir, pixel_threshold):
   PIL.Image.fromarray(img, 'RGB').save(os.path.join(outputpcdir, os.path.basename(tiffile)))
 
 def mainpixelmatching(workingDir, pixel_threshold):
-  print("Processing Legends Matching Module")
   pixel_templates = workingDir+"/data/templates/symbols/"
   inputpcdir = workingDir + "/data/output/"
   outputpcdir = workingDir + "/data/output/classification/matching/"
@@ -47,4 +46,3 @@ def mainpixelmatching(workingDir, pixel_threshold):
   for tiffile in glob.glob(inputpcdir + '*.tif'):
     for file in glob.glob(pixel_templates + '*.tif'): 
         pixelmatch(tiffile, file, outputpcdir, pixel_threshold)
-        print("Successfully Executed Legends Matching Module")

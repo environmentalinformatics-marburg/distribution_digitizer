@@ -233,6 +233,7 @@ server = function(input, output, session) {
       source_python(fname)
       print(input$threshold_for_TM)
       mainTemplateMatching(input$working_dir, input$threshold_for_TM)
+      cat("\nSuccessfully executed")
     })
   
   # Georeferencing start
@@ -242,6 +243,7 @@ server = function(input, output, session) {
     fname=paste0(input$working_dir, "/", "src/georeferencing.py")
     source_python(fname)
     maingeoreferencing(input$working_dir)
+    cat("\nSuccessfully executed")
   })
   
     # Template matching start
@@ -251,6 +253,7 @@ server = function(input, output, session) {
       fname=paste0(input$working_dir, "/", "src/Pixel_Classification.py")
       source_python(fname)
       mainpixelclassification(input$working_dir, input$filterK, input$filterG)
+      cat("\nSuccessfully executed")
     })
     
     # Pixel matching start
@@ -260,6 +263,7 @@ server = function(input, output, session) {
       fname=paste0(input$working_dir, "/", "src/Pixel_matching.py")
       source_python(fname)
       mainpixelmatching(input$working_dir, input$threshold_for_PM)
+      cat("\nSuccessfully executed")
     })
     
            

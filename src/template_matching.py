@@ -90,4 +90,4 @@ def mainTemplateMatching(workingDir, threshold):
     for file in glob.glob(templates + '*.tif'): 
         for tifffile in glob.glob(inputdir +'*.tif'):  
             matchtemplatetiff(tifffile, file, outdir , records, threshold)
-            print("Successfully Executed Template Matching")
+            

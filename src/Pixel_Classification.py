@@ -38,6 +38,4 @@ def mainpixelclassification(workingDir,  n, m):
   print(inputdir)
   print(ouputdir)
   for file in glob.glob(inputdir + '*.tif'):
-        print("Processing Filtering Module")
         edge(file, ouputdir, n, m)
-        print("Successfully Executed Filtering Module")

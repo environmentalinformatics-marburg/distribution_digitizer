@@ -49,6 +49,4 @@ def maingeoreferencing(workingDir):
  g_dir = workingDir + "data/templates/geopoints/"
  for gcp_points in glob.glob(g_dir + "*.points"):
     for input_raster in glob.glob(inputdir + "*.tif"):
-      print("Processing Georeferencing Module")
       georeferencing(input_raster, output_raster,gcp_points)
-      print("Successfully Executed Georeferencing Module")
