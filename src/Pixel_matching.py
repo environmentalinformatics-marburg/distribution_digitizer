@@ -10,6 +10,7 @@ from PIL import Image
 import os.path
 import glob
 import numpy as np 
+import shutil
 
 def pixelmatch(tiffile, file, outputpcdir, pixel_threshold):
   img = np.array(PIL.Image.open(tiffile))
@@ -36,13 +37,13 @@ def pixelmatch(tiffile, file, outputpcdir, pixel_threshold):
                  lspoint.append(k)
      else:
            continue   
-  PIL.Image.fromarray(img, 'RGB').save(os.path.join(outputpcdir, os.path.basename(tiffile)))
-
+  PIL.Image.fromarray(img, 'RGB').save(os.path.join(outputpcdir , os.path.basename(tiffile)))
+  #cv2.imwrite(outputpcdir + os.path.basename(tiffile).rsplit('.', 1)[0] + '.tif',img)
+  
 def mainpixelmatching(workingDir, pixel_threshold):
-  pixel_templates = workingDir+"/data/templates/symbols/"
-  inputpcdir = workingDir + "/data/output/"
   outputpcdir = workingDir + "/data/output/classification/matching/"
-  os.makedirs(outputpcdir, exist_ok=True)
-  for tiffile in glob.glob(inputpcdir + '*.tif'):
+  pixel_templates = workingDir+"/data/templates/symbols/"
+  #inputpcdir = workingDir + "/data/output/"
+  for tiffile in glob.glob(outputpcdir + '*.tif'):
     for file in glob.glob(pixel_templates + '*.tif'): 
         pixelmatch(tiffile, file, outputpcdir, pixel_threshold)

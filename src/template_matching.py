@@ -13,7 +13,7 @@ start_time = time.time()
 fields = ['Filename','w', 'h', 'x2', 'y2', 'size','threshold','time']   
 
 #Function
-def matchtemplatetiff(tifffile, file, outdir, records, threshold):
+def matchtemplatetiff(tifffile, file, outdir, outputpcdir, records, threshold):
     print(tifffile)
     print(file)
     img =np.array(PIL.Image.open(tifffile))
@@ -45,6 +45,7 @@ def matchtemplatetiff(tifffile, file, outdir, records, threshold):
             rows = [[tifffile, w, h , pt[1] + w, pt[0] + h, size, threshold, (time.time() - start_time)]]   
             print(outdir)        
             cv2.imwrite(outdir + os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
+            cv2.imwrite(outputpcdir + os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
             #cv2.imwrite(tifffile + file.rsplit('.', 1)[0] + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
             # name of csv file   
             filename = records
@@ -82,12 +83,13 @@ def matchtemplatetiff(tifffile, file, outdir, records, threshold):
 #print("Entered threshold value",threshold) 
 
 def mainTemplateMatching(workingDir, threshold):
-    print("Processing Template Matching")
+    outputpcdir = workingDir + "/data/output/classification/matching/"
+    os.makedirs(outputpcdir, exist_ok=True)
     templates = workingDir+"/data/templates/maps/"
     inputdir = workingDir + "/data/input/"
     outdir = workingDir + "/data/output/"
     records = workingDir + "/data/output/records.csv"
     for file in glob.glob(templates + '*.tif'): 
         for tifffile in glob.glob(inputdir +'*.tif'):  
-            matchtemplatetiff(tifffile, file, outdir , records, threshold)
+            matchtemplatetiff(tifffile, file, outdir, outputpcdir, records, threshold)
             
