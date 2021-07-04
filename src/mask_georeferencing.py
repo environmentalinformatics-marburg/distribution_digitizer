@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Jun 21 11:01:17 2021
-
-@author: venkates
-"""
 from osgeo import gdal, gdalconst
 import string
 from functools import reduce
@@ -13,7 +7,7 @@ import pandas as pd
 import os,glob
 
 # Working with the Input GCP points from the csv file and then rearranging them according to the function
-def georeferencing(input_raster,output_raster,gcp_points):
+def maskgeoreferencing(input_raster,output_raster,gcp_points):
   f=pd.read_csv(gcp_points)
   keep_col = ['mapX','mapY','pixelX', 'pixelY', 'enable', 'dX','dY', 'residual']
   new_f = f[keep_col]
@@ -27,11 +21,11 @@ def georeferencing(input_raster,output_raster,gcp_points):
   src_ds = gdal.Open(input_raster)
   format = "GTiff"
   driver = gdal.GetDriverByName(format)  
-  # Open destination dataset
+# Open destination dataset
   dst_ds = driver.CreateCopy(out_file, src_ds, 0)
   for index, rows in modified_df.iterrows():
-     gcps = gdal.GCP(rows.mapX, rows.mapY, 1, rows.pixelX, rows.pixelY )
-     gcp_list.append(gcps)
+   gcps = gdal.GCP(rows.mapX, rows.mapY, 1, rows.pixelX, rows.pixelY )
+   gcp_list.append(gcps)
 # Get raster projection
   srs = osr.SpatialReference()
   srs.ImportFromProj4("+proj=aea +lat_1=15 +lat_2=65 +lat_0=30 +lon_0=95 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m no_defs") 
@@ -41,12 +35,12 @@ def georeferencing(input_raster,output_raster,gcp_points):
   dst_ds.SetGCPs(gcp_list, dest_wkt)
   dst_ds = None
   src_ds = None
-  
-def maingeoreferencing(workingDir):
- output_raster= workingDir + "data/output/georeferencing/"
- os.makedirs(output_raster, exist_ok=True)
- inputdir = workingDir +"data/output/classification/filtering/"
- g_dir = workingDir + "data/templates/geopoints/"
- for gcp_points in glob.glob(g_dir + "*.points"):
+
+def mainmaskgeoreferencing(workingDir):
+  output_raster= workingDir + "data/output/mask/georeferenced_masks/"
+  os.makedirs(output_raster, exist_ok=True) 
+  inputdir = workingDir +"data/output/mask/non_georeferenced_masks/"
+  g_dir = workingDir + "data/templates/geopoints/"
+  for gcp_points in glob.glob(g_dir + "*.points"):
     for input_raster in glob.glob(inputdir + "*.tif"):
-      georeferencing(input_raster, output_raster,gcp_points)
+       maskgeoreferencing(input_raster, output_raster,gcp_points)

@@ -146,15 +146,34 @@ shinyApp(
                
                p("Magick is going to happen (or not).", style = "color:black"),
                
-               p("You need to have a file with GCP points in /templates/geopoints/ with the ending .points. The expected format is the default export of GCPs from QGIS containing the columns mapX, mapY, pixelX, and pixelY.", style = "color:black"),
+               p("You need to have a file with GCP points in /templates/geopoints/ with the ending .points. The expected format is the default export of GCPs from QGIS containing the columns mapX, mapY, pixelX, and pixelY. You can find the output at the data/output/georeferencing/ folder. ", style = "color:black"),
                
                
                
                fluidRow(column(3, actionButton("georeferencing",  label = h3("Start georeferencing")))),
                
+               h2("6. Postprocessing", style = "color:black"),
+               
+               h4("6.1. Creating Masks for Postprocessing ", style = "color:black"),
+               
+               fluidRow(column(3,numericInput("filterm", label="Enter value for Kernel filter", value = 5))),#, width = NULL, placeholder = NULL)
+               
+               fluidRow(column(3, actionButton("geomasks",  label = h3("Create masks")))),
+               
+               p("Again, You can only enter odd values between 1 and 9. The lower this value, the more points will be detected.", style = "color:black"),
+               
+               p("You can find the classified maps in your /output/mask/non_georeferenced_masks/ folder.", style = "color:black"),
                
                
+               h4("6.2. Mask Georeferencing", style = "color:black"),
                
+               p("This georeferences the mask files.You can find the georeferenced maps in your /output/mask/georeferenced_masks/ folder.", style = "color:black"),
+               
+               p("You can use the same GCP points from the georeferencing step.", style = "color:black"),
+               
+               
+               fluidRow(column(3, actionButton("maskgeoreferencing",  label = h3("Georeference the masks")))),
+              
                
                # Number Pages on the printed Site
                #fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
@@ -245,7 +264,26 @@ server = function(input, output, session) {
     maingeoreferencing(input$working_dir)
     cat("\nSuccessfully executed")
   })
+  # masking start
+  observeEvent(input$geomasks, {
+    #Processing template matching
+    library(reticulate)
+    fname=paste0(input$working_dir, "/", "src/creating_masks.py")
+    source_python(fname)
+    maingeomask(input$working_dir, input$filterm)
+    cat("\nSuccessfully executed")
+  })
   
+  
+  # mask_Georeferencing start
+  observeEvent(input$maskgeoreferencing, {
+    #Processing template matching
+    library(reticulate)
+    fname=paste0(input$working_dir, "/", "src/mask_georeferencing.py")
+    source_python(fname)
+    mainmaskgeoreferencing(input$working_dir)
+    cat("\nSuccessfully executed")
+  })
     # Template matching start
     observeEvent(input$pixelClassification, {
       #Processing template matching
