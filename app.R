@@ -160,7 +160,7 @@ shinyApp(
                
                fluidRow(column(3, actionButton("geomasks",  label = h3("Create masks")))),
                
-               p("Again, You can only enter odd values between 1 and 9. The lower this value, the more points will be detected.", style = "color:black"),
+               p("Again, You can only enter odd values between 1 and 9. The lower this value, the more points will be detected. HINT : You can use the same kernel value from the step 4.2.", style = "color:black"),
                
                p("You can find the classified maps in your /output/mask/non_georeferenced_masks/ folder.", style = "color:black"),
                
