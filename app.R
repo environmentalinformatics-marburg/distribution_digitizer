@@ -146,11 +146,13 @@ shinyApp(
                
                p("Magick is going to happen (or not).", style = "color:black"),
                
-               p("You need to have a file with GCP points in /templates/geopoints/ with the ending .points. The expected format is the default export of GCPs from QGIS containing the columns mapX, mapY, pixelX, and pixelY. You can find the output at the data/output/georeferencing/ folder. ", style = "color:black"),
+               p("You need to have a file with GCP points in /templates/geopoints/ with the ending .points. The expected format is the default export of GCPs from QGIS containing the columns mapX, mapY, pixelX, and pixelY. This should be the first line the .points file. In case if you have any other information, you can manually remove it for now.You can find the output at the data/output/georeferencing/ folder. ", style = "color:black"),
                
                
                
-               fluidRow(column(3, actionButton("georeferencing",  label = h3("Start georeferencing")))),
+               fluidRow(column(3, actionButton("georeferencing",  label = h3("Start georeferencing")))), 
+               
+        
                
                h2("6. Postprocessing", style = "color:black"),
                
@@ -158,9 +160,9 @@ shinyApp(
                
                fluidRow(column(3,numericInput("filterm", label="Enter value for Kernel filter", value = 5))),#, width = NULL, placeholder = NULL)
                
-               fluidRow(column(3, actionButton("geomasks",  label = h3("Create masks")))),
+               p(" You can use the same value of Kernel Filter from 4.2 and look at the masks. Here, the image will be filtered only with Kernel filter and hence, the value might vary. This is also the input for 6.3.", style = "color:black"),
                
-               p("Again, You can only enter odd values between 1 and 9. The lower this value, the more points will be detected. HINT : You can use the same kernel value from the step 4.2.", style = "color:black"),
+               fluidRow(column(3, actionButton("geomasks",  label = h3("Create masks")))),
                
                p("You can find the classified maps in your /output/mask/non_georeferenced_masks/ folder.", style = "color:black"),
                
@@ -173,7 +175,14 @@ shinyApp(
                
                
                fluidRow(column(3, actionButton("maskgeoreferencing",  label = h3("Georeference the masks")))),
-              
+               
+               h4("6.3. Centroid Extraction", style = "color:black"),
+               
+               
+               p("Extracting the centroid of blue contours.", style = "color:black"),
+               
+               fluidRow(column(3, actionButton("pointextract",  label = h3("Extract the points")))),
+               
                
                # Number Pages on the printed Site
                #fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
@@ -263,6 +272,20 @@ server = function(input, output, session) {
     source_python(fname)
     maingeoreferencing(input$working_dir)
     cat("\nSuccessfully executed")
+  
+
+  })
+  
+  # GCP points extraction
+  observeEvent(input$pointextract, {
+    #Processing template matching
+    library(reticulate)
+    fname=paste0(input$working_dir, "/", "src/geo_points_extraction.py")
+    source_python(fname)
+    maingeopointextract(input$working_dir,input$filterm)
+    cat("\nSuccessfully executed")
+    
+    
   })
   # masking start
   observeEvent(input$geomasks, {

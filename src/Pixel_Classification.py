@@ -9,8 +9,6 @@ import numpy as np
 #Edge and Contour Detection
 def edge(tiffile, outdir, n, m):
   # Load image, grayscale, Otsu's threshold
-  print(tiffile)
-  
   ig = np.array(PIL.Image.open(tiffile))
   gray = cv2.cvtColor(ig, cv2.COLOR_BGR2GRAY)
   gray = cv2.GaussianBlur(gray,(m,m),0)

@@ -8,11 +8,10 @@ from PIL import Image
 
 def geomask(file, outputdir, n):
 #create black and white masks 
-  print("here")
   image = np.array(PIL.Image.open(file))
   gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
   ret, thresh = cv2.threshold(gray,120,255,cv2.THRESH_TOZERO_INV)
-  kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
+  kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n,n))
   opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=3)
   (thr, blackAndWhiteImage) = cv2.threshold(opening, 0, 255, cv2.THRESH_BINARY)
   orig_fn ='/content/drive/MyDrive/Output/new_mask1.tif'
@@ -24,5 +23,4 @@ def maingeomask(workingDir, n):
   outputdir = workingDir+"data/output/mask/non_georeferenced_masks/"
   os.makedirs(outputdir, exist_ok=True)
   for file in glob.glob(inputdir + '*.tif'):
-        print("hi")
         geomask(file, outputdir, n)
