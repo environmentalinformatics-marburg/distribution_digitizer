@@ -47,6 +47,6 @@ def maingeoreferencing(workingDir):
  os.makedirs(output_raster, exist_ok=True)
  inputdir = workingDir +"data/output/classification/filtering/"
  g_dir = workingDir + "data/templates/geopoints/"
- for gcp_points in glob.glob(g_dir + "*.points"):
-    for input_raster in glob.glob(inputdir + "*.tif"):
+ for input_raster in glob.glob(inputdir + "*.tif"):
+    for gcp_points in glob.glob(g_dir + "*.points"):
       georeferencing(input_raster, output_raster,gcp_points)

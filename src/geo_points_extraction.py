@@ -6,10 +6,12 @@ import csv
 import os
 import glob
 
-def geopointextract(tiffile, outputcsv, n):
+def geopointextract(tiffile, geofile,  outputcsv, n):
   fields =[ "Filename", 'Centroid X', 'Centroid Y']
   filename = outputcsv
   img = gdal.Open(tiffile)
+  geoimg = gdal.Open(geofile)
+  gt = geoimg.GetGeoTransform()
   img=np.array(img.GetRasterBand(1).ReadAsArray())
   ret, thresh = cv2.threshold(img,120,255,cv2.THRESH_TOZERO_INV)
   kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(n,n))
@@ -26,12 +28,18 @@ def geopointextract(tiffile, outputcsv, n):
   # calculate x,y coordinate of center
      cX = int(M["m10"] / M["m00"])
      cY = int(M["m01"] / M["m00"])
-     rows = [[tiffile, cX, cY]]  
+     x_pixel = cX
+     y_line = cY
+     x_geo = gt[0] + x_pixel * gt[1] + y_line * gt[2]
+     y_geo = gt[3] + x_pixel * gt[4] + y_line * gt[5]
+     rows = [[tiffile, x_geo, y_geo]] 
 # writing the data rows   
      csvwriter.writerows(rows)
      
 def maingeopointextract(workingDir,n):
   inputdir = workingDir + "/data/output/georeferencing/"
   outputcsv = workingDir + "/data/output/mask/georecords.csv"
-  for tiffile in glob.glob(inputdir +'*.tif'):  
-     geopointextract(tiffile, outputcsv,n)
+  geofiledir = workingDir + "data/templates/geopoints/"
+  for tiffile in glob.glob(inputdir +'*.tif'): 
+   for geofile in glob.glob(geofiledir + '*.tif'):
+        geopointextract(tiffile, geofile, outputcsv, n)
