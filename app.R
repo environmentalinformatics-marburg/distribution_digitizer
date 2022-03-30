@@ -67,7 +67,7 @@ shinyApp(
                p("Enter the path to your working directory.", style = "color:black"),
                
                fluidRow(column(3,textInput("working_dir", label="Path:", 
-                                           value = "D:/distribution_digitizer_students/"))),#, width = NULL, placeholder = NULL)
+                                           value = ""))),#, width = NULL, placeholder = NULL)
                
                p("Your working directory is your local folder with the content of the downloaded Digitizer repository", style = "color:black"),
                
@@ -377,7 +377,7 @@ server = function(input, output, session) {
     # Function to save the croped image
     output$downloadImage <- downloadHandler(
       filename = function() {
-        paste('map', '_',input$imgIndex,'.tif', sep='')
+        paste(input$working_dir, '/map', '_',input$imgIndex,'.tif', sep='')
       },
       content = function(file) {
         
