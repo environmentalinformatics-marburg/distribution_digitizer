@@ -54,7 +54,7 @@ shinyApp(
     ),
     
     # App title ----
-    titlePanel("Distribution Digitizer"),
+    titlePanel("Distributionv Digitizer"),
     # define a row with columns. 
     fluidRow(
       column(4,
