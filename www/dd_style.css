@@ -8,12 +8,11 @@ body {
 /* Change header text to imported font */
 h2 {
   font-family: 'Yusei Magic', sans-serif;
+  font-size: 1.35em;
 }
-label{
-  margin:0px;
-}
-h3{
-  margin:0px;
+
+.row .col-sm-3 {
+    width: 99%;
 }
 .col-sm-4 {
     width: 29%;
@@ -54,7 +53,7 @@ h3{
 
 }
 .col-sm-3 {
-    width: 59%;
+    width: 90%;
     display: block;
 }
 .h3, h3 {

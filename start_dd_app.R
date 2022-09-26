@@ -13,7 +13,7 @@ os <- import("os") # python module needed for managing files, folders and their 
 # In RStudio, this path can be set automatically with
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # or manually with a path of your choice:
-#setwd("D:/distribution_digitizer_students-main/") # uncomment this line for setting the working directory manually.
+setwd("D:/distribution_digitizer_students/") # uncomment this line for setting the working directory manually.
 
 getwd() # print the path to the working directory for copying into the Digitizer application (Field: "Working Directory").
 
