@@ -26,7 +26,7 @@ if(!require(reticulate)){
   install.packages("reticulate",dependencies = T)
   library(reticulate)
 }
-
+library(shinyalert)
 
 # Input variables
 options(shiny.host = '127.0.0.1')
@@ -46,6 +46,8 @@ if (file.exists('lastwd.csv')){
 workingDir <- getwd()
 print("dir")
 print(workingDir)
+
+test = 0
 
 # The app body
 shinyApp(
@@ -290,7 +292,13 @@ shinyApp(
       print(input$threshold_for_TM)
       mainTemplateMatching(workingDir, input$threshold_for_TM)
       cat("\nSuccessfully executed")
+      shinyalert(html = TRUE, text = tagList(
+        textInput("Files", "nimber", "yyy"),
+        numericInput("threshold=", "xxx", 2),
+      ))
     })
+    
+   
     
     # Georeferencing start
     observeEvent(input$georeferencing, {
@@ -300,8 +308,6 @@ shinyApp(
       source_python(fname)
       maingeoreferencing(workingDir)
       cat("\nSuccessfully executed")
-      
-      
     })
     
     # GCP points extraction

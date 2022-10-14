@@ -44,8 +44,8 @@ def matchtemplatetiff(tifffile, file, outdir, outputpcdir, records, threshold):
             rows = 0
             rows = [[tifffile, w, h , pt[1] + w, pt[0] + h, size, threshold, (time.time() - start_time)]]   
             print(outdir)        
-            cv2.imwrite(outdir + os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
-            cv2.imwrite(outputpcdir + os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
+            cv2.imwrite(outdir + str(threshold) + '_' +os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
+            cv2.imwrite(outputpcdir + str(threshold) + '_' + os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
             #cv2.imwrite(tifffile + file.rsplit('.', 1)[0] + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
             # name of csv file   
             filename = records
