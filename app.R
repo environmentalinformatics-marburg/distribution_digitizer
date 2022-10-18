@@ -292,13 +292,14 @@ shinyApp(
       print(input$threshold_for_TM)
       mainTemplateMatching(workingDir, input$threshold_for_TM)
       cat("\nSuccessfully executed")
-      shinyalert(html = TRUE, text = tagList(
-        textInput("Files", "nimber", "yyy"),
-        numericInput("threshold=", "xxx", 2),
-      ))
+      findTemplateResult = paste0(workingDir, "/data/output/")
+      patternSum = paste0(input$threshold_for_TM,"_")
+      files<- list.files(findTemplateResult, pattern=patternSum, full.names = TRUE, recursive = FALSE)
+      countFiles = paste0(length(files),"")
+      print(countFiles)
+      message=paste0("The number extracted outputs with threshold=",input$threshold_for_TM , " are ", countFiles ,"! High threshold values lead to few detections, low values to many detections.")
+      shinyalert(message, inputType = "text")
     })
-    
-   
     
     # Georeferencing start
     observeEvent(input$georeferencing, {
