@@ -31,43 +31,45 @@ def matchtemplatetiff(tifffile, file, outdir, outputpcdir, records, threshold):
     font = cv2.FONT_HERSHEY_SIMPLEX
     n=0
     m=0
-
     for pt in zip(*loc[::-1]):
-        # check that the coords are not already in the list, if they are then skip the match
-        if pt[0] not in lspoint and pt[1] not in lspoint2:
-            # draw a yellow boundary around a match
-            #rect = cv2.rectangle(img, pt, (pt[0] + h, pt[1] + w), (0, 0, 0), 3)
-            size = w * h * (2.54/400 ) *( 2.54/400 )
-            #cv2.putText(rect, "{:.1f}cm^2".format(size), (pt[0] + h, pt[1] + w), font, 4,0, 0, 255), 3)
-            #cv2.imwrite('rect.png',rect)
-            # data rows of csv file   
-            rows = 0
-            rows = [[tifffile, w, h , pt[1] + w, pt[0] + h, size, threshold, (time.time() - start_time)]]   
-            print(outdir)        
-            cv2.imwrite(outdir + str(threshold) + '_' +os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
-            cv2.imwrite(outputpcdir + str(threshold) + '_' + os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
-            #cv2.imwrite(tifffile + file.rsplit('.', 1)[0] + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
-            # name of csv file   
-            filename = records
-            # writing to csv file   
-            with open(filename, 'a', newline='') as csvfile:   
-           # creating a csv writer object   
-               csvwriter = csv.writer(csvfile)   
-          # writing the fields   
-               csvwriter.writerow(fields)   
-          # writing the data rows   
-               csvwriter.writerows(rows)
-            for i in range(((pt[0])-9), ((pt[0])+9), 1):
-			## append the x cooord
-                lspoint.append(i)
-            for k in range(((pt[1])-9), ((pt[1])+9), 1):
-			## append the y coord
-                lspoint.append(k)
-            count+=1
-            n=n+1
-        else:
-            m=m+1
-            continue
+          # check that the coords are not already in the list, if they are then skip the match
+          if pt[0] not in lspoint and pt[1] not in lspoint2:
+              # draw a yellow boundary around a match
+              #rect = cv2.rectangle(img, pt, (pt[0] + h, pt[1] + w), (0, 0, 0), 3)
+              size = w * h * (2.54/400 ) *( 2.54/400 )
+              #cv2.putText(rect, "{:.1f}cm^2".format(size), (pt[0] + h, pt[1] + w), font, 4,0, 0, 255), 3)
+              #cv2.imwrite('rect.png',rect)
+              # data rows of csv file   
+              rows = 0
+              rows = [[tifffile, w, h , pt[1] + w, pt[0] + h, size, threshold, (time.time() - start_time)]]   
+              print(outdir) 
+              threshold_last=str(threshold).split(".")
+              print(threshold_last[1])
+              cv2.imwrite(outdir + str(threshold_last[1]) + '_' +os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
+              cv2.imwrite(outputpcdir + str(threshold_last[1]) + '_' + os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(file).rsplit('.', 1)[0] + '_' + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
+              #cv2.imwrite(tifffile + file.rsplit('.', 1)[0] + str(n)+ '.tif', imgc[ pt[1]:(pt[1] + w), pt[0]:(pt[0] + h),:])
+              # name of csv file   
+              filename = records
+              # writing to csv file   
+              with open(filename, 'a', newline='') as csvfile:   
+             # creating a csv writer object   
+                 csvwriter = csv.writer(csvfile)   
+            # writing the fields   
+                 csvwriter.writerow(fields)   
+            # writing the data rows   
+                 csvwriter.writerows(rows)
+              for i in range(((pt[0])-9), ((pt[0])+9), 1):
+  			## append the x cooord
+                  lspoint.append(i)
+              for k in range(((pt[1])-9), ((pt[1])+9), 1):
+  			## append the y coord
+                  lspoint.append(k)
+              count+=1
+              n=n+1
+          else:
+              m=m+1
+              continue
+      
     print(file)
     print(tifffile)
     print("--- %s seconds ---" % (time.time() - start_time))
@@ -89,7 +91,14 @@ def mainTemplateMatching(workingDir, threshold):
     inputdir = workingDir + "/data/input/"
     outdir = workingDir + "/data/output/"
     records = workingDir + "/data/output/records.csv"
+    print("g)")
     for file in glob.glob(templates + '*.tif'): 
-        for tifffile in glob.glob(inputdir +'*.tif'):  
+        for tifffile in glob.glob(inputdir +'*.tif'): 
             matchtemplatetiff(tifffile, file, outdir, outputpcdir, records, threshold)
-            
+  
+  
+  
+#workingDir = "D:/distribution_digitizer/"
+#mainTemplateMatching(workingDir, 0.99)
+
+

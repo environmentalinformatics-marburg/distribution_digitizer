@@ -11,13 +11,14 @@ path_dir <- ("D:/distribution_digitizer_students")
 setwd(path_dir)
 
 # set file names and path names
-outdir = "D:/distribution_digitizer_students/data/output/"
-records = "D:/distribution_digitizer_students/data/output/r.csv"
-input = "D:/distribution_digitizer_students/data/input/"
-templates = "D:/distribution_digitizer_students/data/templates/map/"
+outdir = "D:/distribution_digitizer/data/output/"
+records = "D:/distribution_digitizer/data/output/r.csv"
+input = "D:/distribution_digitizer/data/input/"
+templates = "D:/distribution_digitizer/data/templates/map/"
 
 #
-source_python("D:/distribution_digitizer_students/src/template_matching.py")
+source_python("D:/distribution_digitizer/src/template_matching.py")
 
-mainTemplateMatching(templates, input, outdir , records, 0.2)
+workingDir = "D:/distribution_digitizer/"
+mainTemplateMatching(workingDir, 0.2)
 
