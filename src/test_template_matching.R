@@ -7,7 +7,7 @@ py_install(packages = "pillow", pip = FALSE)
 
 
 
-path_dir <- ("D:/distribution_digitizer_students")
+path_dir <- ("D:/distribution_digitizer/")
 setwd(path_dir)
 
 # set file names and path names
@@ -20,5 +20,5 @@ templates = "D:/distribution_digitizer/data/templates/map/"
 source_python("D:/distribution_digitizer/src/template_matching.py")
 
 workingDir = "D:/distribution_digitizer/"
-mainTemplateMatching(workingDir, 0.2)
-
+mainTemplateMatching(workingDir, 0.23)# = 49
+mainTemplateMatching(workingDir, 0.3)

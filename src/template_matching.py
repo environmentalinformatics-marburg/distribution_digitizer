@@ -20,20 +20,25 @@ def matchtemplatetiff(tifffile, file, outdir, outputpcdir, records, threshold):
     tmp= np.array(PIL.Image.open(file))
     imgc=img.copy()
     w, h, c = tmp.shape
+    
     #Template Matching Function
     res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
+    
     # Adjust this threshold value to suit you, you may need some trial runs (critical!)
     loc = np.where(res >= threshold)
-    # create empty lists to append the coord of the
-    lspoint = []
-    lspoint2 =[]
+    
+    # Important!
+    # define an empty list in which a range from coordinates is stored. The width/hight of the map is dynamically defined as max
+    lspointX = []
+    lspointY =[]
+    
     count = 0
     font = cv2.FONT_HERSHEY_SIMPLEX
     n=0
     m=0
     for pt in zip(*loc[::-1]):
           # check that the coords are not already in the list, if they are then skip the match
-          if pt[0] not in lspoint and pt[1] not in lspoint2:
+          if pt[0] not in lspointX and pt[1] not in lspointY:
               # draw a yellow boundary around a match
               #rect = cv2.rectangle(img, pt, (pt[0] + h, pt[1] + w), (0, 0, 0), 3)
               size = w * h * (2.54/400 ) *( 2.54/400 )
@@ -52,18 +57,18 @@ def matchtemplatetiff(tifffile, file, outdir, outputpcdir, records, threshold):
               filename = records
               # writing to csv file   
               with open(filename, 'a', newline='') as csvfile:   
-             # creating a csv writer object   
+                 # creating a csv writer object   
                  csvwriter = csv.writer(csvfile)   
-            # writing the fields   
+                 # writing the fields   
                  csvwriter.writerow(fields)   
-            # writing the data rows   
+                 # writing the data rows   
                  csvwriter.writerows(rows)
-              for i in range(((pt[0])-9), ((pt[0])+9), 1):
-  			## append the x cooord
-                  lspoint.append(i)
-              for k in range(((pt[1])-9), ((pt[1])+9), 1):
-  			## append the y coord
-                  lspoint.append(k)
+              for i in range((pt[0]), ((pt[0])+h), 1):
+  		          	## append the y possible cooords in range high
+                  lspointY.append(i)
+              for k in range((pt[1]), ((pt[1])+w), 1):
+  			          ## append the x possible coords in range width
+                  lspointX.append(k)
               count+=1
               n=n+1
           else:
