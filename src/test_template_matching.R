@@ -28,6 +28,6 @@ source("D:/distribution_digitizer/src/read_species.R")
 mainTemplateMatching(workingDir,  0.2 )
 
 # use the function read_species from the scriptread_species.R
-readSpecies(pagerecords)
+readSpecies(workingDir)
 
 
