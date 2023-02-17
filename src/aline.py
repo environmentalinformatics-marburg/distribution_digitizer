@@ -9,7 +9,7 @@ from PIL import Image
 
 def align_images(image, template, outputdir,maxFeatures=500, keepPercent=0.2,
 	debug=False):
-	# convert both the input image and template to grayscale
+	# convert o both the input image and template to grayscale
 	image1 = np.array(PIL.Image.open(image))
 	template1 = np.array(PIL.Image.open(template))
 	imageGray = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
