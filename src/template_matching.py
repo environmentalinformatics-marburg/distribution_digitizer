@@ -58,7 +58,7 @@ def matchtemplatetiff(tifffile, templateMapfile, outdir, outputpcdir, recordsPat
               # print(threshold_last[1])
               
               imgMapPath = str(threshold_last[1]) + '_' +os.path.basename(tifffile).rsplit('.', 1)[0] + os.path.basename(templateMapfile).rsplit('.', 1)[0] + '_' + str(count)
-              cv2.imwrite(outdir+ imgMapPath + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
+              cv2.imwrite(outdir + "maps/" + imgMapPath + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
               
               # WRITE the fields and rows values into the main records csv file
               with open(recordsPath, 'a', newline='') as csvfile:  
@@ -70,7 +70,7 @@ def matchtemplatetiff(tifffile, templateMapfile, outdir, outputpcdir, recordsPat
                 csvwriter.writerows(rows)
               
               # WRITE the fields and rows values into the page record csv file
-              csvPath = outdir  + "/pagerecords/" + imgMapPath + '.csv'
+              csvPath = outdir  + "pagerecords/" + imgMapPath + '.csv'
               with open(csvPath, 'a', newline='') as pageRecord:  
                 ## creating a csv writer object   
                 pageCsvwriter = csv.writer(pageRecord)  

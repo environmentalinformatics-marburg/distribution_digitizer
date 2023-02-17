@@ -1,9 +1,9 @@
 #install.packages("reticulate")
-library(reticulate)
+#library(reticulate)
 #install.packages("tesseract")
-library(tesseract)
-os <- import("os") 
-library(stringr)
+#library(tesseract)
+#os <- import("os") 
+#library(stringr)
 
 
 # Function to read the species with the given pagerecords path
@@ -11,6 +11,7 @@ readSpecies <- function(workingDir) {
 
   source_python(paste0(workingDir, "/src/crop_specie_name.py"))
   pagerecords = paste0(workingDir, "/data/output/pagerecords/")
+  outdir =  paste0(workingDir, "/data/output/maps/")
   # select all pages record information csv files as list
   recordsPages <- list.files(path=pagerecords,pattern=".csv",full.names=T,recursive=T)
   
@@ -33,7 +34,7 @@ readSpecies <- function(workingDir) {
     if(!is.na(w) & !is.na(y) &!is.na(h) & !is.na(x)){
       
       # use the crop Image function from the crop_species_name.py
-      path = cropImage(recordsPage$filename[1],outdir, x,y,w,h, as.character(j))
+      path = cropImage(recordsPage$filename[1],pagerecords, x,y,w,h, as.character(j))
       eng <- tesseract("eng")
       text <- tesseract::ocr_data(path, engine = eng)
       h <- which(text$word == "distribution", arr.ind = TRUE)
