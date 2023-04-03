@@ -1,0 +1,2 @@
+head;inf1;inf2;act;lab;
+5.2. Mask Georeferencing;This georeferences the mask files.You can find the georeferenced maps in your /data/output/mask/georeferenced_masks/ folder.;You can use the same GCP points from the georeferencing step.;maskgeoreferencing;Georeference the masks;

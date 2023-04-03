@@ -1,0 +1,2 @@
+head;inf1;threshold;start1;inf2;head_sub;inf3;start2;
+2. Detect maps;High threshold values will lead to few detections, low values to many detections. Start with the threshold value 0.4 and keep decreasing it until all the outputs are extracted. The minimum possible output value will be 0.2.	;Threshold (for map detection with template matching);Start map detection;You can find the extracted maps in your output directory /data/output/;2.1. Auto align the maps;Try to align the maps. The results are saved in /data/output/align_maps/;Start align process
