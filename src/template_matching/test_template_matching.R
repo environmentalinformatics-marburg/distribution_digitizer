@@ -18,18 +18,24 @@ records = "D:/distribution_digitizer/data/output/r.csv"
 pagerecords = "D:/distribution_digitizer/data/output/pagerecords/"
 input = "D:/distribution_digitizer/data/input/"
 templates = "D:/distribution_digitizer/data/templates/map/"
-workingDir = "D:/distribution_digitizer/"
+
+
+####################### Template matching ###############################
+
+# user the Python script template_matching.py
 source_python("D:/distribution_digitizer/src/template_matching.py")
-
-# user the R script read_species.R
-source("D:/distribution_digitizer/src/read_species.R")
-
 # Test template matching from the script template_matching.py
-mainTemplateMatching(workingDir,  0.2 )
+workingDir = "D:/distribution_digitizer/"
+mainTemplateMatching(workingDir,  0.27 )
 
 # Test the aline the outputs from template matching
 source_python("D:/distribution_digitizer/src/aline.py")
 aline(workingDir)
+
+####################### Read species ###############################
+
+# user the R script read_species.R
+source("D:/distribution_digitizer/src/read_species.R")
 
 # use the function read_species from the scriptread_species.R
 readSpecies(workingDir)

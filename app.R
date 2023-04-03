@@ -27,6 +27,7 @@ if(!require(reticulate)){
   library(reticulate)
 }
 library(shinyalert)
+library(reticulate)
 
 # Input variables
 options(shiny.host = '127.0.0.1')
@@ -37,17 +38,77 @@ options(shiny.maxRequestSize=100*1024^2)
 tempImage="temp.png"
 scale =20
 rescale= (100/scale)
-workingDir = ""
 
-if (file.exists('lastwd.csv')){
-  carSpeeds <- read.csv(file = 'lastwd.csv')
-  #workingDir <- carSpeeds[1, ]
-}
 workingDir <- getwd()
 print("dir")
 print(workingDir)
-
 test = 0
+
+
+# read the shiny text fields
+#1 shinyfields_create_templates.csv
+fileFullPath = (paste0(workingDir,'/config/shinyfields_create_templates.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields1 <- read.csv(fileFullPath, header = TRUE, sep = ';')
+} else{
+  stop("file shinyfields_create_templates.csv not found, please create them and start the app")
+}
+#2 shinyfields_detect_maps.csv
+fileFullPath = (paste0(workingDir,'/config/shinyfields_detect_maps.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields2 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
+#3 shinyfields_detect_points.csv
+fileFullPath = (paste0(workingDir,'/config/shinyfields_detect_points.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields3 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
+#4 shinyfields_detect_points_using_filtering
+fileFullPath = (paste0(workingDir,'/config/shinyfields_detect_points_using_filtering.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields4 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
+#5 shinyfields_georeferensing
+fileFullPath = (paste0(workingDir,'/config/shinyfields_georeferensing.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields5 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
+#6 shinyfields_postprocessing
+fileFullPath = (paste0(workingDir,'/config/shinyfields_postprocessing.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields6 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
+#7 shinyfields_centroid_masc_georeferensing
+fileFullPath = (paste0(workingDir,'/config/shinyfields_centroid_masc_georeferensing.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields7 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
+#8 shinyfields_centroid_extraction
+fileFullPath = (paste0(workingDir,'/config/shinyfields_centroid_extraction.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields8 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
 
 # The app body
 shinyApp(
@@ -55,195 +116,151 @@ shinyApp(
   # Functions for creating fluid layouts. A fluid page layout consists of rows which in turn include columns. 
   # Rows exist for the purpose of making sure their elements appear on the same line (if the browser has adequate width). 
   # Columns exist for the purpose of defining how much horizontal space within a 12-unit wide grid it's elements should occupy. 
-  # Fluid pages scale their components in realtime to fill all available browser width.
-  
-  
-  
+  # Fluid pages scale their components in real time to fill all available browser width.
   
   ui = fluidPage(
-    # define custum style css for the app
-    tags$head(
-      # Note the wrapping of the string in HTML()
-      tags$link(rel = "stylesheet", type = "text/css", href = "dd_style.css")
-    ),
-    
-    # App title ----
-    titlePanel("Distribution Digitizer"),
-    # define a row with columns. 
-    fluidRow(
-      column(4,
-             wellPanel(
-               #fluidRow(column(3,selectInput("iformat", label = h3("Scan format"),
-               #                             choices = list("tif" = 1, "png" = 2), selected = 1))),
-               # Working directory
-               # h2("1. Set your working directory", style = "color:black"),
-               
-               
-               p("Your working directory is the local digitizer repository", style = "color:black"),
-               p(workingDir, style = "color:black"),
-               
-               
-               # fluidRow(column(3,textInput("workingDir", label=p("To change this, enter here"), 
-               #  value = workingDir))),#, width = NULL, placeholder = NULL),
-               
-               # --------------------------------------------------------------------------------------------------------------
-               # Create templates
-               h2("1. Create template maps and template symbols", style = "color:black"),
-               # File to choose 
-               fileInput("image",  label = h3("1.1 Select image file for creating templates"), buttonLabel = "Browse...",
+  # define custum style css for the app
+  tags$head(
+    # Note the wrapping of the string in HTML()
+    tags$link(rel = "stylesheet", type = "text/css", href = "dd_style.css")
+  ),
+  
+  # App title ----
+  titlePanel("Distribution Digitizer"),
+  # define a row with columns. 
+  fluidRow(
+    column(4,
+    wellPanel(
+      #fluidRow(column(3,selectInput("iformat", label = h3("Scan format"),
+      #                             choices = list("tif" = 1, "png" = 2), selected = 1))),
+     
+      # Top Information
+      p(shinyfields1$start_information  , style = "color:black"),
+      
+      # Working directory
+      p(workingDir, style = "color:black"),
+
+      # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------
+      h2(strong(shinyfields1$head, style = "color:black")),
+      # Choose the file 
+      fileInput("image",  label = h5(shinyfields1$lab1), buttonLabel = "Browse...",
                          placeholder = "No file selected"),
-               
-               # --------------------------------------------------------------------------------------------------------------
-               h3(strong("1.2 Save map templates", style = "color:black")),
-               # Add number to the filename of the created template file
-               fluidRow(column(3, numericInput("imgIndexTemplate", label = h5("Add index to the filename of the created map template"),value = 1),
-                               # SAVE the croped template map image with the given index
-                               downloadButton('saveTemplate', 'Save map'))),
-               p(strong(paste0("Important! Save in ", workingDir, "/data/templates/maps/!"), style = "color:black")),
-               p("The map templates saved in /data/templates/maps/ will be used to match to the content of the files in your input directory for extracting maps.", style = "color:black"),
-               
-               
-               # --------------------------------------------------------------------------------------------------------------
-               h3(strong("1.3 Save symbol templates", style = "color:black")),
-               fluidRow(column(3, numericInput("imgIndexSymbol", label = h5("Add index to the filename of the created symbol template"),value = 1),
-                               # SAVE the croped symbol image with the given index
-                               downloadButton('saveSymbol', 'Save symbol'))),
-               p(strong(paste0("Important! Save in ", workingDir, "/data/templates/symbols"), style = "color:black")),
-               p("The symbol templates saved in /data/templates/symbols will be used to match to the content of the files in your output directory with extracted maps (/output/classification/matching).", style = "color:black"),
+      h3(strong(shinyfields1$save_template, style = "color:black")),
+      
+      # Add number to the file name of the created template file
+      fluidRow(column(3, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
+      
+      # Save the cropped template map image with the given index
+      downloadButton('saveTemplate', 'save'))),
+      p(strong(paste0(shinyfields1$inf, workingDir, "/data/templates/maps/!"), style = "color:black")),
+      p(shinyfields1$inf1, style = "color:black"),
+      p(strong(paste0(shinyfields1$inf2, workingDir, "/data/templates/symbols"), style = "color:black")),
+      p(shinyfields1$inf3, style = "color:black"),
                
                
+      # ----------------------------------------# 2. Map detection #----------------------------------------------------------------------
+      h2(shinyfields2$head, style = "color:black"),
+      p(shinyfields2$nf1, style = "color:black"),
+      fluidRow(column(3,numericInput("threshold_for_TM", label=shinyfields2$threshold, value = 0.2))),
+       
+      # Start map detection
+      fluidRow(column(3, actionButton("templateMatching",  label = shinyfields2$start1))),
+      p(shinyfields2$inf2, style = "color:black"), 
+      tags$div(style = "position: absolute; top: -100px;", textOutput("clock") ),  
+      
+      # Aligning maps
+      h4(shinyfields2$head_sub, style = "color:black"),
+      p(shinyfields2$inf3, style = "color:black"),
+      fluidRow(column(3, actionButton("alignMaps",  label = h3(shinyfields2$start2)))),
+     
+      
+      # ----------------------------------------# 3. Points detection #----------------------------------------------------------------------
+      h2(shinyfields3$head, style = "color:black"),
+      p(shinyfields3$inf1, style = "color:black"),
+      p(shinyfields3$inf2, style = "color:black"),
+      
+      # ----------------------------------------# 3.1 Using matching #----------------------------------------------------------------------
+      h4(shinyfields3$head_sub, style = "color:black"),
+      p(shinyfields3$inf3, style = "color:black"),
+      # Threshold for pixel matching
+      fluidRow(column(3,numericInput("threshold_for_PM", label=shinyfields3$threshold, value = 0.87))),
+      fluidRow(column(3, actionButton("pixelMatching",  label = h3(shinyfields3$lab)))),
+      p(shinyfields3$inf4, style = "color:black"),
+      p(shinyfields3$inf5, style = "color:black"),
+      
+      # ----------------------------------------# 3.2 Using filtering  FILE=shinyfields_detect_points_using_filtering #----------------------------------------------------------------------
+      h4(shinyfields4$head, style = "color:black"),
+      fluidRow(column(3,numericInput("filterK", label=shinyfields4$lab1, value = 5))),#, width = NULL, placeholder = NULL)
+      p(shinyfields4$inf1, style = "color:black"),
+      fluidRow(column(3,numericInput("filterG", label=shinyfields4$lab2, value = 9))),#, width = NULL, placeholder = NULL)
+      fluidRow(column(3, actionButton("pixelClassification",  label = h3(shinyfields4$lab3)))),
+      p(shinyfields4$inf2, style = "color:black"),
+
+      
+      # ----------------------------------------# 4. Georeferencing  FILE=shinyfields_georeferensing #----------------------------------------------------------------------
+      h2("4. Georeferencing", style = "color:black"),
+      p(shinyfields5$head, style = "color:black"),
+      p(shinyfields5$inf1, style = "color:black"),
+      p(shinyfields5$inf2, style = "color:black"),
+      fluidRow(column(3, actionButton(shinyfields5$act,  label = h3(shinyfields5$lab)))), 
+      
+      
+      # ----------------------------------------# 5 Postprocessing  FILE=shinyfields_postprocessing #----------------------------------------------------------------------
+      h2(shinyfields6$head, style = "color:black"),
+      h4(shinyfields6$head_sub, style = "color:black"),
+      fluidRow(column(3,numericInput(shinyfields6$input, label=shinyfields6$lab1, value = 5))),#, width = NULL, placeholder = NULL)
+      p(shinyfields6$inf1, style = "color:black"),
+      fluidRow(column(3, actionButton("geomasks",  label = h3(shinyfields6$lab2)))),
+      p(shinyfields6$inf2, style = "color:black"),
+
+      # ----------------------------------------# 5.2. Mask Georeferencing  FILE=shinyfields_centroid_masc_georeferensing#----------------------------------------------------------------------
+      h4(shinyfields7$head, style = "color:black"),
+      p(shinyfields7$inf1, style = "color:black"),
+      p(shinyfields7$inf2, style = "color:black"),
+      fluidRow(column(3, actionButton("maskgeoreferencing",  label = h3(shinyfields7$lab)))),
+      
+      # ----------------------------------------# 5.3. Centroid Extraction FILE=shinyfields_centroid_extraction #----------------------------------------------------------------------
+      h4(shinyfields8$head, style = "color:black"),
+      p(shinyfields8$inf, style = "color:black"),
+      fluidRow(column(3, actionButton("pointextract",  label = h3(shinyfields8$lab)))),
                
-               
-               # --------------------------------------------------------------------------------------------------------------
-               # Map detection
-               h2("2. Detect maps", style = "color:black"),
-               
-               p("High threshold values will lead to few detections, low values to many detections. Start with the threshold value 0.4 and keep decreasing it until all the outputs are extracted. The minimum possible output value will be 0.2.", style = "color:black"),
-               fluidRow(column(3,numericInput("threshold_for_TM", label="Threshold (for map detection with template matching)", value = 0.2))),
-               
-               
-               # Start map detection
-               
-               fluidRow(column(3, actionButton("templateMatching",  label = "Start map detection"))),
-               
-               p("You can find the extracted maps in your output directory (/data/output/)", style = "color:black"),
-               
-               
-               h2("3. Classify points on maps", style = "color:black"),
-               
-               p("Two methods are available: template matching and filtering.", style = "color:black"),
-               
-               p("Template matching used the same approach as for clipping maps from images. Here, the templates are symbols extracted from legend elements, which should be saved in /templates/symbols/", style = "color:black"),
-               
-               p("Two methods are available: template matching and filtering.", style = "color:black"),
-               
-               
-               h4("3.1 Using template matching", style = "color:black"),
-               
-               p("Start with values between 0.8 and 0.9.", style = "color:black"),
-               
-               # Threshold for pixel matching
-               
-               fluidRow(column(3,numericInput("threshold_for_PM", label="Threshold (for symbol detection with template matching)", value = 0.87))),
-               
-               fluidRow(column(3, actionButton("pixelMatching",  label = h3("Start template matching")))),
-               
-               p("You can find the classified maps in your /data/output/classifcation/matching folder ", style = "color:black"),
-               
-               h4("3.2 Using filtering", style = "color:black"),
-               
-               
-               fluidRow(column(3,numericInput("filterK", label="Enter value for Kernel filter", value = 5))),#, width = NULL, placeholder = NULL)
-               
-               p("You can only enter odd values between 1 and 9. The value for the Gaussion filter should be higher than the value for the Kernel filter. The lower this value, the more points will be detected", style = "color:black"),
-               
-               fluidRow(column(3,numericInput("filterG", label="Enter value for Guassian filter", value = 9))),#, width = NULL, placeholder = NULL)
-               
-               fluidRow(column(3, actionButton("pixelClassification",  label = h3("Start filtering")))),
-               
-               p("You can find the classified maps in your /data/output/classification/filtering folder", style = "color:black"),
-               
-               
-               h2("4. Georeferencing", style = "color:black"),
-               
-               p("Magick is going to happen (or not).", style = "color:black"),
-               
-               p("You need to have a file with GCP points in /data/templates/geopoints/ with the ending .points. The expected format is the default export of GCPs from QGIS containing the columns mapX, mapY, pixelX, and pixelY. This should be the first line the .points file. In case if you have any other information, you can manually remove it for now.You can find the output at the data/output/georeferencing/ folder. ", style = "color:black"),
-               
-               
-               
-               fluidRow(column(3, actionButton("georeferencing",  label = h3("Start georeferencing")))), 
-               
-               
-               
-               h2("5. Postprocessing", style = "color:black"),
-               
-               h4("5.1. Creating Masks for Postprocessing ", style = "color:black"),
-               
-               fluidRow(column(3,numericInput("filterm", label="Enter value for Kernel filter", value = 5))),#, width = NULL, placeholder = NULL)
-               
-               p(" You can use the same value of Kernel Filter from 4.2 and look at the masks. Here, the image will be filtered only with Kernel filter and hence, the value might vary. This is also the input for 6.3.", style = "color:black"),
-               
-               fluidRow(column(3, actionButton("geomasks",  label = h3("Create masks")))),
-               
-               p("You can find the classified maps in your /data/output/mask/non_georeferenced_masks/ folder.", style = "color:black"),
-               
-               
-               h4("5.2. Mask Georeferencing", style = "color:black"),
-               
-               p("This georeferences the mask files.You can find the georeferenced maps in your /data/output/mask/georeferenced_masks/ folder.", style = "color:black"),
-               
-               p("You can use the same GCP points from the georeferencing step.", style = "color:black"),
-               
-               
-               fluidRow(column(3, actionButton("maskgeoreferencing",  label = h3("Georeference the masks")))),
-               
-               h4("5.3. Centroid Extraction", style = "color:black"),
-               
-               
-               p("Extracting the centroid of blue contours.", style = "color:black"),
-               
-               fluidRow(column(3, actionButton("pointextract",  label = h3("Extract the points")))),
-               
-               
-               # Number Pages on the printed Site
-               #fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
-               #                                choices = list("1 page" = 1, "2 pages" = 2), selected = 1))), 
-               
-               # Page orientation
-               #fluidRow(column(3, selectInput("pageaxis", label = h3("Page axis"),
-               # choices = list("Horizontal" = 1, "Vertical" = 2),selected = 1))),
-               # Site number orientation
-               # fluidRow(column(3, radioButtons("sitenumberor", label = h3("Site number orientation"),
-               #choices = list("top" = 1, "bottom" = 2), selected = 1))),
-               # Map with
-               #fluidRow(column(3,numericInput("mwidth", label = h3("Map width(~)"),value = 1))),    
-               # Format of the scaned page
-               
-               # Number of the boor sites
-               #fluidRow(column(3,numericInput("bsites", label = h3("Number book sites"),value = 1))),
-               # Is the Scan color or no
-               # fluidRow(column(3, checkboxInput("pcolor", label = h3("Color scan yes/no"), value = TRUE))),
-               #fluidRow(column(3, textInput("template_directory", label = h3("Template directory"), value = TRUE))),
-               # fluidRow(column(3, checkboxInput("training_image_with_maps_category", 
-               # label = h3("Training image /n with maps category=yes|no"), value = TRUE))),
-               # fluidRow(column(3, checkboxInput("training_image_without_maps_category",
-               #label = h3("Training image-without maps category=yes|no"), value = TRUE))),
-               # fluidRow(column(3, checkboxInput("validation_image_with_maps_category", 
-               # label = h3("Validation image-with maps category=yes|no"), value = TRUE))),
-               # fluidRow(column(3, checkboxInput("validation_image_without_maps_category", 
-               # label = h3("Validation image-without maps category"), value = TRUE))),
-               # fluidRow(column(3,numericInput("input_pixel_compression_for_CNN", label = h3("Input pixel compression for CNN"),value = 100))), 
-               # fluidRow(column(3,numericInput("batch_size", label = h3("Batch Size"),value = 128))), 
-               # fluidRow(column(3,numericInput("epochs", label = h3("Epochs"),value = 1000))),
-               
-               #fluidRow(column(3,textInput("output_directory_CI", label="Output directory (cropped images)", value = ""))),#, width = NULL, placeholder = NULL)
-               #fluidRow(column(3,textInput("output_directory_TM", label="Output directory (Template matching)", value = ""))),#, width = NULL, placeholder = NULL)
-               
-               # SAVE FIELDS
-               #actionButton("submit", "Save input fields"),
-               downloadButton("download_button", label = "Download the values as .txt")
-             )       
+      
+      # Number Pages on the printed Site
+      #fluidRow(column(3, radioButtons("numberprintedPages", label = h3("Printed pages"),
+      #                                choices = list("1 page" = 1, "2 pages" = 2), selected = 1))), 
+      # Page orientation
+      #fluidRow(column(3, selectInput("pageaxis", label = h3("Page axis"),
+      # choices = list("Horizontal" = 1, "Vertical" = 2),selected = 1))),
+      # Site number orientation
+      # fluidRow(column(3, radioButtons("sitenumberor", label = h3("Site number orientation"),
+      #choices = list("top" = 1, "bottom" = 2), selected = 1))),
+      # Map with
+      #fluidRow(column(3,numericInput("mwidth", label = h3("Map width(~)"),value = 1))),    
+      # Format of the scaned page
+      
+      # Number of the boor sites
+      #fluidRow(column(3,numericInput("bsites", label = h3("Number book sites"),value = 1))),
+      # Is the Scan color or no
+      # fluidRow(column(3, checkboxInput("pcolor", label = h3("Color scan yes/no"), value = TRUE))),
+      #fluidRow(column(3, textInput("template_directory", label = h3("Template directory"), value = TRUE))),
+      # fluidRow(column(3, checkboxInput("training_image_with_maps_category", 
+      # label = h3("Training image /n with maps category=yes|no"), value = TRUE))),
+      # fluidRow(column(3, checkboxInput("training_image_without_maps_category",
+      #label = h3("Training image-without maps category=yes|no"), value = TRUE))),
+      # fluidRow(column(3, checkboxInput("validation_image_with_maps_category", 
+      # label = h3("Validation image-with maps category=yes|no"), value = TRUE))),
+      # fluidRow(column(3, checkboxInput("validation_image_without_maps_category", 
+      # label = h3("Validation image-without maps category"), value = TRUE))),
+      # fluidRow(column(3,numericInput("input_pixel_compression_for_CNN", label = h3("Input pixel compression for CNN"),value = 100))), 
+      # fluidRow(column(3,numericInput("batch_size", label = h3("Batch Size"),value = 128))), 
+      # fluidRow(column(3,numericInput("epochs", label = h3("Epochs"),value = 1000))),
+      #fluidRow(column(3,textInput("output_directory_CI", label="Output directory (cropped images)", value = ""))),#, width = NULL, placeholder = NULL)
+      #fluidRow(column(3,textInput("output_directory_TM", label="Output directory (Template matching)", value = ""))),#, width = NULL, placeholder = NULL)
+      
+      # SAVE FIELDS
+      #actionButton("submit", "Save input fields"),
+      downloadButton("download_button", label = "Download the values as .txt")
+        )       
       ),
       
       # Main panel for displaying plots of the input image and croped image ----
@@ -283,24 +300,81 @@ shinyApp(
       # write.csv(text, file = "lastwd.csv" , col.names = F, row.names = fields, quote = F, append=T)
       # write.table(x, file = paste0(workingDir,"/lastwd.txt") ,sep = ",", col.names = NA)
     })
+    
+    # Update the clock every second using a reactiveTimer
+    current_time <- reactiveTimer(1000)
+ 
+    # ----------------------------------------# 2. Map detection #----------------------------------------------------------------------
     # Template matching start
     observeEvent(input$templateMatching, {
+      
+      # show start action message
+      message=paste0("Process map detection is started on: ")
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
+                 closeOnClickOutside = FALSE, animation = TRUE)
+      
       #Processing template matching
-      library(reticulate)
-      fname=paste0(workingDir, "/", "src/template_matching.py")
+      fname=paste0(workingDir, "/", "src/template_matching/template_matching.py")
       source_python(fname)
       print(input$threshold_for_TM)
       mainTemplateMatching(workingDir, input$threshold_for_TM)
       cat("\nSuccessfully executed")
-      findTemplateResult = paste0(workingDir, "/data/output/")
+      findTemplateResult = paste0(workingDir, "/data/output/maps/")
       patternSum = paste0(input$threshold_for_TM,"_")
+      patternSum =gsub(".", "", patternSum, fixed=TRUE)
+      patternSum =gsub("0", "", patternSum, fixed=TRUE)
       files<- list.files(findTemplateResult, pattern=patternSum, full.names = TRUE, recursive = FALSE)
       countFiles = paste0(length(files),"")
       print(countFiles)
-      message=paste0("The number extracted outputs with threshold=",input$threshold_for_TM , " are ", countFiles ,"! High threshold values lead to few detections, low values to many detections.")
-      shinyalert(message, inputType = "text")
+      message2=paste0("Process align maps is ended on: ", format(current_time(), "%H:%M:%S"), ". The number extracted outputs with threshold=",input$threshold_for_TM , " are ", countFiles ,"! High threshold values lead to few detections, low values to many detections.")
+      closeAlert(num = 0, id = NULL)
+      shinyalert(message2, inputType = "text")
+      
+     # shinyalert(message2, inputType = "text")
     })
     
+    # ----------------------------------------# 2.1 Align Maps #----------------------------------------------------------------------
+    # Align maps  start
+    observeEvent(input$alignMaps, {
+      # show start action message
+      message=paste0("Process align maps is started on: ")
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
+                 closeOnClickOutside = FALSE, animation = TRUE)
+      
+      # Test the align the outputs from template matching
+      fname=paste0(workingDir, "/", "src/align_maps/align_map.py")
+      source_python(fname)
+      align(workingDir)
+      # show start action message
+      message=paste0("Process align mapsis ended on: ")
+      closeAlert(num = 0, id = NULL)
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
+                 closeOnClickOutside = TRUE, animation = TRUE)
+      
+    })
+    
+    # ----------------------------------------# 2. Pixel detection #----------------------------------------------------------------------
+    # Pixel matching start
+    observeEvent(input$pixelMatching, {
+      #Processing template matching
+      library(reticulate)
+      fname=paste0(workingDir, "/", "src/template_matching/Pixel_matching.py")
+      source_python(fname)
+      mainpixelmatching(workingDir, input$threshold_for_PM)
+      cat("\nSuccessfully executed")
+    })
+    
+    # Template matching start
+    observeEvent(input$pixelClassification, {
+      #Processing template matching
+      library(reticulate)
+      fname=paste0(workingDir, "/", "src/template_matching/Pixel_Classification.py")
+      source_python(fname)
+      mainpixelclassification(workingDir, input$filterK, input$filterG)
+      cat("\nSuccessfully executed")
+    })
+    
+    # ----------------------------------------# Georeferencing #----------------------------------------------------------------------
     # Georeferencing start
     observeEvent(input$georeferencing, {
       #Processing template matching
@@ -343,28 +417,12 @@ shinyApp(
       cat("\nSuccessfully executed")
     })
     
-    # Template matching start
-    observeEvent(input$pixelClassification, {
-      #Processing template matching
-      library(reticulate)
-      fname=paste0(workingDir, "/", "src/Pixel_Classification.py")
-      source_python(fname)
-      mainpixelclassification(workingDir, input$filterK, input$filterG)
-      cat("\nSuccessfully executed")
-    })
+   
     
-    # Pixel matching start
-    observeEvent(input$pixelMatching, {
-      #Processing template matching
-      library(reticulate)
-      fname=paste0(workingDir, "/", "src/Pixel_matching.py")
-      source_python(fname)
-      mainpixelmatching(workingDir, input$threshold_for_PM)
-      cat("\nSuccessfully executed")
-    })
+
     
-    
-    # Function to show the ccrop process in the app 
+    # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------
+    #Function to show the ccrop process in the app 
     plot_png <- function(path, plot_brush, index, add=FALSE)
     {
       require('png')
@@ -389,19 +447,17 @@ shinyApp(
       grid.raster(img[y2:y1,x1:x2,])
     }
     
-    # Render the image in the plot with given dynmicaly 10%
+    # Render the image in the plot with given dynamical 10%
     output$plot <- renderImage({
       
       #only if input$image is given
       req(input$image)
-      
       temp <- image_read(input$image$datapath)
       file <- image_convert(temp, "png")
       temp_scale <- image_scale(file, paste0(scale,"%"))
       fname = paste0(workingDir, "/", tempImage)
       workingDir = workingDir
       image_write(temp_scale, path = fname, format = "png", )
-      
       req(file)
       list(src = fname, alt="alternative text")
     }, deleteFile = FALSE)
@@ -429,6 +485,7 @@ shinyApp(
         y1 = input$plot_brush$ymax
         
         tempI <- image_read(input$image$datapath)
+     
         widht=(x2*rescale-x1*rescale)
         height=(y1*rescale-y2*rescale)
         
@@ -467,7 +524,7 @@ shinyApp(
         i = input$imgIndexSymbol +1
         updateNumericInput(session, "imgIndexSymbol", value = i)
       }) 
-    
+ 
     
     formData <- reactive({
       data <- sapply(fields, contents)

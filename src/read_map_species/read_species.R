@@ -9,9 +9,9 @@
 # Function to read the species with the given pagerecords path
 readSpecies <- function(workingDir) {
 
-  source_python(paste0(workingDir, "/src/crop_specie_name.py"))
+  source_python(paste0(workingDir, "/src/5_read_map_species/rop_specie_name.py"))
   pagerecords = paste0(workingDir, "/data/output/pagerecords/")
-  outdir =  paste0(workingDir, "/data/output/maps/")
+  outdir =  paste0(workingDir, "/data/output/align_maps/")
   # select all pages record information csv files as list
   recordsPages <- list.files(path=pagerecords,pattern=".csv",full.names=T,recursive=T)
   
