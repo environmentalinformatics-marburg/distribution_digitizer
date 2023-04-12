@@ -29,11 +29,16 @@ def edge(tiffile, outdir, n, m):
 #for tiffile in glob.glob(input_tif + "*.tif"):
  #   edge(tiffile,input_tif,n,m)
  
-def mainpixelclassification(workingDir,  n, m):
-  inputdir = workingDir+"data/output/classification/matching/"
-  ouputdir = workingDir+"data/output/classification/filtering/"
+def mainpixelclassification(workingDir, n, m):
+  inputdir = workingDir+"/data/output/maps/align"
+  ouputdir = workingDir+"/data/output/pixels/classification/filtering/"
   os.makedirs(ouputdir, exist_ok=True)
   print(inputdir)
   print(ouputdir)
+  print(n)
+  print(m)
   for file in glob.glob(inputdir + '*.tif'):
-        edge(file, ouputdir, n, m)
+    print(file)
+    edge(file, ouputdir, int(n), int(m))
+  #fileName="D:/distribution_digitizer//data/output/align_maps\2_0060map_1_0.tif"
+  #edge(fileName, ouputdir, 5, 9)

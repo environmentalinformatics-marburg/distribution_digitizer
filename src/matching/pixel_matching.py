@@ -41,9 +41,10 @@ def pixelmatch(tiffile, file, outputpcdir, pixel_threshold):
   #cv2.imwrite(outputpcdir + os.path.basename(tiffile).rsplit('.', 1)[0] + '.tif',img)
   
 def mainpixelmatching(workingDir, pixel_threshold):
-  outputpcdir = workingDir + "/data/output/classification/matching/"
-  pixel_templates = workingDir+"/data/templates/symbols/"
+  outputpcdir = workingDir + "/data/output/maps/align/"
+  pixel_templates = workingDir+"/data/input/templates/symbols/"
   #inputpcdir = workingDir + "/data/output/"
   for tiffile in glob.glob(outputpcdir + '*.tif'):
     for file in glob.glob(pixel_templates + '*.tif'): 
         pixelmatch(tiffile, file, outputpcdir, pixel_threshold)
+

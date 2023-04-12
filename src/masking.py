@@ -9,7 +9,7 @@ from PIL import Image
 
 
 def geomask(file, outputdir, n):
-#create black and white masks
+  #create black and white masks
   image = np.array(PIL.Image.open(file))
   grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
   ret, thresh = cv2.threshold(grayImage,125,255,cv2.THRESH_TOZERO_INV)
@@ -27,13 +27,13 @@ def geomask(file, outputdir, n):
 
 
 #maingeomask("D:/Results/", 5)
-workingDir="D:/Results/"
+#workingDir="D:/Results/"
 #maingeomask(workingDir, 5)
 
-
+#workingDir="D:/distribution_digitizer/"
 #def maingeomask(workingDir, n):
-inputdir = workingDir+"templates/"
-outputdir = workingDir+"masking/"
+inputdir = workingDir+"data/output/maps/align/"
+outputdir = workingDir+"data/output/masking/"
 os.makedirs(outputdir, exist_ok=True)
 for file in glob.glob(inputdir + '*.tif'):
     geomask(file, outputdir, 5)

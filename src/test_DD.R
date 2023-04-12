@@ -2,7 +2,7 @@
 library(reticulate)
 #install.packages("tesseract")
 library(tesseract)
-os <- import("os") 
+#os <- import("os") 
 library(stringr)
 
 #use_python("C:/ProgramData/Miniconda3/python.exe")
@@ -23,14 +23,14 @@ library(stringr)
 ####################### Align pages ###############################
 
 # Test the align the outputs from template matching
-source_python("D:/distribution_digitizer/src/1_align_pages/align_page.py")
-align(workingDir)
+#source_python("D:/distribution_digitizer/src/1_align_pages/align_page.py")
+#align(workingDir)
 
 
 ####################### Map Template matching ###############################
 
 # user the Python script template_matching.py
-source_python("D:/distribution_digitizer/src/2_map_template_matching/template_matching.py")
+source_python("D:/distribution_digitizer/src/matching/map_matching.py")
 # Test template matching from the script template_matching.py
 workingDir = "D:/distribution_digitizer/"
 mainTemplateMatching(workingDir,  0.27 )
@@ -39,7 +39,7 @@ mainTemplateMatching(workingDir,  0.27 )
 ####################### Align maps ###############################
 
 # user the Python script
-source_python("D:/distribution_digitizer/src/4_align_maps/align_map.py")
+source_python("D:/distribution_digitizer/src/matching/map_align.py")
 # Test the aline the outputs from template matching
 workingDir = "D:/distribution_digitizer/"
 align(workingDir)
@@ -47,9 +47,9 @@ align(workingDir)
 ####################### Read species ###############################
 
 # user the R script read_species.R
-source("D:/distribution_digitizer/src/5_read_map_species/read_species.R")
+source("D:/distribution_digitizer/src/matching/map_read_species.R")
 workingDir = "D:/distribution_digitizer/"
 # use the function read_species from the script read_species.R
-readSpecies(workingDir)
+readSpecies2(workingDir)
 
 

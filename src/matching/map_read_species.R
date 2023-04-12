@@ -1,17 +1,51 @@
 #install.packages("reticulate")
 #library(reticulate)
 #install.packages("tesseract")
-#library(tesseract)
-#os <- import("os") 
-#library(stringr)
+library(tesseract)
+os <- import("os") 
+library(stringr)
 
+# Function to read the species
+readSpecies2 <- function(workingDir) {
+  
+  source_python(paste0(workingDir, "/src/matching/map_crop_species.py"))
+  pagerecords = paste0(workingDir, "/data/output/pagerecords/")
+  outdir =  paste0(workingDir, "/data/output/maps/align/")
+  # select all pages record information csv files as list
+  recordsPages <- list.files(path=pagerecords,pattern=".csv",full.names=T,recursive=T)
+  
+  # for loop into the list
+  j = 1
+  for(j in j:length(recordsPages)) { 
+    recordsPage <- read.csv(recordsPages[j], sep=",", check.names = FALSE, quote="\"",
+                            na.strings=c("NA","NaN", " "))
+    #print(recordsPage$filename[j])
+    #print(j)
+    species <- c()
+    
+    #print(length(recordsPage))
+    
+    #ERROR HANDLING define
+    w=as.integer(recordsPage$w[1])
+    y=as.integer(recordsPage$y[1])
+    h=as.integer(recordsPage$h[1])
+    x=as.integer(recordsPage$x[1])
+    filename=recordsPage$filename
+    mapName=recordsPage$mapname
+    if(!is.na(w) & !is.na(y) &!is.na(h) & !is.na(x)){
+     # pathToPage = "D:/distribution_digitizer/data/input/pages/0060.tif"
+      # use the crop Image function from the crop_species_name.py
+      path = cropSpacies(workingDir, filename, mapName, x,y,w,h)
+    }
+  }
+}
 
 # Function to read the species with the given pagerecords path
 readSpecies <- function(workingDir) {
 
-  source_python(paste0(workingDir, "/src/5_read_map_species/rop_specie_name.py"))
+  source_python(paste0(workingDir, "/src/matching/map_crop_species.py"))
   pagerecords = paste0(workingDir, "/data/output/pagerecords/")
-  outdir =  paste0(workingDir, "/data/output/align_maps/")
+  outdir =  paste0(workingDir, "/data/output/maps/align/")
   # select all pages record information csv files as list
   recordsPages <- list.files(path=pagerecords,pattern=".csv",full.names=T,recursive=T)
   
@@ -34,7 +68,7 @@ readSpecies <- function(workingDir) {
     if(!is.na(w) & !is.na(y) &!is.na(h) & !is.na(x)){
       
       # use the crop Image function from the crop_species_name.py
-      path = cropImage(recordsPage$filename[1],pagerecords, x,y,w,h, as.character(j))
+      path = cropImage(workingDir, recordsPage$filename[1], pagerecords, x,y,w,h, as.character(j))
       eng <- tesseract("eng")
       text <- tesseract::ocr_data(path, engine = eng)
       h <- which(text$word == "distribution", arr.ind = TRUE)
@@ -56,6 +90,7 @@ readSpecies <- function(workingDir) {
           } 
         }
         #print(species)  
+        
       }
     }  
   }#end 1 for
