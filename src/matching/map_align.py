@@ -6,7 +6,7 @@ import os
 import glob
 from PIL import Image
 
-def align_images(image, template, outputdir,maxFeatures=500, keepPercent=0.2,
+def align_images(image, template, outputdir, maxFeatures=500, keepPercent=0.2,
 	debug=False):
 	# convert o both the input image and template to grayscale
 	image1 = np.array(PIL.Image.open(image))
@@ -70,9 +70,9 @@ def align_images(image, template, outputdir,maxFeatures=500, keepPercent=0.2,
 # workingDir="D:/distribution_digitizer/"
 
 def align(workingDir):
-  inputdir = workingDir+"data/output/maps/matching/"
-  tempdir = workingDir+"data/input/templates/align_ref/"
-  outputdir = workingDir+"data/output/maps/align/"
+  inputdir = workingDir+"/data/output/maps/matching/"
+  tempdir = workingDir+"/data/input/templates/align_ref/"
+  outputdir = workingDir+"/data/output/maps/align/"
   os.makedirs(outputdir, exist_ok=True)
   
   for templates in glob.glob(tempdir + '*.tif'):

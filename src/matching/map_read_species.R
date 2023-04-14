@@ -7,7 +7,7 @@ library(stringr)
 
 # Function to read the species
 readSpecies2 <- function(workingDir) {
-  
+  results = "The following species were found: "
   source_python(paste0(workingDir, "/src/matching/map_crop_species.py"))
   pagerecords = paste0(workingDir, "/data/output/pagerecords/")
   outdir =  paste0(workingDir, "/data/output/maps/align/")
@@ -35,9 +35,13 @@ readSpecies2 <- function(workingDir) {
     if(!is.na(w) & !is.na(y) &!is.na(h) & !is.na(x)){
      # pathToPage = "D:/distribution_digitizer/data/input/pages/0060.tif"
       # use the crop Image function from the crop_species_name.py
-      path = cropSpacies(workingDir, filename, mapName, x,y,w,h)
+      spacies = cropSpacies(workingDir, filename, mapName, x,y,w,h)
+      recordsPage$spacies = spacies
+      write.csv(recordsPage, recordsPages[j])
+      results = paste0(results, "<br", mapName, ";", spacies)
     }
-  }
+  } 
+  return(results)
 }
 
 # Function to read the species with the given pagerecords path

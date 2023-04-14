@@ -88,15 +88,14 @@ def cropSpacies(workingDir, pathToPage, pathToMap, x, y, w, h):
       print ("File not exist")
      
     # rename the orign maps
-
-    if os.path.isfile(pathToMap):
+    #if os.path.isfile(pathToMap):
       #os.rename(pathToMap, mapNewName)
-      mapNewName = pathToMap.rsplit('.', 1)[0]  + "_" + species + ".tif"
-      os.rename(pathToMap, mapNewName)
-      print(mapNewName)
-    else:
-      print ("File not exist")
-    
+     # mapNewName = pathToMap.rsplit('.', 1)[0]  + "_" + species + ".tif"
+    #  os.rename(pathToMap, mapNewName)
+     # print(mapNewName)
+   # else:
+     # print ("File not exist")
+    return species
      
   #print("End")  
 

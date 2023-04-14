@@ -28,9 +28,13 @@ def edge(tiffile, outdir, n, m):
 #input_tif = str(input("Enter the Input directory /..../"))
 #for tiffile in glob.glob(input_tif + "*.tif"):
  #   edge(tiffile,input_tif,n,m)
- 
+
+workingDir="D:/distribution_digitizer/"
+n=5
+m=9
+
 def mainpixelclassification(workingDir, n, m):
-  inputdir = workingDir+"/data/output/maps/align"
+  inputdir = workingDir+"/data/output/maps/align/"
   ouputdir = workingDir+"/data/output/pixels/classification/filtering/"
   os.makedirs(ouputdir, exist_ok=True)
   print(inputdir)
