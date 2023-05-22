@@ -1,18 +1,2 @@
-numberprintedPages;1
-pageaxis;1
-sitenumberor;1
-mwidth;1
-iformat;1
-bsites;1
-pcolor;TRUE
-template_directory;TRUE
-training_image_with_maps_category;TRUE
-training_image_without_maps_category;TRUE
-validation_image_with_maps_category;TRUE
-validation_image_without_maps_category;TRUE
-input_pixel_compression_for_CNN;100
-batch_size;128
-epochs;1000
-output_directory_CI;
-output_directory_TM; 
-start_information;Your working directory is the local digitizer repository
+working_dir;start_information;numberPagePrint;allprintedPages;pageaxis;mwidth;iformat;pColor; 
+D:/distribution_digitizer/;Your working directory is the local digitizer repository!;1;50;1;;;1;
