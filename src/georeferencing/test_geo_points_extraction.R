@@ -7,5 +7,5 @@ setwd(path_dir)
 #py_install(packages = "GDAL", pip = FALSE)
 
 #
-source_python("D:/distribution_digitizer_students/src/geo_points_extraction.py")
-maingeopointextract("D:/distribution_digitizer_students/")
+source_python("D:/distribution_digitizer/src/georeferencing/geo_points_extraction.py")
+maingeopointextract("D:/distribution_digitizer/",5)

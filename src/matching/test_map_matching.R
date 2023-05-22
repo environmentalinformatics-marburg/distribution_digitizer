@@ -35,7 +35,7 @@ aline(workingDir)
 ####################### Read species ###############################
 
 # user the R script read_species.R
-source("D:/distribution_digitizer/src/read_species.R")
+source("D:/distribution_digitizer/src/read_species/map_read_species.R")
 
 # use the function read_species from the scriptread_species.R
 readSpecies(workingDir)

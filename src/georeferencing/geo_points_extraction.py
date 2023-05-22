@@ -7,6 +7,11 @@ import os
 import glob
 
 def geopointextract(tiffile, geofile,  outputcsv, n):
+  #workingDir="D:/distribution_digitizer/"
+  ##inputdir = workingDir + "/data/output/georeferencing/georeferenced2_0060map_1_0.tif"
+ # outputcsv = workingDir + "/data/output/mask/georecords.csv"
+  #geofile = workingDir + "data/input/templates/geopoints/gcp_point_map1.points"
+ # n=5
   fields =[ "Filename", 'Centroid X', 'Centroid Y']
   filename = outputcsv
   img = gdal.Open(tiffile)
@@ -36,10 +41,12 @@ def geopointextract(tiffile, geofile,  outputcsv, n):
 # writing the data rows   
      csvwriter.writerows(rows)
      
+workingDir="D:/distribution_digitizer/"
 def maingeopointextract(workingDir,n):
   inputdir = workingDir + "/data/output/georeferencing/"
   outputcsv = workingDir + "/data/output/mask/georecords.csv"
-  geofiledir = workingDir + "data/templates/geopoints/"
+  geofiledir = workingDir + "data/output/templates/geopoints/"
   for tiffile in glob.glob(inputdir +'*.tif'): 
    for geofile in glob.glob(geofiledir + '*.tif'):
         geopointextract(tiffile, geofile, outputcsv, n)
+

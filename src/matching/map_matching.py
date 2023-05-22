@@ -125,7 +125,7 @@ def mainTemplateMatching(workingDir, threshold):
     
   # OUTPUT
   outdir = workingDir + "/data/output/maps/matching/"
-
+  os.makedirs(outdir, exist_ok=True)
   # classifikation csv file
   #outputpcdirClassifikation = workingDir + "/classification/matching/"
   #os.makedirs(outputpcdirClassifikation, exist_ok=True)

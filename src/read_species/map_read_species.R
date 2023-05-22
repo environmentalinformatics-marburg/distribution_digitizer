@@ -7,8 +7,9 @@ library(stringr)
 
 # Function to read the species
 readSpecies2 <- function(workingDir) {
+  library(tesseract)
   results = "The following species were found: "
-  source_python(paste0(workingDir, "/src/matching/map_crop_species.py"))
+  source_python(paste0(workingDir, "/src/read_species/map_crop_species.py"))
   pagerecords = paste0(workingDir, "/data/output/pagerecords/")
   outdir =  paste0(workingDir, "/data/output/maps/align/")
   # select all pages record information csv files as list
@@ -46,8 +47,8 @@ readSpecies2 <- function(workingDir) {
 
 # Function to read the species with the given pagerecords path
 readSpecies <- function(workingDir) {
-
-  source_python(paste0(workingDir, "/src/matching/map_crop_species.py"))
+  library(tesseract)
+  source_python(paste0(workingDir, "/src/read_species/map_crop_species.py"))
   pagerecords = paste0(workingDir, "/data/output/pagerecords/")
   outdir =  paste0(workingDir, "/data/output/maps/align/")
   # select all pages record information csv files as list
@@ -72,7 +73,7 @@ readSpecies <- function(workingDir) {
     if(!is.na(w) & !is.na(y) &!is.na(h) & !is.na(x)){
       
       # use the crop Image function from the crop_species_name.py
-      path = cropImage(workingDir, recordsPage$filename[1], pagerecords, x,y,w,h, as.character(j))
+      path = cropImage(recordsPage$filename[1], pagerecords, x,y,w,h, as.character(j))
       eng <- tesseract("eng")
       text <- tesseract::ocr_data(path, engine = eng)
       h <- which(text$word == "distribution", arr.ind = TRUE)
@@ -87,7 +88,7 @@ readSpecies <- function(workingDir) {
             name1 <- str_replace(name, ".csv", "")
             newName = paste0(outdir, name1 , "_", specie,".tif")
             oldName = paste0(outdir, name1 , ".tif")
-            file.rename(oldName,newName )
+            file.copy(oldName,newName )
           }else{
             specie <- 'not found'
             species<-append(species,specie )

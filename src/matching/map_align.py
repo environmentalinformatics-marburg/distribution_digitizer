@@ -67,7 +67,7 @@ def align_images(image, template, outputdir, maxFeatures=500, keepPercent=0.2,
 
 
 
-# workingDir="D:/distribution_digitizer/"
+workingDir="D:/distribution_digitizer/"
 
 def align(workingDir):
   inputdir = workingDir+"/data/output/maps/matching/"

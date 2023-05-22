@@ -29,10 +29,10 @@ def edge(tiffile, outdir, n, m):
 #for tiffile in glob.glob(input_tif + "*.tif"):
  #   edge(tiffile,input_tif,n,m)
 
-workingDir="D:/distribution_digitizer/"
-n=5
-m=9
-
+#workingDir="D:/distribution_digitizer/"
+#n=5
+#m=9
+#mainpixelclassification( n, m)
 def mainpixelclassification(workingDir, n, m):
   inputdir = workingDir+"/data/output/maps/align/"
   ouputdir = workingDir+"/data/output/pixels/classification/filtering/"
