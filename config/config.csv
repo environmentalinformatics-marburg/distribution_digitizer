@@ -1,2 +1,2 @@
-working_dir;start_information;numberPagePrint;allprintedPages;pageaxis;mwidth;iformat;pColor; 
-D:/distribution_digitizer/;Your working directory is the local digitizer repository!;1;50;1;;;1;
+working_dir;dataInputDir;dataOutputDir;numberSitesPrint;allPrintedPages;pFormat;pColor
+D:/distribution_digitizer;D:/distribution_digitizer/data/input;D:/data/;1;100;1;1

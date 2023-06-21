@@ -6,13 +6,14 @@ from osgeo import gdal, osr
 import pandas as pd
 import os,glob
 os.environ['PROJ_LIB'] = "C:/ProgramData/miniconda3/Library/share/proj"
+
 # Working with the Input GCP points from the csv file and then rearranging them according to the function
 def maskgeoreferencing(input_raster,output_raster,gcp_points):
-  #workingDir="D:/distribution_digitizer/"
-  #output_raster= workingDir + "data/output/mask/georeferenced_masks/"
+  workingDir="D:/distribution_digitizer/"
+  output_raster= workingDir + "data/output/georeferencing/"
   os.makedirs(output_raster, exist_ok=True) 
-  #input_raster = workingDir +"data/output/mask/non_georeferenced_masks/2_0060map_1_1.tif"
-  #gcp_points = workingDir + "data/input/templates/geopoints/gcp_point_map1.points"
+  input_raster = workingDir +"data/output/masking/23_0069map_2_0__ladakensis_centralis_sculda_chitralensis_asiatica.tif"
+  gcp_points = workingDir + "data/input/templates/geopoints/gcp_point_map1.points"
   f=pd.read_csv(gcp_points)
   keep_col = ['mapX','mapY','sourceX', 'sourceY', 'enable', 'dX','dY', 'residual']
   #['mapX','mapY','sourceX', 'sourceY', 'enable', 'dX','dY', 'residual']
@@ -41,10 +42,11 @@ def maskgeoreferencing(input_raster,output_raster,gcp_points):
 # Set projection
   dst_ds.SetProjection(dest_wkt)
   dst_ds.SetGCPs(gcp_list, dest_wkt)
+  from qgis.core import *
   dst_ds = None
   src_ds = None
 
-workingDir="D:/distribution_digitizer/"
+#workingDir="D:/distribution_digitizer/"
 
 def mainmaskgeoreferencingMaps(workingDir):
   output_raster= workingDir + "data/output/georeferencing/maps/"

@@ -28,6 +28,7 @@ if(!require(reticulate)){
 }
 library(shinyalert)
 library(reticulate)
+library(tesseract)
 
 # Input variables
 options(shiny.host = '127.0.0.1')
@@ -40,10 +41,17 @@ scale =20
 rescale= (100/scale)
 
 workingDir <- getwd()
-print("dir")
-print(workingDir)
-test = 0
 
+
+#read config fields from config.csv in .../distribution_digitizer/config directory
+fileFullPath = (paste0(workingDir,'/config/config.csv'))
+if (file.exists(fileFullPath)){
+  config <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
+print(workingDir)
 
 # read the shiny text fields
 #1 shinyfields_create_templates.csv
@@ -77,37 +85,53 @@ if (file.exists(fileFullPath)){
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
 
-#5 shinyfields_georeferensing
-fileFullPath = (paste0(workingDir,'/config/shinyfields_georeferensing.csv'))
+#5 shinyfields_masking
+fileFullPath = (paste0(workingDir,'/config/shinyfields_masking.csv'))
 if (file.exists(fileFullPath)){
   shinyfields5 <- read.csv(fileFullPath,header = TRUE, sep = ';')
 } else{
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
-
-#6 shinyfields_postprocessing
-fileFullPath = (paste0(workingDir,'/config/shinyfields_postprocessing.csv'))
+#6 shinyfields_georeferensing
+fileFullPath = (paste0(workingDir,'/config/shinyfields_georeferensing.csv'))
 if (file.exists(fileFullPath)){
   shinyfields6 <- read.csv(fileFullPath,header = TRUE, sep = ';')
 } else{
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
 
-#7 shinyfields_centroid_masc_georeferensing
-fileFullPath = (paste0(workingDir,'/config/shinyfields_centroid_masc_georeferensing.csv'))
+#7 shinyfields_georeferensing
+fileFullPath = (paste0(workingDir,'/config/shinyfields_polygonize.csv'))
 if (file.exists(fileFullPath)){
   shinyfields7 <- read.csv(fileFullPath,header = TRUE, sep = ';')
 } else{
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
 
+
+#6 shinyfields_postprocessing
+#fileFullPath = (paste0(workingDir,'/config/shinyfields_postprocessing.csv'))
+#if (file.exists(fileFullPath)){
+#  shinyfields6 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+#} else{
+#  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+#}
+
+#7 shinyfields_centroid_masc_georeferensing
+#fileFullPath = (paste0(workingDir,'/config/shinyfields_centroid_masc_georeferensing.csv'))
+#if (file.exists(fileFullPath)){
+#  shinyfields7 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+#} else{
+#  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+#}
+
 #8 shinyfields_centroid_extraction
-fileFullPath = (paste0(workingDir,'/config/shinyfields_centroid_extraction.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields8 <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
+#fileFullPath = (paste0(workingDir,'/config/shinyfields_centroid_extraction.csv'))
+#if (file.exists(fileFullPath)){
+#  shinyfields8 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+#} else{
+ # stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+#}
 
 
 # The app body
@@ -119,10 +143,10 @@ shinyApp(
   # Fluid pages scale their components in real time to fill all available browser width.
   
   ui = fluidPage(
-  # define custum style css for the app
+  # define the style css for the app
   tags$head(
     # Note the wrapping of the string in HTML()
-    tags$link(rel = "stylesheet", type = "text/css", href = "dd_style.css")
+    tags$link(rel = "stylesheet", type = "text/css", href = "dd_style1.css")
   ),
   
   # App title ----
@@ -135,10 +159,10 @@ shinyApp(
       #                             choices = list("tif" = 1, "png" = 2), selected = 1))),
      
       # Top Information
-      p(shinyfields1$start_information  , style = "color:black"),
+      p(config$start_information , style = "color:black"),
       
       # Working directory
-      p(workingDir, style = "color:black"),
+      p(strong(workingDir, style = "color:black")),
 
       # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------
       h2(strong(shinyfields1$head, style = "color:black")),
@@ -158,71 +182,92 @@ shinyApp(
       p(shinyfields1$inf3, style = "color:black"),
                
                
-      # ----------------------------------------# 2. Map detection #----------------------------------------------------------------------
-      h2(shinyfields2$head, style = "color:black"),
-      p(shinyfields2$nf1, style = "color:black"),
+      # ----------------------------------------# 2. Maps detection #----------------------------------------------------------------------
+      h2(strong(shinyfields2$head, style = "color:black")),
+      p(shinyfields2$inf1, style = "color:black"),
       fluidRow(column(3,numericInput("threshold_for_TM", label=shinyfields2$threshold, value = 0.2))),
-       
+      p(shinyfields2$inf2, style = "color:black"), 
       # Start map detection
       fluidRow(column(3, actionButton("templateMatching",  label = shinyfields2$start1))),
-      p(shinyfields2$inf2, style = "color:black"), 
-      tags$div(style = "position: absolute; top: -100px;", textOutput("clock") ),  
+       
+      #tags$div(style = "position: absolute; top: -100px;", textOutput("clock") ),  
       
-      # Aligning maps
+      # maps align 
       h4(shinyfields2$head_sub, style = "color:black"),
       p(shinyfields2$inf3, style = "color:black"),
-      fluidRow(column(3, actionButton("alignMaps",  label = h3(shinyfields2$start2)))),
+      fluidRow(column(3, actionButton("alignMaps",  label = shinyfields2$start2))),
+      
+      # maps species 
+      h4(shinyfields2$head_species, style = "color:black"),
+      p(shinyfields2$inf4, style = "color:black"),
+      fluidRow(column(3, actionButton("cropSpecies",  label = shinyfields2$start3))),
      
       
       # ----------------------------------------# 3. Points detection #----------------------------------------------------------------------
-      h2(shinyfields3$head, style = "color:black"),
+      h2(strong(shinyfields3$head, style = "color:black")),
       p(shinyfields3$inf1, style = "color:black"),
       p(shinyfields3$inf2, style = "color:black"),
       
-      # ----------------------------------------# 3.1 Using matching #----------------------------------------------------------------------
+      
+      # ----------------------------------------# 3.1 Points detection Using matching #----------------------------------------------------------------------
       h4(shinyfields3$head_sub, style = "color:black"),
       p(shinyfields3$inf3, style = "color:black"),
       # Threshold for pixel matching
-      fluidRow(column(3,numericInput("threshold_for_PM", label=shinyfields3$threshold, value = 0.87))),
-      fluidRow(column(3, actionButton("pixelMatching",  label = h3(shinyfields3$lab)))),
+      fluidRow(column(3,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.87))),
+      fluidRow(column(3, actionButton("pixelMatching",  label = shinyfields3$lab))),
       p(shinyfields3$inf4, style = "color:black"),
-      p(shinyfields3$inf5, style = "color:black"),
       
-      # ----------------------------------------# 3.2 Using filtering  FILE=shinyfields_detect_points_using_filtering #----------------------------------------------------------------------
+      
+      # ----------------------------------------# 3.2 Points detection Using filtering  FILE=shinyfields_detect_points_using_filtering #----------------------------------------------------------------------
       h4(shinyfields4$head, style = "color:black"),
-      fluidRow(column(3,numericInput("filterK", label=shinyfields4$lab1, value = 5))),#, width = NULL, placeholder = NULL)
+      fluidRow(column(3,numericInput("filterK", label = shinyfields4$lab1, value = 5))),#, width = NULL, placeholder = NULL)
       p(shinyfields4$inf1, style = "color:black"),
-      fluidRow(column(3,numericInput("filterG", label=shinyfields4$lab2, value = 9))),#, width = NULL, placeholder = NULL)
-      fluidRow(column(3, actionButton("pixelClassification",  label = h3(shinyfields4$lab3)))),
+      fluidRow(column(3,numericInput("filterG", label = shinyfields4$lab2, value = 9))),#, width = NULL, placeholder = NULL)
+      fluidRow(column(3, actionButton("pixelClassification",  label = shinyfields4$lab3))),
       p(shinyfields4$inf2, style = "color:black"),
 
       
-      # ----------------------------------------# 4. Georeferencing  FILE=shinyfields_georeferensing #----------------------------------------------------------------------
-      h2("4. Georeferencing", style = "color:black"),
-      p(shinyfields5$head, style = "color:black"),
+      # ----------------------------------------# 4. Masking FILE=shinyfields_masking#----------------------------------------------------------------------
+      h2(shinyfields5$head, style = "color:black"),
       p(shinyfields5$inf1, style = "color:black"),
-      p(shinyfields5$inf2, style = "color:black"),
-      fluidRow(column(3, actionButton(shinyfields5$act,  label = h3(shinyfields5$lab)))), 
+      # p(shinyfields7$inf2, style = "color:black"),
+      fluidRow(column(3,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
+      fluidRow(column(3, actionButton("masking",  label = shinyfields5$lab2))),
+      p(shinyfields5$inf1, style = "color:black"),
       
       
-      # ----------------------------------------# 5 Postprocessing  FILE=shinyfields_postprocessing #----------------------------------------------------------------------
+      # ----------------------------------------# 5. Georeferencing  FILE=shinyfields_georeferensing #----------------------------------------------------------------------
       h2(shinyfields6$head, style = "color:black"),
-      h4(shinyfields6$head_sub, style = "color:black"),
-      fluidRow(column(3,numericInput(shinyfields6$input, label=shinyfields6$lab1, value = 5))),#, width = NULL, placeholder = NULL)
       p(shinyfields6$inf1, style = "color:black"),
-      fluidRow(column(3, actionButton("geomasks",  label = h3(shinyfields6$lab2)))),
       p(shinyfields6$inf2, style = "color:black"),
-
-      # ----------------------------------------# 5.2. Mask Georeferencing  FILE=shinyfields_centroid_masc_georeferensing#----------------------------------------------------------------------
-      h4(shinyfields7$head, style = "color:black"),
+      fluidRow(column(3, actionButton("georeferencing",  label = shinyfields6$lab1))), 
+      
+      
+      # ----------------------------------------# 6. Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
+      h2(shinyfields7$head, style = "color:black"),
       p(shinyfields7$inf1, style = "color:black"),
       p(shinyfields7$inf2, style = "color:black"),
-      fluidRow(column(3, actionButton("maskgeoreferencing",  label = h3(shinyfields7$lab)))),
+      fluidRow(column(3, actionButton("polygonize",  label = shinyfields7$lab1))), 
+      
+      
+      # ----------------------------------------# 6 Postprocessing  FILE=shinyfields_postprocessing #----------------------------------------------------------------------
+      #h2(shinyfields6$head, style = "color:black"),
+      #h4(shinyfields6$head_sub, style = "color:black"),
+      #fluidRow(column(3,numericInput(shinyfields6$input, label=shinyfields6$lab1, value = 5))),#, width = NULL, placeholder = NULL)
+      #p(shinyfields6$inf1, style = "color:black"),
+      #fluidRow(column(3, actionButton("geomasks",  label = h3(shinyfields6$lab2)))),
+      #p(shinyfields6$inf2, style = "color:black"),
+
+      # ----------------------------------------# 5.2. Mask Georeferencing  FILE=shinyfields_centroid_masc_georeferensing#----------------------------------------------------------------------
+     # h4(shinyfields7$head, style = "color:black"),
+     # p(shinyfields7$inf1, style = "color:black"),
+     # p(shinyfields7$inf2, style = "color:black"),
+     # fluidRow(column(3, actionButton("maskgeoreferencing",  label = h3(shinyfields7$lab)))),
       
       # ----------------------------------------# 5.3. Centroid Extraction FILE=shinyfields_centroid_extraction #----------------------------------------------------------------------
-      h4(shinyfields8$head, style = "color:black"),
-      p(shinyfields8$inf, style = "color:black"),
-      fluidRow(column(3, actionButton("pointextract",  label = h3(shinyfields8$lab)))),
+     # h4(shinyfields8$head, style = "color:black"),
+     # p(shinyfields8$inf, style = "color:black"),
+     # fluidRow(column(3, actionButton("pointextract",  label = h3(shinyfields8$lab)))),
                
       
       # Number Pages on the printed Site
@@ -273,6 +318,9 @@ shinyApp(
              plotOutput("plot1", width = 200, height = 200), # plot for the crop point
              # plotOutput("plot2", width = 200, height = 200), # plot for the crop point
              # plotOutput("plot3", width = 200, height = 200),# plot for the crop point
+             #textOutput("text"),
+             htmlOutput("text"),
+             uiOutput("tab")
       ),
       
       #column(width = 4,
@@ -304,7 +352,7 @@ shinyApp(
     # Update the clock every second using a reactiveTimer
     current_time <- reactiveTimer(1000)
  
-    # ----------------------------------------# 2. Map detection #----------------------------------------------------------------------
+    # ----------------------------------------# 2. Maps detection #----------------------------------------------------------------------
     # Template matching start
     observeEvent(input$templateMatching, {
       
@@ -313,83 +361,168 @@ shinyApp(
       shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
                  closeOnClickOutside = FALSE, animation = TRUE)
       
-      #Processing template matching
-      fname=paste0(workingDir, "/", "src/template_matching/template_matching.py")
+      # processing template matching
+      fname=paste0(workingDir, "/", "src/matching/map_matching.py")
       source_python(fname)
       print(input$threshold_for_TM)
       mainTemplateMatching(workingDir, input$threshold_for_TM)
       cat("\nSuccessfully executed")
-      findTemplateResult = paste0(workingDir, "/data/output/maps/")
+      findTemplateResult = paste0(workingDir, "/data/output/maps/matching/")
       patternSum = paste0(input$threshold_for_TM,"_")
       patternSum =gsub(".", "", patternSum, fixed=TRUE)
       patternSum =gsub("0", "", patternSum, fixed=TRUE)
       files<- list.files(findTemplateResult, pattern=patternSum, full.names = TRUE, recursive = FALSE)
       countFiles = paste0(length(files),"")
       print(countFiles)
-      message2=paste0("Process align maps is ended on: ", format(current_time(), "%H:%M:%S"), ". The number extracted outputs with threshold=",input$threshold_for_TM , " are ", countFiles ,"! High threshold values lead to few detections, low values to many detections.")
+      message2=paste0("Process align maps is ended on: ", format(current_time(), "%H:%M:%S \n ."), " The number extracted outputs with threshold=",input$threshold_for_TM , " are ", countFiles ,"! \n High threshold values lead to few detections, low values to many detections.")
       closeAlert(num = 0, id = NULL)
       shinyalert(message2, inputType = "text")
-      
-     # shinyalert(message2, inputType = "text")
+
     })
     
-    # ----------------------------------------# 2.1 Align Maps #----------------------------------------------------------------------
-    # Align maps  start
+    # ----------------------------------------# 2.1 Maps align #----------------------------------------------------------------------
+    # Align maps start
     observeEvent(input$alignMaps, {
       # show start action message
       message=paste0("Process align maps is started on: ")
       shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
                  closeOnClickOutside = FALSE, animation = TRUE)
       
-      # Test the align the outputs from template matching
-      fname=paste0(workingDir, "/", "src/align_maps/align_map.py")
-      source_python(fname)
+      # align
+      fnameAlign=paste0(workingDir, "/", "src/matching/map_align.py")
+      source_python(fnameAlign)
       align(workingDir)
-      # show start action message
-      message=paste0("Process align mapsis ended on: ")
+      print(fnameAlign)
+      cat("\nSuccessfully executed")
+      findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
+      files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+      countFiles = paste0(length(files),"")
+      print(countFiles)
+      message2=paste0("Process align maps is ended on: ", format(current_time(), "%H:%M:%S \n ."), " The number align maps are ", countFiles ,"!\n The align maps saved in /data/output/maps/align/")
       closeAlert(num = 0, id = NULL)
-      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
+      shinyalert(message2, inputType = "text")
+    })
+    
+    # ----------------------------------------# 2.2 Crop map species #----------------------------------------------------------------------
+    # Crop map species
+    observeEvent(input$cropSpecies, {
+      # show start action message
+      message=paste0("Process crop map species is started on: ")
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
+                 closeOnClickOutside = FALSE, animation = TRUE)
+      
+      # Croping
+      fname=paste0(workingDir, "/", "src/read_species/map_read_species.R")
+      source(fname)
+      species = readSpecies2(workingDir)
+      cat("\nSuccessfully executed")
+      
+      # show end action message
+      message=paste0("Process pixel detection is ended on: ")
+      closeAlert(num = 0, id = NULL)
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"), "!\n The ones found are appended to the file names of the corresponding file in directory /data/output/maps/align/" ), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
                  closeOnClickOutside = TRUE, animation = TRUE)
+     
+     # output$text <- renderUI({ HTML(paste("<div>", species, "</div>"))})
       
     })
+    
     
     # ----------------------------------------# 2. Pixel detection #----------------------------------------------------------------------
     # Pixel matching start
     observeEvent(input$pixelMatching, {
+      # show start action message
+      message=paste0("Process pixel detection is started on: ")
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
+                 closeOnClickOutside = FALSE, animation = TRUE)
+      
       #Processing template matching
-      library(reticulate)
-      fname=paste0(workingDir, "/", "src/template_matching/Pixel_matching.py")
+      fname=paste0(workingDir, "/", "src/matching/pixel_matching.py")
       source_python(fname)
       mainpixelmatching(workingDir, input$threshold_for_PM)
       cat("\nSuccessfully executed")
+      
+      # show end action message
+      message=paste0("Process pixel detection is ended on: ")
+      closeAlert(num = 0, id = NULL)
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"), "!\n You can find the marked points on the maps in /data/output/maps/align/" ), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
+                 closeOnClickOutside = TRUE, animation = TRUE)
     })
     
-    # Template matching start
+    # Process pixel filtering 
     observeEvent(input$pixelClassification, {
-      #Processing template matching
+      # show start action message
+      message=paste0("Process pixel detection is started on: ")
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"),"!\n You can find the classified maps in /data/output/pixels/classification/filtering folder"), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
+                 closeOnClickOutside = FALSE, animation = TRUE)
+      
+      # processing template matching
       library(reticulate)
-      fname=paste0(workingDir, "/", "src/template_matching/Pixel_Classification.py")
+      fname=paste0(workingDir, "/", "src/matching/pixel_classification.py")
       source_python(fname)
       mainpixelclassification(workingDir, input$filterK, input$filterG)
       cat("\nSuccessfully executed")
+      
+      # show end action message
+      message=paste0("Process pixel detection is ended on: ")
+      closeAlert(num = 0, id = NULL)
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"), "!\n You can find the classified maps in /data/output/pixels/classification/filtering folder" ), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
+                 closeOnClickOutside = TRUE, animation = TRUE)
     })
     
+    # ----------------------------------------# Masking #----------------------------------------------------------------------
+    observeEvent(input$masking, {
+      # show start action message
+      message=paste0("Process pixel detection is started on: ")
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
+                 closeOnClickOutside = FALSE, animation = TRUE)
+      
+      # processing masking
+      library(reticulate)
+      fname=paste0(workingDir, "/", "src/masking/masking.py")
+      source_python(fname)
+      maingeomask(workingDir, input$morph_ellipse)
+      fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
+      source_python(fname)
+      maingeomask(workingDir, input$morph_ellipse)
+      cat("\nSuccessfully executed")
+      
+      # show end action message
+      message=paste0("Process pixel detection is ended on: ")
+      closeAlert(num = 0, id = NULL)
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
+                 closeOnClickOutside = TRUE, animation = TRUE)
+    })
+    
+      
     # ----------------------------------------# Georeferencing #----------------------------------------------------------------------
     # Georeferencing start
     observeEvent(input$georeferencing, {
-      #Processing template matching
+      # show start action message
+      message=paste0("Process pixel detection is started on: ")
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
+                 closeOnClickOutside = FALSE, animation = TRUE)
+      
+      # processing georeferencing
       library(reticulate)
-      fname=paste0(workingDir, "/", "src/georeferencing.py")
+      fname=paste0(workingDir, "/", "src/georeferencing/mask_georeferencing.py")
       source_python(fname)
-      maingeoreferencing(workingDir)
+      mainmaskgeoreferencingMaps(workingDir)
+      mainmaskgeoreferencingMasks(workingDir)
       cat("\nSuccessfully executed")
+      
+      # show end action message
+      message=paste0("Georeferencing is ended on: ")
+      closeAlert(num = 0, id = NULL)
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
+                 closeOnClickOutside = TRUE, animation = TRUE)
     })
     
     # GCP points extraction
     observeEvent(input$pointextract, {
       #Processing template matching
       library(reticulate)
-      fname=paste0(workingDir, "/", "src/geo_points_extraction.py")
+      fname=paste0(workingDir, "/", "src/georeferencing/geo_points_extraction.py")
       source_python(fname)
       maingeopointextract(workingDir,input$filterm)
       cat("\nSuccessfully executed")
@@ -408,17 +541,37 @@ shinyApp(
     
     
     # mask_Georeferencing start
-    observeEvent(input$maskgeoreferencing, {
-      #Processing template matching
-      library(reticulate)
-      fname=paste0(workingDir, "/", "src/mask_georeferencing.py")
-      source_python(fname)
-      mainmaskgeoreferencing(workingDir)
-      cat("\nSuccessfully executed")
-    })
+   # observeEvent(input$maskgeoreferencing, {
+   #   #Processing template matching
+   #   library(reticulate)
+   #   fname=paste0(workingDir, "/", "src/georeferencing/mask_georeferencing.py")
+   #   source_python(fname)
+   #   mainmaskgeoreferencing(workingDir)
+   #   cat("\nSuccessfully executed")
+   # })
     
    
-    
+    # ----------------------------------------# Polygonize #----------------------------------------------------------------------
+    # Georeferencing start
+    observeEvent(input$polygonize, {
+      # show start action message
+      message=paste0("Process Polygonizing is started on: ")
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
+                 closeOnClickOutside = FALSE, animation = TRUE)
+      
+      # processing polygonize
+      library(reticulate)
+      fname=paste0(workingDir, "/", "src/polygonize/test_GDALPolygonize.py")
+      source_python(fname)
+      mainPolygonize(workingDir)
+      cat("\nSuccessfully executed")
+      
+      # show end action message
+      message=paste0("Polygonizing is ended on: ")
+      closeAlert(num = 0, id = NULL)
+      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
+                 closeOnClickOutside = TRUE, animation = TRUE)
+    }) 
 
     
     # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------
