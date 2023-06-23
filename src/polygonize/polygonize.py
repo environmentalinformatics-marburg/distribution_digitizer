@@ -1,13 +1,10 @@
 from osgeo import gdal, ogr, osr
 import os,glob
 os.environ['PROJ_LIB'] = "C:/ProgramData/miniconda3/Library/share/proj"
-
 import numpy as np
 import rasterio
 from rasterio import plot
-import os
-from qgis.core import *
-import os
+
 
 def polygonize(input_raster, output_shape, dst_layername):
     
