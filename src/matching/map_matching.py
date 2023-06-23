@@ -121,25 +121,29 @@ def matchtemplatetiff(tifffile, templateMapfile, outdir,
 
 
 # Function mainTemplateMatching - start the mathching in loop 
-def mainTemplateMatching(workingDir, threshold):
+def mainTemplateMatching(wdr, threshold):
     
   # OUTPUT
-  outdir = workingDir + "/data/output/maps/matching/"
+  print("Working directory matching:")
+  print(wdr)
+  outdir = wdr + "/data/output/maps/matching/"
+  print("Working directory 3:")
+  print(outdir)
   os.makedirs(outdir, exist_ok=True)
   # classifikation csv file
   #outputpcdirClassifikation = workingDir + "/classification/matching/"
   #os.makedirs(outputpcdirClassifikation, exist_ok=True)
 
   # pagerecords csv file with the map coordinats
-  outputpagerecords = workingDir + "/data/output/pagerecords/"
+  outputpagerecords = wdr + "/data/output/pagerecords/"
   os.makedirs(outputpagerecords, exist_ok=True)
   # files = glob.glob(outputpagerecords)
   #for f in files:
     #os.remove(f)
-  records = workingDir + "/data/output/records.csv"
+  records = wdr + "/data/output/records.csv"
   # input dirs
-  templates = workingDir+"/data/input/templates/maps/"
-  inputdir = workingDir + "/data/input/pages/"
+  templates = wdr+"/data/input/templates/maps/"
+  inputdir = wdr + "/data/input/pages/"
   
   
   # start the matching in loop input templates and input pages 

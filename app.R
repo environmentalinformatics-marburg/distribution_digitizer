@@ -41,7 +41,8 @@ scale =20
 rescale= (100/scale)
 
 workingDir <- getwd()
-
+print("Working directory 1:")
+print(workingDir)
 
 #read config fields from config.csv in .../distribution_digitizer/config directory
 fileFullPath = (paste0(workingDir,'/config/config.csv'))
@@ -51,7 +52,7 @@ if (file.exists(fileFullPath)){
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
 
-print(workingDir)
+
 
 # read the shiny text fields
 #1 shinyfields_create_templates.csv
@@ -159,7 +160,7 @@ shinyApp(
       #                             choices = list("tif" = 1, "png" = 2), selected = 1))),
      
       # Top Information
-      p(config$start_information , style = "color:black"),
+      p(config$workingDirInformation , style = "color:black"),
       
       # Working directory
       p(strong(workingDir, style = "color:black")),
@@ -363,7 +364,10 @@ shinyApp(
       
       # processing template matching
       fname=paste0(workingDir, "/", "src/matching/map_matching.py")
+      print("Processing template matching python script:")
+      print(fname)
       source_python(fname)
+      print("Threshold:")
       print(input$threshold_for_TM)
       mainTemplateMatching(workingDir, input$threshold_for_TM)
       cat("\nSuccessfully executed")
@@ -389,10 +393,12 @@ shinyApp(
                  closeOnClickOutside = FALSE, animation = TRUE)
       
       # align
-      fnameAlign=paste0(workingDir, "/", "src/matching/map_align.py")
-      source_python(fnameAlign)
+      fname=paste0(workingDir, "/", "src/matching/map_align.py")
+      print("Processing align python script:")
+      print(fname)
+      source_python(fname)
       align(workingDir)
-      print(fnameAlign)
+      print(fname)
       cat("\nSuccessfully executed")
       findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
       files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
@@ -413,6 +419,8 @@ shinyApp(
       
       # Croping
       fname=paste0(workingDir, "/", "src/read_species/map_read_species.R")
+      print("Croping the species names R script:")
+      print(fname)
       source(fname)
       species = readSpecies2(workingDir)
       cat("\nSuccessfully executed")
@@ -436,8 +444,10 @@ shinyApp(
       shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
                  closeOnClickOutside = FALSE, animation = TRUE)
       
-      #Processing template matching
+      # Processing pixel detection with matching
       fname=paste0(workingDir, "/", "src/matching/pixel_matching.py")
+      print(" Processing pixel python script:")
+      print(fname)
       source_python(fname)
       mainpixelmatching(workingDir, input$threshold_for_PM)
       cat("\nSuccessfully executed")
@@ -456,9 +466,11 @@ shinyApp(
       shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"),"!\n You can find the classified maps in /data/output/pixels/classification/filtering folder"), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
                  closeOnClickOutside = FALSE, animation = TRUE)
       
-      # processing template matching
-      library(reticulate)
+      # Process pixel filtering 
+      #library(reticulate)
       fname=paste0(workingDir, "/", "src/matching/pixel_classification.py")
+      print(" Process pixel filtering  python script:")
+      print(fname)
       source_python(fname)
       mainpixelclassification(workingDir, input$filterK, input$filterG)
       cat("\nSuccessfully executed")
@@ -478,8 +490,10 @@ shinyApp(
                  closeOnClickOutside = FALSE, animation = TRUE)
       
       # processing masking
-      library(reticulate)
+      #library(reticulate)
       fname=paste0(workingDir, "/", "src/masking/masking.py")
+      print(" Process masking python script:")
+      print(fname)
       source_python(fname)
       maingeomask(workingDir, input$morph_ellipse)
       fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
@@ -504,8 +518,10 @@ shinyApp(
                  closeOnClickOutside = FALSE, animation = TRUE)
       
       # processing georeferencing
-      library(reticulate)
+      #library(reticulate)
       fname=paste0(workingDir, "/", "src/georeferencing/mask_georeferencing.py")
+      print(" Process georeferencing python script:")
+      print(fname)
       source_python(fname)
       mainmaskgeoreferencingMaps(workingDir)
       mainmaskgeoreferencingMasks(workingDir)
@@ -560,8 +576,10 @@ shinyApp(
                  closeOnClickOutside = FALSE, animation = TRUE)
       
       # processing polygonize
-      library(reticulate)
-      fname=paste0(workingDir, "/", "src/polygonize/test_GDALPolygonize.py")
+      #library(reticulate)
+      fname=paste0(workingDir, "/", "src/polygonize/polygonize.py")
+      print(" Process polygonize erencing python script:")
+      print(fname)
       source_python(fname)
       mainPolygonize(workingDir)
       cat("\nSuccessfully executed")

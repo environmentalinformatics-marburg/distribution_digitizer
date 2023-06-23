@@ -11,9 +11,9 @@ import os
 
 def polygonize(input_raster, output_shape, dst_layername):
     
-    input_raster = "D:/distribution_digitizer/data/output/georeferencing/georeferenced23_0069map_2_0__ladakensis_centralis_sculda_chitralensis_asiatica.tif"
-    output_shape = "D:/distribution_digitizer/data/output/"
-    dst_layername = "test55"
+    #input_raster = "D:/distribution_digitizer/data/output/georeferencing/georeferenced23_0069map_2_0__ladakensis_centralis_sculda_chitralensis_asiatica.tif"
+    #output_shape = "D:/distribution_digitizer/data/output/"
+    #dst_layername = "test55"
     #  get raster datasource
     src_ds = gdal.Open( input_raster )
     #
@@ -45,12 +45,18 @@ def polygonize(input_raster, output_shape, dst_layername):
     #mask_ds = None
 
 
+#workingDir="D:/BB/distribution_digitizer/"
+
 def mainPolygonize(workingDir):
-  output= workingDir + "data/output/polygonize/"
+  output= workingDir + "/data/output/polygonize/"
   os.makedirs(output, exist_ok=True) 
-  inputdir = workingDir +"data/output/georeferencing/masks/"
+  inputdir = workingDir +"/data/output/georeferencing/masks/"
    
   for input_raster in glob.glob(inputdir + "*.tif"):
+    print(input_raster)
     dst_layername = os.path.basename(input_raster)
+    print(dst_layername)
     output_shape = output + dst_layername
-    polygonize(input_raster,output_shape, dst_layername)
+    print(output_shape)
+    polygonize(input_raster, output_shape, dst_layername)
+   

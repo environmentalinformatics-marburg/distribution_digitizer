@@ -32,8 +32,8 @@ def geomask(file, outputdir, n):
 
 #workingDir="D:/distribution_digitizer/"
 def maingeomask(workingDir, n):
-  inputdir = workingDir+"data/output/maps/align/"
-  outputdir = workingDir+"data/output/masking/"
+  inputdir = workingDir+"/data/output/maps/align/"
+  outputdir = workingDir+"/data/output/masking/"
   os.makedirs(outputdir, exist_ok=True)
   for file in glob.glob(inputdir + '*.tif'):
     geomask(file, outputdir, 5)

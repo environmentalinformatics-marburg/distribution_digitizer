@@ -67,12 +67,15 @@ def align_images(image, template, outputdir, maxFeatures=500, keepPercent=0.2,
 
 
 
-workingDir="D:/distribution_digitizer/"
+#workingDir="D:/distribution_digitizer/"
 
-def align(workingDir):
-  inputdir = workingDir+"/data/output/maps/matching/"
-  tempdir = workingDir+"/data/input/templates/align_ref/"
-  outputdir = workingDir+"/data/output/maps/align/"
+def align(wdr):
+    # OUTPUT
+  print("Working directory matching:")
+  print(wdr)
+  inputdir = wdr+"/data/output/maps/matching/"
+  tempdir = wdr+"/data/input/templates/align_ref/"
+  outputdir = wdr+"/data/output/maps/align/"
   os.makedirs(outputdir, exist_ok=True)
   
   for templates in glob.glob(tempdir + '*.tif'):

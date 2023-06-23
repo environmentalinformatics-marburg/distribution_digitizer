@@ -112,7 +112,8 @@ shinyApp(
       #, input$dataOutputDir, input$numberSitesPrint, input$allprintedPages,
       #           input$pFormat, input$pColor )
       
-      x <- data.frame(working_dir= workingDir, 
+      x <- data.frame(workingDir= workingDir, 
+                      workingDirInformation = "Your working directory is the local digitizer repository!",
                       dataInputDir = input$dataInputDir,
                       dataOutputDir = input$dataOutputDir,
                       numberSitesPrint = input$numberSitesPrint,
@@ -122,17 +123,9 @@ shinyApp(
       tf <- tempfile(fileext = ".csv")
       
       ## To write a CSV file for input to Excel one might use
-      write.table(x, file = "D:/distribution_digitizer/config/config.csv", sep = ";", row.names = FALSE,
+      write.table(x, file = paste0(workingDir,"/config/config.csv"), sep = ";", row.names = FALSE,
                    quote=FALSE)
       
-     # write.table(text, file = "D:/distribution_digitizer/config/config.csv" , sep=";", col.names = c("A","B"), row.names = FALSE, quote=FALSE)
-      #
-      #write.csv(DataFrame Name, "Path to export the DataFrame\\File Name.csv", row.names=FALSE)
-     # working_dir;start_information;numberPagePrint;allprintedPages;pageaxis;mwidth;iformat;pColor; 
-     # D:/distribution_digitizer/;Your working directory is the local digitizer repository!;1;50;1;;;1;
-      # text<-c(workingDir)
-      # write.csv(text, file = "lastwd.csv" , col.names = F, row.names = fields, quote = F, append=T)
-      # write.table(x, file = paste0(workingDir,"/lastwd.txt") ,sep = ",", col.names = NA)
     })
     
 

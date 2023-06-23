@@ -19,8 +19,8 @@ def geomask(file, outputdir, n):
 
 
 def maingeomask(workingDir, n):
-  inputdir = workingDir+"data/output/pixelS/classification/filtering/"
-  outputdir = workingDir+"data/output/masking_black/"
+  inputdir = workingDir+"/data/output/pixelS/classification/filtering/"
+  outputdir = workingDir+"/data/output/masking_black/"
   os.makedirs(outputdir, exist_ok=True)
   for file in glob.glob(inputdir + '*.tif'):
         geomask(file, outputdir, 5)

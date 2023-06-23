@@ -22,7 +22,7 @@
 library(reticulate) # Python binding for R. 
 # install.packages("reticulate") # start the RStudio as admin and hit Y when prompted for the miniconda installation
 
-setwd("D:/distribution_digitizer/") # uncomment this line for setting the working directory manually.
+setwd("D:/BB/distribution_digitizer/") # uncomment this line for setting the working directory manually.
 
 getwd() # print the path to the working directory for copying into the Digitizer application (Field: "Working Directory").
 
