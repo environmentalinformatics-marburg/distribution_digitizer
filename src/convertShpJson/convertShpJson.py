@@ -45,4 +45,8 @@ def converToJson(workingDir):
                 print(os.path.join(root, file))
                 # Call the function to perform the conversion
                 convert_shapefile_to_json(root, file, outputDir)
-                
+
+# insertino Kai:
+# run the functions:                 
+converToJson("D:/distribution_digitizer-main")
+

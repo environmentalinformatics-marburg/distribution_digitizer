@@ -5,7 +5,14 @@ import shutil
 from osgeo import gdal, osr
 import pandas as pd
 import os,glob
-os.environ['PROJ_LIB'] = "C:/ProgramData/miniconda3/Library/share/proj"
+#os.environ['PROJ_LIB'] = "C:/ProgramData/miniconda3/Library/share/proj"
+#os.environ['PROJ_LIB'] = "C:/Users/user/miniconda3/Library/share/proj/"
+
+import sys
+# Set path to proj.db file via the path to the conda environment currently in use
+env = sys.prefix
+proj = os.path.join(env, "Library/share/proj/")
+os.environ['PROJ_LIB'] = proj
 
 # Working with the Input GCP points from the csv file and then rearranging them according to the function
 def maskgeoreferencing(input_raster,output_raster,gcp_points):
@@ -44,6 +51,8 @@ def maskgeoreferencing(input_raster,output_raster,gcp_points):
 
 #workingDir="D:/BB/distribution_digitizer/"
 
+#workingDir = "D:/distribution_digitizer-main"
+
 def mainmaskgeoreferencingMaps(workingDir):
   output_raster= workingDir + "/data/output/georeferencing/maps/"
   os.makedirs(output_raster, exist_ok=True) 
@@ -53,10 +62,11 @@ def mainmaskgeoreferencingMaps(workingDir):
     for input_raster in glob.glob(inputdir + "*.tif"):
        maskgeoreferencing(input_raster, output_raster,gcp_points)
        
-def mainmaskgeoreferencingMasks(workingDir):
+def mainmaskgeoreferencingMasks(workingDir):      
   output_raster= workingDir + "/data/output/georeferencing/masks/"
   os.makedirs(output_raster, exist_ok=True) 
   inputdir = workingDir +"/data/output/masking_black/"
+  #inputdir = workingDir +"/data/output/masking/"
   g_dir = workingDir + "/data/input/templates/geopoints/"
   for gcp_points in glob.glob(g_dir + "*.points"):
     for input_raster in glob.glob(inputdir + "*.tif"):

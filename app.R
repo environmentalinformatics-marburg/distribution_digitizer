@@ -186,7 +186,7 @@ shinyApp(
       # ----------------------------------------# 2. Maps detection #----------------------------------------------------------------------
       h2(strong(shinyfields2$head, style = "color:black")),
       p(shinyfields2$inf1, style = "color:black"),
-      fluidRow(column(3,numericInput("threshold_for_TM", label=shinyfields2$threshold, value = 0.2))),
+      fluidRow(column(3, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.2, min = 0, max = 1, step = 0.05))),
       p(shinyfields2$inf2, style = "color:black"), 
       # Start map detection
       fluidRow(column(3, actionButton("templateMatching",  label = shinyfields2$start1))),
@@ -214,7 +214,7 @@ shinyApp(
       h4(shinyfields3$head_sub, style = "color:black"),
       p(shinyfields3$inf3, style = "color:black"),
       # Threshold for pixel matching
-      fluidRow(column(3,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.87))),
+      fluidRow(column(3,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.87, min = 0, max = 1, step = 0.05))),
       fluidRow(column(3, actionButton("pixelMatching",  label = shinyfields3$lab))),
       p(shinyfields3$inf4, style = "color:black"),
       
@@ -568,17 +568,25 @@ shinyApp(
     
    
     # ----------------------------------------# Polygonize #----------------------------------------------------------------------
-    # Georeferencing start
+    # Polygonize start
     observeEvent(input$polygonize, {
       # show start action message
       message=paste0("Process Polygonizing is started on: ")
       shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
                  closeOnClickOutside = FALSE, animation = TRUE)
       
+      # processing rectifying
+      fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
+      print(" Process rectifying python script:")
+      print(fname)
+      source_python(fname)
+      mainRectifying(workingDir)
+      cat("\nSuccessfully executed")
+      
       # processing polygonize
       #library(reticulate)
       fname=paste0(workingDir, "/", "src/polygonize/polygonize.py")
-      print(" Process polygonize erencing python script:")
+      print(" Process polygonizing python script:")
       print(fname)
       source_python(fname)
       mainPolygonize(workingDir)
