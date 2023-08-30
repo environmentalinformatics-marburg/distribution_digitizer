@@ -12,13 +12,13 @@ import glob
 import numpy as np 
 import shutil
 
-def pixelmatch(tiffile, file, outputpcdir, pixel_threshold):
+def pointmatch(tiffile, file, outputpcdir, point_threshold):
   img = np.array(PIL.Image.open(tiffile))
   tmp = np.array(PIL.Image.open(file))
   w, h, c = tmp.shape
   res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
 # Adjust this threshold value to suit you, you may need some trial runs (critical!)
-  threshold = pixel_threshold
+  threshold = point_threshold
   loc = np.where(res >= threshold)
 # create empty lists to append the coord of the
   lspoint = []
@@ -40,11 +40,22 @@ def pixelmatch(tiffile, file, outputpcdir, pixel_threshold):
   PIL.Image.fromarray(img, 'RGB').save(os.path.join(outputpcdir , os.path.basename(tiffile)))
   #cv2.imwrite(outputpcdir + os.path.basename(tiffile).rsplit('.', 1)[0] + '.tif',img)
   
-def mainpixelmatching(workingDir, pixel_threshold):
-  outputpcdir = workingDir + "/data/output/maps/align/"
-  pixel_templates = workingDir+"/data/input/templates/symbols/"
-  #inputpcdir = workingDir + "/data/output/"
-  for tiffile in glob.glob(outputpcdir + '*.tif'):
-    for file in glob.glob(pixel_templates + '*.tif'): 
-        pixelmatch(tiffile, file, outputpcdir, pixel_threshold)
+  
+# only for tests
+# workingDir = "D:/distribution_digitizer"
+
+def mainPointMatching(workingDir, point_threshold):
+  outputTiffDir = workingDir + "/data/output/maps/align/"
+  os.makedirs(outputTiffDir, exist_ok=True)
+  pointTemplates = workingDir+"/data/input/templates/symbols/"
+  
+  # create out directory for the result images as png
+  ouputPngDir = workingDir+"/www/pointMatching_png/"
+  os.makedirs(ouputPngDir, exist_ok=True)
+  print(outputTiffDir)
+  print(ouputPngDir)
+  
+  for tiffile in glob.glob(outputTiffDir + '*.tif'):
+    for file in glob.glob(pointTemplates + '*.tif'): 
+        pointmatch(tiffile, file, outputTiffDir, point_threshold)
 

@@ -43,10 +43,11 @@ def geopointextract(tiffile, geofile,  outputcsv, n):
      
 workingDir="D:/distribution_digitizer/"
 def maingeopointextract(workingDir,n):
-  inputdir = workingDir + "/data/output/georeferencing/"
-  outputcsv = workingDir + "/data/output/mask/georecords.csv"
-  geofiledir = workingDir + "data/output/templates/geopoints/"
+  inputdir = workingDir + "/data/output/georeferencing/masks/"
+  outputcsv = workingDir + "/data/output/georecords.csv"
+  geofiledir = workingDir + "data/input/templates/geopoints/"
   for tiffile in glob.glob(inputdir +'*.tif'): 
    for geofile in glob.glob(geofiledir + '*.tif'):
-        geopointextract(tiffile, geofile, outputcsv, n)
+     print(tiffile)
+        geopointextract(tiffile, geofile, outputcsv, 5)
 

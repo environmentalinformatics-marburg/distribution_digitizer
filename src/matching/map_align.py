@@ -78,6 +78,11 @@ def align(wdr):
   outputdir = wdr+"/data/output/maps/align/"
   os.makedirs(outputdir, exist_ok=True)
   
+  # prepare the png directory
+  # for the converted png images after the matching process 
+  outputpPngDir = wdr + "/www/align_png/"
+  os.makedirs(outputpPngDir, exist_ok=True)
+  
   for templates in glob.glob(tempdir + '*.tif'):
     for image in glob.glob(inputdir + '*.tif'):
       print(image)

@@ -50,7 +50,8 @@ readSpecies <- function(workingDir) {
   library(tesseract)
   source_python(paste0(workingDir, "/src/read_species/map_crop_species.py"))
   pagerecords = paste0(workingDir, "/data/output/pagerecords/")
-  outdir =  paste0(workingDir, "/data/output/maps/align/")
+  outTifdir =  paste0(workingDir, "/data/output/maps/align/")
+  outPngdir =  paste0(workingDir, "/www/croped_png/")
   # select all pages record information csv files as list
   recordsPages <- list.files(path=pagerecords,pattern=".csv",full.names=T,recursive=T)
   
@@ -86,9 +87,9 @@ readSpecies <- function(workingDir) {
             #print(recordsPages[j]) 
             name = basename(recordsPages[j])
             name1 <- str_replace(name, ".csv", "")
-            newName = paste0(outdir, name1 , "_", specie,".tif")
-            oldName = paste0(outdir, name1 , ".tif")
-            file.copy(oldName,newName )
+            newNameTif = paste0(outTifdir, name1 , "_", specie,".tif")
+            oldName = paste0(outTifdir, name1 , ".tif")
+            file.copy(oldName,newNameTif,overwrite = TRUE )
           }else{
             specie <- 'not found'
             species<-append(species,specie )

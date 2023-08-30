@@ -32,17 +32,21 @@ def edge(tiffile, outdir, n, m):
 #workingDir="D:/distribution_digitizer/"
 #n=5
 #m=9
-#mainpixelclassification( n, m)
-def mainpixelclassification(workingDir, n, m):
-  inputdir = workingDir+"/data/output/maps/align/"
-  ouputdir = workingDir+"/data/output/pixels/classification/filtering/"
-  os.makedirs(ouputdir, exist_ok=True)
-  print(inputdir)
-  print(ouputdir)
+#mainpointclassification( n, m)
+def mainPointFiltering(workingDir, n, m):
+  inputDir = workingDir+"/data/output/maps/align/"
+  ouputTifDir = workingDir+"/data/output/maps/pointFiltering/"
+  os.makedirs(ouputTifDir, exist_ok=True)
+  print(inputDir)
+  print(ouputTifDir)
   print(n)
   print(m)
-  for file in glob.glob(inputdir + '*.tif'):
+  
+  ouputPngDir = workingDir+"/www/pointFiltering_png/"
+  os.makedirs(ouputPngDir, exist_ok=True)
+  
+  for file in glob.glob(inputDir + '*.tif'):
     print(file)
-    edge(file, ouputdir, int(n), int(m))
+    edge(file, ouputTifDir, int(n), int(m))
   #fileName="D:/distribution_digitizer//data/output/align_maps\2_0060map_1_0.tif"
-  #edge(fileName, ouputdir, 5, 9)
+  #edge(fileName, ouputDir, 5, 9)

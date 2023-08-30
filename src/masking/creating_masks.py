@@ -18,10 +18,33 @@ def geomask(file, outputdir, n):
   PIL.Image.fromarray(blackAndWhiteImage).save(os.path.join(outputdir, os.path.basename(file)))
 
 
-def maingeomask(workingDir, n):
-  inputdir = workingDir+"/data/output/pixelS/classification/filtering/"
-  outputdir = workingDir+"/data/output/masking_black/"
-  os.makedirs(outputdir, exist_ok=True)
-  for file in glob.glob(inputdir + '*.tif'):
-        geomask(file, outputdir, 5)
+def mainGeomaskB(workingDir, n):
+  """
+  Generate geographical masks for all TIFF files in the input directory.
+
+  Args:
+      workingDir (str): Working directory containing input and output directories.
+      n (int): Size parameter for the morphological structuring element.
+
+  Returns:
+      None
+  """
+  # Define input and output directories
+  inputDir = workingDir+"/data/output/maps/pointFiltering/"
+  outputDir = workingDir+"/data/output/masking_black/"
+  
+  # Create the output directory if it doesn't exist
+  os.makedirs(outputDir, exist_ok=True)
+  
+  # Define output directories for the list overview
+  outputPngDir = workingDir+"/www/masking_black_png/"
+  
+  # Create the output directory if it doesn't exist
+  os.makedirs(outputPngDir, exist_ok=True)
+  
+  # Loop through TIFF files in the input directory
+  for file in glob.glob(inputDir + '*.tif'):
+    print(file)
+    # call a geo-mask using the geomask function
+    geomask(file, outputDir, n)
 

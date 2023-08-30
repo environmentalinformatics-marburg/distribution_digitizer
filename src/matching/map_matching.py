@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+Description: This script edits book pages and creates map images with the matching method.
+"""
+__author__ = "Madhu Venkates"
+__author__ = "Spaska Forteva"
+__date__ = "24. August 2021"
+
 import cv2
 import PIL
 from PIL import Image
@@ -120,7 +128,7 @@ def matchtemplatetiff(tifffile, templateMapfile, outdir,
 
 
 
-# Function mainTemplateMatching - start the mathching in loop 
+# Function mainTemplateMatching - start the matching in a loop
 def mainTemplateMatching(wdr, threshold):
     
   # OUTPUT
@@ -130,9 +138,11 @@ def mainTemplateMatching(wdr, threshold):
   print("Working directory 3:")
   print(outdir)
   os.makedirs(outdir, exist_ok=True)
-  # classifikation csv file
-  #outputpcdirClassifikation = workingDir + "/classification/matching/"
-  #os.makedirs(outputpcdirClassifikation, exist_ok=True)
+  
+  # prepare the png directory
+  # for the converted png images after the matching process 
+  outputpPngDir = wdr + "/www/matching_png/"
+  os.makedirs(outputpPngDir, exist_ok=True)
 
   # pagerecords csv file with the map coordinats
   outputpagerecords = wdr + "/data/output/pagerecords/"

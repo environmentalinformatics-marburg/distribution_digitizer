@@ -56,7 +56,7 @@ def maskgeoreferencing(input_raster,output_raster,gcp_points):
 def mainmaskgeoreferencingMaps(workingDir):
   output_raster= workingDir + "/data/output/georeferencing/maps/"
   os.makedirs(output_raster, exist_ok=True) 
-  inputdir = workingDir +"/data/output/pixels/classification/filtering/"
+  inputdir = workingDir +"/data/output/maps/pointFiltering/"
   g_dir = workingDir + "/data/input/templates/geopoints/"
   for gcp_points in glob.glob(g_dir + "*.points"):
     for input_raster in glob.glob(inputdir + "*.tif"):

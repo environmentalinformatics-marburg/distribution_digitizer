@@ -74,7 +74,9 @@ def cropSpacies(workingDir, pathToPage, pathToMap, x, y, w, h):
           species = species + "_" + (d['text'][i+2].lstrip())
           #print(str(x) , ",", str(x1))
           #print(str(y+h) , ",", str(y1))
-     
+  
+  outputPng= workingDir + "/www/cropped_png/"
+  os.makedirs(outputPng, exist_ok=True)    
   if( species != ''):
     # rename the align maps
     # pathToMap = "D:/distribution_digitizer/data/output/maps/matching/27_0060map_1_0.tif"
