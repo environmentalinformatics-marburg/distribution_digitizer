@@ -15,7 +15,6 @@ from rasterio import plot
 import os
 #from qgis.core import *
 #import os
-from affine import Affine
 
 def polygonize(input_raster, output_shape, dst_layername):
   
@@ -35,11 +34,7 @@ def polygonize(input_raster, output_shape, dst_layername):
     output_shape = output_shape.replace(extension, "")
     
     dst_ds = drv.CreateDataSource( output_shape )
-    
-    # get affine transformation matrix
-    transform = src_ds.GetGeoTransform()
-    affine = Affine(transform[1], transform[2], transform[0], transform[4], transform[5], transform[3])
-    
+
     sp_ref = osr.SpatialReference()
     sp_ref.SetFromUserInput('EPSG:4326')
 

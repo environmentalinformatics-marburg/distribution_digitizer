@@ -14,16 +14,13 @@ def rectifying(input_raster, output_raster):
   
   # open source dataset
   src_ds = gdal.Open(input_raster)
-  
-  # set the target projection (example: WGS84)
-  target_projection = "+proj=longlat +datum=WGS84 +no_defs"
-  
+
   # define name of output raster
   output_raster, file_extension = os.path.splitext(output_raster)
   dst_path = output_raster + "_rectified.tif"
   
   # perform rectification using gdal.Warp()
-  gdal.Warp(dst_path, src_ds, dstSRS=target_projection)
+  gdal.Warp(dst_path, src_ds)
   
   
 def mainRectifying(workingDir):
