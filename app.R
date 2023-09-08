@@ -112,6 +112,14 @@ if (file.exists(fileFullPath)){
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
 
+#4.1 shinyfields_detect_points_using_circle_detection
+fileFullPath = (paste0(workingDir,'/config/shinyfields_detect_points_using_circle_detection.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields4.1 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
 #5 shinyfields_masking
 fileFullPath = (paste0(workingDir,'/config/shinyfields_masking.csv'))
 if (file.exists(fileFullPath)){
@@ -168,7 +176,7 @@ body <- dashboardBody(
   p(paste0(config$workingDirInformation,": ",workingDir) , style = "color:black"),
 
   tabItems(
-    
+  # 0 Environment --------------------------------------------------------------------------------------------------------------
     tabItem(
       tabName = "tab0",
       fluidRow(
@@ -202,6 +210,8 @@ body <- dashboardBody(
           )
         )
     ),
+  
+  # 1. Create templates #---------------------------------------------------------------------
     tabItem(
       tabName = "tab1",
       actionButton("listMTemplates",  label = "List saved map templates"),
@@ -209,7 +219,6 @@ body <- dashboardBody(
       fluidRow(
         column(4,
           wellPanel(
-            # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------
             h3(strong(shinyfields1$head, style = "color:black")),
             
             p(shinyfields1$inf4, style = "color:black"),
@@ -249,6 +258,8 @@ body <- dashboardBody(
         )
       ) # END fluid Row
     ),  # END tabItem 1
+    
+  # 2. Maps matching #----------------------------------------------------------------------
     tabItem(
       tabName = "tab2",
       actionButton("listMaps",  label = "List maps"),
@@ -257,8 +268,6 @@ body <- dashboardBody(
       fluidRow(
         column(4,
           wellPanel(
-            # ----------------------------------------# 2. Maps matching #----------------------------------------------------------------------
-            
             # submit action button
             h3(strong(shinyfields2$head, style = "color:black")),
             p(shinyfields2$inf1, style = "color:black"),
@@ -287,10 +296,14 @@ body <- dashboardBody(
         )
       ) # END fluid Row
     ),  # END tabItem 2
+  
+  # 3.1 Points matching  #----------------------------------------------------------------------
     tabItem(
       tabName = "tab3",  
       actionButton("listPointsM",  label = "List points matching"),
       actionButton("listPointsF",  label = "List points filterng"),
+      actionButton("listMaps2",  label = "List maps"),
+      actionButton("listPointsCD", label = "List points circle detection"),
       fluidRow(
         column(4,
                wellPanel(
@@ -299,8 +312,7 @@ body <- dashboardBody(
                  p(shinyfields3$inf2, style = "color:black"),
                ),
                wellPanel(
-                 # ----------------------------------------# 3.1 Points matching  #----------------------------------------------------------------------
-                 h4(shinyfields3$head_sub, style = "color:black"),
+                  h4(shinyfields3$head_sub, style = "color:black"),
                  p(shinyfields3$inf3, style = "color:black"),
                  # Threshold for point matching
                  fluidRow(column(3,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.87, min = 0, max = 1, step = 0.05))),
@@ -316,15 +328,37 @@ body <- dashboardBody(
                  fluidRow(column(3, actionButton("pointFiltering",  label = shinyfields4$lab3))),
                  p(shinyfields4$inf2, style = "color:black"),
                  
+               ),
+               wellPanel(
+                 # ----------------------------------------# 3.3 Points detection Using circle detection  FILE=shinyfields_detect_points_using_circle_detection #--------------------------------------------------------
+                 h4(shinyfields4.1$head, style = "color:black"),
+                 fluidRow(column(3,numericInput("Gaussian", label = shinyfields4.1$lab1, value = 5, min = 0))),
+                 p(shinyfields4.1$inf1, style = "color:black"),
+                 fluidRow(column(3,numericInput("minDist", label = shinyfields4.1$lab2, value = 1, min = 0))),
+                 p(shinyfields4.1$inf2, style = "color:black"),
+                 fluidRow(column(3,numericInput("thresholdEdge", label = shinyfields4.1$lab3, value = 100, min = 0))),
+                 p(shinyfields4.1$inf3, style = "color:black"),
+                 fluidRow(column(3,numericInput("thresholdCircles", label = shinyfields4.1$lab4, value = 21, min = 0))),
+                 p(shinyfields4.1$inf4, style = "color:black"),
+                 fluidRow(column(3,numericInput("minRadius", label = shinyfields4.1$lab5, value = 3, min = 0))),
+                 p(shinyfields4.1$inf5, style = "color:black"),
+                 fluidRow(column(3,numericInput("maxRadius", label = shinyfields4.1$lab6, value = 12, min = 0))),
+                 p(shinyfields4.1$inf6, style = "color:black"),
+                 fluidRow(column(3, actionButton("pointCircleDetection",  label = shinyfields4.1$lab7))),
+                 p(shinyfields4.1$inf7, style = "color:black"),
                )
         ), # col 4
         column(8,
-               uiOutput('listPM', style="width:35%;float:left"),
-               uiOutput('listPF', style="width:35%;float:left")
+               uiOutput('listPM', style="width:30%;float:left"),
+               uiOutput('listPF', style="width:30%;float:left"),
+               uiOutput('listMaps2', style="width:30%;float:left"),
+               uiOutput('listPCD', style="width:33%;float:left")
         )
       ) # END fluid Row
     ),  # END tabItem 3
-    tabItem(
+   
+  # 4. Masking #----------------------------------------------------------------------
+  tabItem(
       tabName = "tab4",  
       actionButton("listMasks",  label = "List masks"),
       actionButton("listMasksB",  label = "List black masks"),
@@ -341,7 +375,6 @@ body <- dashboardBody(
                  fluidRow(column(3, actionButton("masking",  label = shinyfields5$lab2))),
                ), 
                 wellPanel(
-                 
                  # ----------------------------------------# 4. 2 Masking (black)#----------------------------------------------------------------------
                  h4("Or you can extract masks with black background", style = "color:black"),
                  p(shinyfields5$inf2, style = "color:black"),
@@ -356,52 +389,49 @@ body <- dashboardBody(
         )
       ) # END fluid Row
     ),  # END tabItem 4
+  
+  # 5. Georeferencing  FILE=shinyfields_georeferensing #----------------------------------------------------------------------
     tabItem(
       tabName = "tab5",  
-      actionButton("listGeoreferencing",  label = "List georeferencing files"),
+        wellPanel(
+          h3(strong(shinyfields6$head, style = "color:black")),
+          p(shinyfields6$inf1, style = "color:black"),
+          p(shinyfields6$inf2, style = "color:black"),
+          actionButton("georeferencing",  label = shinyfields6$lab1),actionButton("listGeoreferencing",  label = "List georeferenced files"),
+        ),
+      uiOutput('listG', style="background-color: #f5f5f5;")
+       # END fluid Row
+    ),# END tabItem 5
+   
+  # 5. Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
+  tabItem(
+      tabName = "tab6", 
+      wellPanel(
+        h3(strong(shinyfields7$head, style = "color:black")),
+        p(shinyfields7$inf1, style = "color:black"),
+        p(shinyfields7$inf2, style = "color:black"),
+        actionButton("polygonize",  label = shinyfields7$lab1), 
+        actionButton("listPolygonize",  label = "List polygonized files"),
+        actionButton("listMaps3",  label = "List maps"),
+      ),
       fluidRow(
-        column(4,
-               wellPanel(
-                 
-                 # ----------------------------------------# 5. Georeferencing  FILE=shinyfields_georeferensing #----------------------------------------------------------------------
-                 h3(strong(shinyfields6$head, style = "color:black")),
-                 p(shinyfields6$inf1, style = "color:black"),
-                 p(shinyfields6$inf2, style = "color:black"),
-                 fluidRow(column(3, actionButton("georeferencing",  label = shinyfields6$lab1))),
-                 #h4("GCP points extraction", style = "color:black"),
-                 #p(shinyfields8$inf, style = "color:black"),
-                 #fluidRow(column(3, actionButton("pointextract",  label = h3("Start")))),
-                 
-               )
+        column(6,
+          wellPanel( 
+             leafletOutput("listPL1"),
+             htmlOutput("shape_name1"),
+             htmlOutput("align_map1"),
+             leafletOutput("listPL2"),
+             htmlOutput("shape_name2"),
+             htmlOutput("align_map2"),
+             leafletOutput("listPL3"),
+             htmlOutput("shape_name3"),
+             htmlOutput("align_map3"),
+            )
         ), # col 4
-        column(8,
-                uiOutput('listG', style="width:35%;float:left")
+        column(6,
+               uiOutput('listMaps3', style="width:30%;float:left")
         )
-      ) # END fluid Row
-    ),  # END tabItem 5
-    tabItem(
-      tabName = "tab6",  
-      actionButton("listPolygonize",  label = "List polygonized files"),
-      fluidRow(
-        column(4,
-               wellPanel(
-                 # ----------------------------------------# 5 Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
-                 h3(strong(shinyfields7$head, style = "color:black")),
-                 p(shinyfields7$inf1, style = "color:black"),
-                 p(shinyfields7$inf2, style = "color:black"),
-                 fluidRow(column(3, actionButton("polygonize",  label = shinyfields7$lab1))), 
-                 
-               )
-        ), # col 4
-        column(8,
-               leafletOutput("listPL1"),
-               htmlOutput("shape_name1"),
-               leafletOutput("listPL2"),
-               htmlOutput("shape_name2"),
-               leafletOutput("listPL3"),
-               htmlOutput("shape_name3")
-        )
-      ) # END fluid Row
+      )
     )  # END tabItem 6
   ) # END tabItems
 ) # END body
@@ -703,6 +733,27 @@ server <- shinyServer(function(input, output, session) {
       prepareImageView("/pointFiltering_png/", 4)
     })
   })
+  observeEvent(input$listMaps2, {
+    output$listMaps2 = renderUI({
+      prepareImageView("/matching_png/", 4)
+    })
+  })
+  
+  # Process circle detection
+  observeEvent(input$pointCircleDetection, {
+    # call the function for circle detection
+    manageProcessFlow("pointCircleDetection", "points circle detection", "pointCircleDetection")
+    
+    # convert the tif images to png and show this on the plot
+    findTemplateResult = paste0(workingDir, "/data/output/maps/circleDetection/")
+    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/CircleDetection_png/"))
+  })
+  
+  observeEvent(input$listPointsCD, {
+    output$listPCD = renderUI({
+      prepareImageView("/CircleDetection_png/", 4)
+    })
+  })
   
   # ----------------------------------------# Masking #----------------------------------------------------------------------
   observeEvent(input$masking, {
@@ -793,9 +844,19 @@ server <- shinyServer(function(input, output, session) {
                     stroke = TRUE,
                     weight = 1)
     })
+    
+    observeEvent(input$listMaps3, {
+      output$listMaps3 = renderUI({
+        prepareImageView("/matching_png/", 4)
+      })
+    })
     # Render the HTML shape name 1
     output$shape_name1 <- renderUI({
       HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[1]), "</p>"))
+    })
+    # Render the HTML align map1
+    output$align_map1 <- renderUI({
+      HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[1]), ">"))
     })
     # Render the Leaflet map
     output$listPL2 <- renderLeaflet({
@@ -812,6 +873,10 @@ server <- shinyServer(function(input, output, session) {
     # Render the HTML shape name 2
     output$shape_name2 <- renderUI({
       HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[2]), "</p>"))
+    })
+    # Render the HTML align map 2
+    output$align_map2 <- renderUI({
+      HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[2]), ">"))
     })
     # Render the Leaflet map
     output$listPL3 <- renderLeaflet({
@@ -830,7 +895,10 @@ server <- shinyServer(function(input, output, session) {
       HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[3]), "</p>"))
     })
   })
-  
+  # Render the HTML align map3
+  output$align_map3 <- renderUI({
+    HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[3]), ">"))
+  })
    # Polygonize start
   observeEvent(input$polygonize, {
    
@@ -925,6 +993,14 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         mainPointFiltering(workingDir, input$filterK, input$filterG)
+      }
+      
+      if(processing == "pointCircleDetection") {
+        fname=paste0(workingDir, "/", "src/matching/circle_detection.py")
+        print("Processing circle detection python script:")
+        print(fname)
+        source_python(fname)
+        mainCircleDetection(workingDir, input$Gaussian, input$minDist, input$thresholdEdge, input$thresholdCircles, input$minRadius, input$maxRadius)
       }
       
       if(processing == "masking"){
