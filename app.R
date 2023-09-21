@@ -38,8 +38,13 @@ if(!require(leaflet)){
   library(leaflet)
 }
 
+if(!require(raster)){
+  install.packages("raster",dependencies = T)
+  library(raster)
+}
+
 library(sf)
-library(leaflet)
+
 
 # Global variables
 processEventNumber = 0
@@ -150,8 +155,8 @@ header <- dashboardHeader(
           .navbar-custom-menu{float:left !important;}
           .sidebar-menu{display:flex;align-items:baseline;}
           /* layout of the map images */
-          .shiny-map-image{margin:3px;width:30%}
-          .col-sm-3 {width: auto;}"))
+          .shiny-map-image{margin:7px;}
+          "))
   ),
   
   tags$li(
@@ -300,9 +305,9 @@ body <- dashboardBody(
   # 3.1 Points matching  #----------------------------------------------------------------------
     tabItem(
       tabName = "tab3",  
+      actionButton("listMaps2",  label = "List maps"),
       actionButton("listPointsM",  label = "List points matching"),
       actionButton("listPointsF",  label = "List points filterng"),
-      actionButton("listMaps2",  label = "List maps"),
       actionButton("listPointsCD", label = "List points circle detection"),
       fluidRow(
         column(4,
@@ -349,10 +354,10 @@ body <- dashboardBody(
                )
         ), # col 4
         column(8,
-               uiOutput('listPM', style="width:30%;float:left"),
-               uiOutput('listPF', style="width:30%;float:left"),
-               uiOutput('listMaps2', style="width:30%;float:left"),
-               uiOutput('listPCD', style="width:33%;float:left")
+               uiOutput('listMaps2', style="width:25%;float:left"),
+               uiOutput('listPM', style="width:25%;float:left"),
+               uiOutput('listPF', style="width:25%;float:left"),
+               uiOutput('listPCD', style="width:25%;float:left")
         )
       ) # END fluid Row
     ),  # END tabItem 3
@@ -397,9 +402,22 @@ body <- dashboardBody(
           h3(strong(shinyfields6$head, style = "color:black")),
           p(shinyfields6$inf1, style = "color:black"),
           p(shinyfields6$inf2, style = "color:black"),
-          actionButton("georeferencing",  label = shinyfields6$lab1),actionButton("listGeoreferencing",  label = "List georeferenced files"),
+          # start georeferencing
+          actionButton("georeferencing",  label = shinyfields6$lab1),
+          # which site become overview
+          textInput("siteNumber", label=shinyfields6$input),
+          # start overview 
+          actionButton("listGeoreferencing",  label = "List georeferenced files"),
+          
         ),
-      uiOutput('listG', style="background-color: #f5f5f5;")
+      fluidRow(
+        column(6,
+               uiOutput('geo_listMaps', style="width:30%;float:left")
+        ),
+        column(6,
+               uiOutput("leaflet_outputs")
+        ), # col 4
+      )
        # END fluid Row
     ),# END tabItem 5
    
@@ -411,26 +429,27 @@ body <- dashboardBody(
         p(shinyfields7$inf1, style = "color:black"),
         p(shinyfields7$inf2, style = "color:black"),
         actionButton("polygonize",  label = shinyfields7$lab1), 
-        actionButton("listPolygonize",  label = "List polygonized files"),
         actionButton("listMaps3",  label = "List maps"),
+        actionButton("listPolygonize",  label = "List polygonized files"),
+        
       ),
       fluidRow(
         column(6,
-          wellPanel( 
-             leafletOutput("listPL1"),
-             htmlOutput("shape_name1"),
-             htmlOutput("align_map1"),
-             leafletOutput("listPL2"),
-             htmlOutput("shape_name2"),
-             htmlOutput("align_map2"),
-             leafletOutput("listPL3"),
-             htmlOutput("shape_name3"),
-             htmlOutput("align_map3"),
-            )
-        ), # col 4
-        column(6,
                uiOutput('listMaps3', style="width:30%;float:left")
-        )
+        ),
+        column(6,
+               wellPanel( 
+                 leafletOutput("listPL1"),
+                 htmlOutput("shape_name1"),
+                 htmlOutput("align_map1"),
+                 leafletOutput("listPL2"),
+                 htmlOutput("shape_name2"),
+                 htmlOutput("align_map2"),
+                 leafletOutput("listPL3"),
+                 htmlOutput("shape_name3"),
+                 htmlOutput("align_map3"),
+               )
+        ), # col 4
       )
     )  # END tabItem 6
   ) # END tabItems
@@ -580,7 +599,7 @@ server <- shinyServer(function(input, output, session) {
         findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")
         converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/map_templates_png/"))
       }
-      prepareImageView("/map_templates_png/", 4)
+      prepareImageView("/map_templates_png/", '.png')
     })
   })
   
@@ -629,7 +648,7 @@ server <- shinyServer(function(input, output, session) {
       findTemplateResult = paste0(workingDir, "/data/input/templates/symbols/")
       converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/symbol_templates_png/"))
       
-      prepareImageView("/symbol_templates_png/", 4)
+      prepareImageView("/symbol_templates_png/", '.png')
     })
   })
   
@@ -660,7 +679,7 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listMaps, {
     output$listMaps = renderUI({
-      prepareImageView("/matching_png/", 4)
+      prepareImageView("/matching_png/", '.png')
     })
   })
 
@@ -679,7 +698,7 @@ server <- shinyServer(function(input, output, session) {
 
   observeEvent(input$listAlign, {
     output$listAlign = renderUI({
-      prepareImageView("/align_png/", 4)
+      prepareImageView("/align_png/", '.png')
     })
   })
   
@@ -698,7 +717,7 @@ server <- shinyServer(function(input, output, session) {
 
   observeEvent(input$listCropped, {
     output$listCropped = renderUI({
-      prepareImageView("/cropped_png/", 4)
+      prepareImageView("/cropped_png/", '.png')
     })
   })
   
@@ -714,7 +733,7 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listPointsM, {
     output$listPM = renderUI({
-      prepareImageView("/pointMatching_png/", 4)
+      prepareImageView("/pointMatching_png/", '.png')
     })
   })
   
@@ -730,12 +749,12 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listPointsF, {
     output$listPF = renderUI({
-      prepareImageView("/pointFiltering_png/", 4)
+      prepareImageView("/pointFiltering_png/", '.png')
     })
   })
   observeEvent(input$listMaps2, {
     output$listMaps2 = renderUI({
-      prepareImageView("/matching_png/", 4)
+      prepareImageView("/matching_png/", '.png')
     })
   })
   
@@ -751,7 +770,7 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listPointsCD, {
     output$listPCD = renderUI({
-      prepareImageView("/CircleDetection_png/", 4)
+      prepareImageView("/CircleDetection_png/", '.png')
     })
   })
   
@@ -774,13 +793,13 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listMasks, {
     output$listMS = renderUI({
-      prepareImageView("/masking_png/", 4)
+      prepareImageView("/masking_png/", '.png')
     })
   })
   
   observeEvent(input$listMasksB, {
     output$listMSB = renderUI({
-      prepareImageView("/masking_black_png/", 4)
+      prepareImageView("/masking_black_png/", '.png')
     })
   })
   
@@ -788,8 +807,17 @@ server <- shinyServer(function(input, output, session) {
   
   # ----------------------------------------# Georeferencing #----------------------------------------------------------------------
   # Georeferencing start
+  # GCP points extraction
+  observeEvent(input$pointextract, {
+    #Processing georeferencing
+    library(reticulate)
+    fname=paste0(workingDir, "/", "src/georeferencing/geo_points_extraction.py")
+    source_python(fname)
+    maingeopointextract(workingDir,input$filterm)
+    cat("\nSuccessfully executed")
+  })
+  
   observeEvent(input$georeferencing, {
-    
     # call the function for filtering
     manageProcessFlow("georeferencing", "georeferencing", "georeferencing")
     
@@ -803,24 +831,76 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
+  
+  # Reagieren Sie auf das Hochladen der TIFF-Datei
   observeEvent(input$listGeoreferencing, {
-    output$listG = renderUI({
-      prepareImageView("/georeferencing_png/", 4)
+    # Anzahl der Leaflet-Elemente, die Sie hinzufügen möchten
+  
+    listgeoTiffiles = list.files("D:/distribution_digitizer/data/output/rectifying/", full.names = T, pattern = paste0('*00',input$siteNumber,'map'))
+    #listgeoTiffiles = list.files("D:/distribution_digitizer/data/output/rectifying/", full.names = T, pattern = '.tif')
+    print( paste('00',input$siteNumber,'map'))
+    num_leaflet_outputs <- length(listgeoTiffiles)
+    
+    
+   output$geo_listMaps = renderUI({
+        prepareImageView("/georeferencing_png/", input$siteNumber)
+      })
+    
+    
+    output$leaflet_outputs <- renderUI({
+      # Erstellen Sie eine Liste von Leaflet-Elementen
+      leaflet_outputs_list <- lapply(1:num_leaflet_outputs, function(i) {
+        leafletOutput(outputId = paste0("map_geo_", i))
+      })
+      
+      # Verwenden Sie do.call, um die Liste der Leaflet-Elemente in UI auszugeben
+      do.call(tagList, leaflet_outputs_list)
     })
+    
+    #inFile <- "D:/distribution_digitizer/data/output/rectifying/georeferenced2_0069map_2_0_rectified.tif"
+
+    for (i in 1:num_leaflet_outputs) {
+     # inFile <- listgeoTiffiles[i]
+      if (!is.null(listgeoTiffiles[i])) {
+        if (i == 1){  
+          tif_file1 <- raster(listgeoTiffiles[i])
+          output[[paste0('map_geo_', i)]]  <- renderLeaflet({
+            leaflet() %>%
+              addTiles() %>%
+              setView(lng = 66, lat = 30, zoom = 4) %>%
+              #addMarkers(lng=66, lat=30, popup="The birthplace of R")  %>%
+              addRasterImage(tif_file1, opacity = 0.7)
+          })
+        }
+      
+      if (i == 2){  
+        tif_file2 <- raster(listgeoTiffiles[i])
+        output[[paste0('map_geo_', i)]]  <- renderLeaflet({
+        leaflet() %>%
+          addTiles() %>%
+          setView(lng = 66, lat = 30, zoom = 4) %>%
+          #addMarkers(lng=66, lat=30, popup="The birthplace of R")  %>%
+          addRasterImage(tif_file2, opacity = 0.7)
+        })
+      }
+      
+      if (i == 3){   
+        tif_file3 <- raster(listgeoTiffiles[i])
+        output[[paste0('map_geo_', i)]]  <- renderLeaflet({
+          leaflet() %>%
+            addTiles() %>%
+            setView(lng = 66, lat = 30, zoom = 4) %>%
+            #addMarkers(lng=66, lat=30, popup="The birthplace of R")  %>%
+            addRasterImage(tif_file3, opacity = 0.7)
+       })
+      }
+     }  # END if 
+    } # END for
+ 
+    
   })
   
-  # GCP points extraction
-  observeEvent(input$pointextract, {
-    #Processing template matching
-    library(reticulate)
-    fname=paste0(workingDir, "/", "src/georeferencing/geo_points_extraction.py")
-    source_python(fname)
-    maingeopointextract(workingDir,input$filterm)
-    cat("\nSuccessfully executed")
-    
-    
-  })
-  
+ 
   
   # ----------------------------------------# Polygonize #----------------------------------------------------------------------
  
@@ -847,7 +927,7 @@ server <- shinyServer(function(input, output, session) {
     
     observeEvent(input$listMaps3, {
       output$listMaps3 = renderUI({
-        prepareImageView("/matching_png/", 4)
+        prepareImageView("/matching_png/", '.png')
       })
     })
     # Render the HTML shape name 1
@@ -899,6 +979,8 @@ server <- shinyServer(function(input, output, session) {
   output$align_map3 <- renderUI({
     HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[3]), ">"))
   })
+  
+  
    # Polygonize start
   observeEvent(input$polygonize, {
    
@@ -1052,10 +1134,10 @@ server <- shinyServer(function(input, output, session) {
   # ----------------------------------------# Function to list the result images #---------------------------------------------------------------------- #
   prepareImageView <- function(dirName, index){
     pathToMatchingImages = paste0(workingDir, "/www", dirName)
-    listPngImages = list.files(pathToMatchingImages, full.names = F, pattern = '.png')
+    listPngImages = list.files(pathToMatchingImages, full.names = F, pattern = index)
     display_image = function(i) {
       HTML(paste0('<div class="shiny-map-image" > 
-                  <img src = ', paste0(dirName,listPngImages[i] ), ' ><a href="',paste0(dirName,listPngImages[i] ),'" style="width:27%;" target=_blank>', listPngImages[i],'</a></div>'))
+                  <img src = ', paste0(dirName,listPngImages[i] ), ' style="width:100%;"><a href="',paste0(dirName,listPngImages[i] ),'" style="width:27%;" target=_blank>', listPngImages[i],'</a></div>'))
     }
     lapply(1:length(listPngImages), display_image)
   }
@@ -1072,11 +1154,11 @@ server <- shinyServer(function(input, output, session) {
       print(tifFile)
       tifImage = image_read(tifFile)
       pngFile <- image_convert(tifImage, "png")
-      temp_scale <- image_scale(pngFile, paste0(scale,"%"))
+      #temp_scale <- image_scale(pngFile, paste0(scale,"%"))
       pngName <- tools::file_path_sans_ext(f)
       fname = paste0(patjhToPngImages, pngName, ".png")
       print(fname)
-      image_write(temp_scale, path = fname, format = "png", )
+      image_write(pngFile, path = fname, format = "png", )
     }
   }
   
