@@ -208,7 +208,7 @@ body <- dashboardBody(
           
           # width;
           #fluidRow(column(3,textInput("allprintedPages", label=configStartDialog$i4, value = config$allprintedPages ))),
-          fluidRow(column(4, actionButton("saveConfig",  label = "Save"))),
+          fluidRow(column(4, actionButton("saveConfig",  label = "Save", style="color:#FFFFFF;background:#999999"))),
           #useShinyjs(),
           #extendShinyjs(text = jscode, functions = c("closeWindow")),
          # actionButton("close", "Close window")
@@ -235,22 +235,23 @@ body <- dashboardBody(
           wellPanel(
             h4(strong(shinyfields1$save_template, style = "color:black")),
             # Add number to the file name of the created template file
-            fluidRow(column(3, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-                            
-            # Save the cropped template map image with the given index
-            downloadButton('saveTemplate', 'Save map template'))),
+            fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
             p(strong(paste0(shinyfields1$inf, workingDir, "/data/templates/maps/"), style = "color:black")),
-            p(shinyfields1$inf1, style = "color:black"),
+            p(shinyfields1$inf1, style = "color:black"),                
+            # Save the cropped template map image with the given index
+            downloadButton('saveTemplate', 'Save map template', style="color:#FFFFFF;background:#999999"))),
+           
            ),
           wellPanel(
             h4(strong(shinyfields1$save_symbol, style = "color:black")),
             # Add number to the file name of the created template file
-            fluidRow(column(3, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-                            
-            # Save the cropped template map image with the given index
-            downloadButton('saveSymbol', 'Save map symbol/Legende'))),
+            fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
+            
             p(strong(paste0(shinyfields1$inf2, workingDir, "/data/templates/symbols"), style = "color:black")),
-            p(shinyfields1$inf3, style = "color:black")
+            p(shinyfields1$inf3, style = "color:black"),                
+            # Save the cropped template map image with the given index
+            downloadButton('saveSymbol', 'Save map symbol/Legende', style="color:#FFFFFF;background:#999999")))
+
           )
         ), # col 4
         column(8,
@@ -267,7 +268,9 @@ body <- dashboardBody(
   # 2. Maps matching #----------------------------------------------------------------------
     tabItem(
       tabName = "tab2",
-      actionButton("listMaps",  label = "List maps"),
+      # which site become overview
+      fluidRow(column(3,textInput("siteNumberMapsMatching", label=shinyfields6$input, value = 100 ))),
+      actionButton("listMapsMatching",  label = "List maps"),
       actionButton("listAlign",  label = "List aligned maps"),
       actionButton("listCropped",  label = "List cropped maps"),
       fluidRow(
@@ -276,22 +279,22 @@ body <- dashboardBody(
             # submit action button
             h3(strong(shinyfields2$head, style = "color:black")),
             p(shinyfields2$inf1, style = "color:black"),
-            fluidRow(column(3, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.2, min = 0, max = 1, step = 0.05))),
+            fluidRow(column(8, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.2, min = 0, max = 1, step = 0.05))),
             p(shinyfields2$inf2, style = "color:black"), 
             # Start map matching
-            fluidRow(column(3,actionButton("templateMatching",  label = shinyfields2$start1))),
+            fluidRow(column(3,actionButton("templateMatching",  label = shinyfields2$start1, style="color:#FFFFFF;background:#999999"))),
           ),
           wellPanel(
             # maps align 
-            h4(shinyfields2$head_sub, style = "color:black"),
+            h3(shinyfields2$head_sub, style = "color:black"),
             p(shinyfields2$inf3, style = "color:black"),
-            fluidRow(column(3, actionButton("alignMaps",  label = shinyfields2$start2))),
+            fluidRow(column(3, actionButton("alignMaps",  label = shinyfields2$start2, style="color:#FFFFFF;background:#999999"))),
           ),
           wellPanel(  
             # maps species 
-            h4(shinyfields2$head_species, style = "color:black"),
+            h3(shinyfields2$head_species, style = "color:black"),
             p(shinyfields2$inf4, style = "color:black"),
-            fluidRow(column(3, actionButton("cropSpecies",  label = shinyfields2$start3))),
+            fluidRow(column(3, actionButton("cropSpecies",  label = shinyfields2$start3, style="color:#FFFFFF;background:#999999"))),
           )
         ), # col 4
         column(8,
@@ -304,8 +307,9 @@ body <- dashboardBody(
   
   # 3.1 Points matching  #----------------------------------------------------------------------
     tabItem(
-      tabName = "tab3",  
-      actionButton("listMaps2",  label = "List maps"),
+      tabName = "tab3",
+      fluidRow(column(3,textInput("siteNumberPointsMatching", label=shinyfields6$input, value = 100 ))),
+      actionButton("listMapsMatching2",  label = "List maps"),
       actionButton("listPointsM",  label = "List points matching"),
       actionButton("listPointsF",  label = "List points filterng"),
       actionButton("listPointsCD", label = "List points circle detection"),
@@ -317,44 +321,47 @@ body <- dashboardBody(
                  p(shinyfields3$inf2, style = "color:black"),
                ),
                wellPanel(
-                  h4(shinyfields3$head_sub, style = "color:black"),
+                 h4(shinyfields3$head_sub, style = "color:black"),
                  p(shinyfields3$inf3, style = "color:black"),
                  # Threshold for point matching
-                 fluidRow(column(3,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.87, min = 0, max = 1, step = 0.05))),
-                 fluidRow(column(3, actionButton("pointMatching",  label = shinyfields3$lab))),
+                 fluidRow(column(8,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.87, min = 0, max = 1, step = 0.05))),
                  p(shinyfields3$inf4, style = "color:black"),
+                 fluidRow(column(3, actionButton("pointMatching",  label = shinyfields3$lab, style="color:#FFFFFF;background:#999999"))),
+                 
                ),
                wellPanel(
                  # ----------------------------------------# 3.2 Points detection Using filtering  FILE=shinyfields_detect_points_using_filtering #----------------------------------------------------------------------
                  h4(shinyfields4$head, style = "color:black"),
-                 fluidRow(column(3,numericInput("filterK", label = shinyfields4$lab1, value = 5))),#, width = NULL, placeholder = NULL)
+                 fluidRow(column(8,numericInput("filterK", label = shinyfields4$lab1, value = 5))),#, width = NULL, placeholder = NULL)
                  p(shinyfields4$inf1, style = "color:black"),
-                 fluidRow(column(3,numericInput("filterG", label = shinyfields4$lab2, value = 9))),#, width = NULL, placeholder = NULL)
-                 fluidRow(column(3, actionButton("pointFiltering",  label = shinyfields4$lab3))),
+                 fluidRow(column(8,numericInput("filterG", label = shinyfields4$lab2, value = 9))),#, width = NULL, placeholder = NULL)
                  p(shinyfields4$inf2, style = "color:black"),
+                 fluidRow(column(3, actionButton("pointFiltering",  label = shinyfields4$lab3, style="color:#FFFFFF;background:#999999"))),
+                 
                  
                ),
                wellPanel(
                  # ----------------------------------------# 3.3 Points detection Using circle detection  FILE=shinyfields_detect_points_using_circle_detection #--------------------------------------------------------
                  h4(shinyfields4.1$head, style = "color:black"),
-                 fluidRow(column(3,numericInput("Gaussian", label = shinyfields4.1$lab1, value = 5, min = 0))),
+                 fluidRow(column(8,numericInput("Gaussian", label = shinyfields4.1$lab1, value = 5, min = 0))),
                  p(shinyfields4.1$inf1, style = "color:black"),
-                 fluidRow(column(3,numericInput("minDist", label = shinyfields4.1$lab2, value = 1, min = 0))),
+                 fluidRow(column(8,numericInput("minDist", label = shinyfields4.1$lab2, value = 1, min = 0))),
                  p(shinyfields4.1$inf2, style = "color:black"),
-                 fluidRow(column(3,numericInput("thresholdEdge", label = shinyfields4.1$lab3, value = 100, min = 0))),
+                 fluidRow(column(8,numericInput("thresholdEdge", label = shinyfields4.1$lab3, value = 100, min = 0))),
                  p(shinyfields4.1$inf3, style = "color:black"),
-                 fluidRow(column(3,numericInput("thresholdCircles", label = shinyfields4.1$lab4, value = 21, min = 0))),
+                 fluidRow(column(8,numericInput("thresholdCircles", label = shinyfields4.1$lab4, value = 21, min = 0))),
                  p(shinyfields4.1$inf4, style = "color:black"),
-                 fluidRow(column(3,numericInput("minRadius", label = shinyfields4.1$lab5, value = 3, min = 0))),
+                 fluidRow(column(8,numericInput("minRadius", label = shinyfields4.1$lab5, value = 3, min = 0))),
                  p(shinyfields4.1$inf5, style = "color:black"),
-                 fluidRow(column(3,numericInput("maxRadius", label = shinyfields4.1$lab6, value = 12, min = 0))),
+                 fluidRow(column(8,numericInput("maxRadius", label = shinyfields4.1$lab6, value = 12, min = 0))),
                  p(shinyfields4.1$inf6, style = "color:black"),
-                 fluidRow(column(3, actionButton("pointCircleDetection",  label = shinyfields4.1$lab7))),
                  p(shinyfields4.1$inf7, style = "color:black"),
+                 fluidRow(column(3, actionButton("pointCircleDetection",  label = shinyfields4.1$lab7, style="color:#FFFFFF;background:#999999"))),
+                 
                )
         ), # col 4
         column(8,
-               uiOutput('listMaps2', style="width:25%;float:left"),
+               uiOutput('listMapsMatching2', style="width:25%;float:left"),
                uiOutput('listPM', style="width:25%;float:left"),
                uiOutput('listPF', style="width:25%;float:left"),
                uiOutput('listPCD', style="width:25%;float:left")
@@ -365,6 +372,7 @@ body <- dashboardBody(
   # 4. Masking #----------------------------------------------------------------------
   tabItem(
       tabName = "tab4",  
+      fluidRow(column(3,textInput("siteNumberMasks", label=shinyfields6$input, value = 100 ))),
       actionButton("listMasks",  label = "List masks"),
       actionButton("listMasksB",  label = "List black masks"),
      # actionButton("listMPointsF",  label = "List points filterng"),
@@ -376,15 +384,15 @@ body <- dashboardBody(
                  h4("You can extract masks with white background", style = "color:black"),
                  p(shinyfields5$inf1, style = "color:black"),
                  # p(shinyfields7$inf2, style = "color:black"),
-                 fluidRow(column(3,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
-                 fluidRow(column(3, actionButton("masking",  label = shinyfields5$lab2))),
+                 fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
+                 fluidRow(column(3, actionButton("masking",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
                ), 
                 wellPanel(
                  # ----------------------------------------# 4. 2 Masking (black)#----------------------------------------------------------------------
                  h4("Or you can extract masks with black background", style = "color:black"),
                  p(shinyfields5$inf2, style = "color:black"),
-                 fluidRow(column(3,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
-                 fluidRow(column(3, actionButton("maskingBlack",  label = shinyfields5$lab2))),
+                 fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
+                 fluidRow(column(3, actionButton("maskingBlack",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
                )
         ), # col 4
         column(8,
@@ -403,9 +411,11 @@ body <- dashboardBody(
           p(shinyfields6$inf1, style = "color:black"),
           p(shinyfields6$inf2, style = "color:black"),
           # start georeferencing
-          actionButton("georeferencing",  label = shinyfields6$lab1),
-          # which site become overview
-          textInput("siteNumber", label=shinyfields6$input),
+          actionButton("georeferencing",  label = shinyfields6$lab1, style="color:#FFFFFF;background:#999999")
+        ),
+        wellPanel(
+            # which site become overview
+          fluidRow(column(3,textInput("siteNumberGeoreferencing", label=shinyfields6$input, value = 100 ))),
           # start overview 
           actionButton("listGeoreferencing",  label = "List georeferenced files"),
           
@@ -428,28 +438,17 @@ body <- dashboardBody(
         h3(strong(shinyfields7$head, style = "color:black")),
         p(shinyfields7$inf1, style = "color:black"),
         p(shinyfields7$inf2, style = "color:black"),
-        actionButton("polygonize",  label = shinyfields7$lab1), 
-        actionButton("listMaps3",  label = "List maps"),
-        actionButton("listPolygonize",  label = "List polygonized files"),
+        actionButton("polygonize",  label = shinyfields7$lab1, style="color:#FFFFFF;background:#999999")
+      ),
+      wellPanel(
+        # which site become overview
+        fluidRow(column(3,textInput("siteNumberPolygonize", label=shinyfields6$input, value = 100 ))),
+        actionButton("listPolygonize",  label = "List polygonized files",),
         
       ),
-      fluidRow(
-        column(6,
-               uiOutput('listMaps3', style="width:30%;float:left")
-        ),
-        column(6,
-               wellPanel( 
-                 leafletOutput("listPL1"),
-                 htmlOutput("shape_name1"),
-                 htmlOutput("align_map1"),
-                 leafletOutput("listPL2"),
-                 htmlOutput("shape_name2"),
-                 htmlOutput("align_map2"),
-                 leafletOutput("listPL3"),
-                 htmlOutput("shape_name3"),
-                 htmlOutput("align_map3"),
-               )
-        ), # col 4
+      
+      wellPanel( 
+        uiOutput("leaflet_outputs_PL")
       )
     )  # END tabItem 6
   ) # END tabItems
@@ -677,10 +676,18 @@ server <- shinyServer(function(input, output, session) {
 
   })
   
-  observeEvent(input$listMaps, {
-    output$listMaps = renderUI({
-      prepareImageView("/matching_png/", '.png')
-    })
+  observeEvent(input$listMapsMatching, {
+    if(input$siteNumberMapsMatching != ''){
+      print(input$siteNumberMapsMatching)
+      output$listMaps = renderUI({
+        prepareImageView("/matching_png/", input$siteNumberMapsMatching)
+      })
+    }
+    else{
+      output$listMaps = renderUI({
+        prepareImageView("/matching_png/", '.png')
+      })
+    }
   })
 
   # ----------------------------------------# 2.1 Maps align #----------------------------------------------------------------------
@@ -697,9 +704,18 @@ server <- shinyServer(function(input, output, session) {
   })
 
   observeEvent(input$listAlign, {
-    output$listAlign = renderUI({
-      prepareImageView("/align_png/", '.png')
-    })
+    if(input$siteNumberMapsMatching != ''){
+      print(input$siteNumberMapsMatching)
+      output$listAlign = renderUI({
+        prepareImageView("/align_png/", input$siteNumberMapsMatching)
+      })
+    }
+    else{
+      output$listAlign = renderUI({
+        prepareImageView("/align_png/", '.png')
+      })
+    }
+    
   })
   
   # ----------------------------------------# 2.2 Crop map species #---------------------------------------------------------------------- #
@@ -716,9 +732,17 @@ server <- shinyServer(function(input, output, session) {
   })
 
   observeEvent(input$listCropped, {
-    output$listCropped = renderUI({
-      prepareImageView("/cropped_png/", '.png')
-    })
+    if(input$siteNumberMapsMatching != ''){
+      print(input$siteNumberMapsMatching)
+      output$listCropped = renderUI({
+        prepareImageView("/cropped_png/", input$siteNumberMapsMatching)
+      })
+    }
+    else{
+      output$listCropped = renderUI({
+        prepareImageView("/cropped_png/", '.png')
+      })
+    }
   })
   
   # ----------------------------------------# 3. Points Matching #----------------------------------------------------------------------
@@ -732,9 +756,17 @@ server <- shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$listPointsM, {
-    output$listPM = renderUI({
-      prepareImageView("/pointMatching_png/", '.png')
-    })
+    if(input$siteNumberPointsMatching != ''){
+      print(input$siteNumberPointsMatching)
+      output$listPM = renderUI({
+        prepareImageView("/pointMatching_png/", input$siteNumberPointsMatching)
+      })
+    }
+    else{
+      output$listPM = renderUI({
+        prepareImageView("/pointMatching_png/", '.png')
+      })
+    }
   })
   
   # Process point filtering 
@@ -748,14 +780,30 @@ server <- shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$listPointsF, {
-    output$listPF = renderUI({
-      prepareImageView("/pointFiltering_png/", '.png')
-    })
+    if(input$siteNumberPointsMatching != ''){
+      print(input$siteNumberPointsMatching)
+      output$listPF = renderUI({
+        prepareImageView("/pointFiltering_png/", input$siteNumberPointsMatching)
+      })
+    }
+    else{
+      output$listPF = renderUI({
+        prepareImageView("/pointFiltering_png/", '.png')
+      })
+    }
+    
   })
-  observeEvent(input$listMaps2, {
-    output$listMaps2 = renderUI({
-      prepareImageView("/matching_png/", '.png')
-    })
+  observeEvent(input$listMapsMatching2, {
+    if(input$siteNumberPointsMatching != ''){
+      output$listMapsMatching2 = renderUI({
+        prepareImageView("/matching_png/", input$siteNumberPointsMatching)
+      })
+    }
+    else{
+      output$listMapsMatching2 = renderUI({
+        prepareImageView("/matching_png/", '.png')
+      })
+    }
   })
   
   # Process circle detection
@@ -769,9 +817,17 @@ server <- shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$listPointsCD, {
-    output$listPCD = renderUI({
-      prepareImageView("/CircleDetection_png/", '.png')
-    })
+    if(input$siteNumberPointsMatching != ''){
+      output$listPCD = renderUI({
+        prepareImageView("/CircleDetection_png/", input$siteNumberPointsMatching)
+      })
+    }
+    else{
+      output$listPCD = renderUI({
+        prepareImageView("/CircleDetection_png/", '.png')
+      })
+    }
+
   })
   
   # ----------------------------------------# Masking #----------------------------------------------------------------------
@@ -792,15 +848,29 @@ server <- shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$listMasks, {
-    output$listMS = renderUI({
-      prepareImageView("/masking_png/", '.png')
-    })
+    if(input$siteNumberMasks!= ''){
+      output$listMS = renderUI({
+        prepareImageView("/masking_png/", input$siteNumberMasks)
+      })
+    }
+    else{
+      output$listMS = renderUI({
+        prepareImageView("/masking_png/", '.png')
+      })
+    }
   })
   
   observeEvent(input$listMasksB, {
-    output$listMSB = renderUI({
-      prepareImageView("/masking_black_png/", '.png')
-    })
+    if(input$siteNumberMasks!= ''){
+      output$listMSB = renderUI({
+        prepareImageView("/masking_png/", input$siteNumberMasks)
+      })
+    }
+    else{
+      output$listMSB = renderUI({
+        prepareImageView("/masking_black_png/", '.png')
+      })
+    }
   })
   
 
@@ -836,16 +906,21 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listGeoreferencing, {
     # Anzahl der Leaflet-Elemente, die Sie hinzufügen möchten
   
-    listgeoTiffiles = list.files("D:/distribution_digitizer/data/output/rectifying/", full.names = T, pattern = paste0('*00',input$siteNumber,'map'))
+    listgeoTiffiles = list.files("D:/distribution_digitizer/data/output/rectifying/", full.names = T, pattern = paste0('*00',input$siteNumberGeoreferencing,'map'))
     #listgeoTiffiles = list.files("D:/distribution_digitizer/data/output/rectifying/", full.names = T, pattern = '.tif')
     print( paste('00',input$siteNumber,'map'))
     num_leaflet_outputs <- length(listgeoTiffiles)
     
-    
-   output$geo_listMaps = renderUI({
-        prepareImageView("/georeferencing_png/", input$siteNumber)
+    if(input$siteNumberGeoreferencing!= ''){
+      output$geo_listMaps = renderUI({
+        prepareImageView("/georeferencing_png/", input$siteNumberGeoreferencing)
       })
-    
+    }
+    else{
+      output$geo_listMaps = renderUI({
+        prepareImageView("/georeferencing_png/", '.png')
+      })
+    }
     
     output$leaflet_outputs <- renderUI({
       # Erstellen Sie eine Liste von Leaflet-Elementen
@@ -905,80 +980,83 @@ server <- shinyServer(function(input, output, session) {
   # ----------------------------------------# Polygonize #----------------------------------------------------------------------
  
   observeEvent(input$listPolygonize, {
+    
     # Load the shapefile data
-    listShapefile = list.files("D:/distribution_digitizer/www/polygonize/", full.names = T, pattern = '.shp')
+    listShapefiles = list.files("D:/distribution_digitizer/www/polygonize/", full.names = T, pattern = '.shp')
+    #input$siteNumberPolygonize='69'
+    listShapefiles = grep(input$siteNumberPolygonize, listShapefiles, value= TRUE)
     
-    shape_data1 <- st_read(listShapefile[1])
-    shape_data2 <- st_read(listShapefile[2])
-    shape_data3 <- st_read(listShapefile[3])
+    # diese shape files sind erstmal von keine Bedeutung
+    muster <- "filtered"
     
-    # Render the Leaflet map
-    output$listPL1 <- renderLeaflet({
-      leaflet() %>%
-        addTiles() %>%
-        addProviderTiles("OpenStreetMap.Mapnik") %>%
-        addPolygons(data = shape_data1,
-                    fillColor = "blue",
-                    fillOpacity = 0.6,
-                    color = "white",
-                    stroke = TRUE,
-                    weight = 1)
-    })
+    # Index der Dateien finden, die das Muster nicht enthalten
+    listShapefiles <- grep(paste0("^((?!(", muster, ")).)*$"), listShapefiles, value = TRUE, perl = TRUE)
+    num_leaflet_outputs <- length(listShapefiles)
     
-    observeEvent(input$listMaps3, {
-      output$listMaps3 = renderUI({
-        prepareImageView("/matching_png/", '.png')
+    output$leaflet_outputs_PL <- renderUI({
+      # Liste von Leaflet-Elementen
+      leaflet_outputs_list <- lapply(1:num_leaflet_outputs, function(i) {
+        leafletOutput(outputId = paste0("listPL", i))
       })
+      
+      # Liste der Leaflet-Elemente in UI auszugeben
+      do.call(tagList, leaflet_outputs_list)
     })
+    
+    # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
+    listpng = list.files("D:/distribution_digitizer/www/matching_png/", full.names = T, pattern = input$siteNumberPolygonize)
+    
+    # Liste von Leaflet-Objekten
+    leaflet_list <- lapply(listShapefiles, function(file,i) {
+      print(file)
+      leaflet() %>%
+        addTiles("Test") %>%
+        addProviderTiles("OpenStreetMap.Mapnik") %>%
+        addPolygons(data = st_read(file),
+                    fillColor = "blue",
+                    fillOpacity = 0.6,
+                    color = "white",
+                    stroke = TRUE,
+                    weight = 6) %>%
+        addControl(
+          htmltools::div(
+            p(file),
+          ),
+        position = "bottomright"
+        ) %>%
+        addControl(
+        htmltools::div(
+          img(src = "matching_png/2_0064map_1_0.png", width = 200, height = 200),
+        ),
+        position = "bottomleft"
+      )
+    })
+    
+    # Ergebnisse in den Output-Variablen speichern
+    
+    leaflet_lists <- lapply(1:length(leaflet_list), function(i) {
+      output[[paste0('listPL', i)]] <- renderLeaflet({ leaflet_list[[i]] })
+    })
+    
+    
+    
+    
+    
     # Render the HTML shape name 1
-    output$shape_name1 <- renderUI({
-      HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[1]), "</p>"))
-    })
+   # output$shape_name1 <- renderUI({
+    #  HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[1]), "</p>"))
+   # })
     # Render the HTML align map1
-    output$align_map1 <- renderUI({
-      HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[1]), ">"))
-    })
-    # Render the Leaflet map
-    output$listPL2 <- renderLeaflet({
-      leaflet() %>%
-        addTiles() %>%
-        addProviderTiles("OpenStreetMap.Mapnik") %>%
-        addPolygons(data = shape_data2,
-                    fillColor = "blue",
-                    fillOpacity = 0.6,
-                    color = "white",
-                    stroke = TRUE,
-                    weight = 1)
-    })
-    # Render the HTML shape name 2
-    output$shape_name2 <- renderUI({
-      HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[2]), "</p>"))
-    })
-    # Render the HTML align map 2
-    output$align_map2 <- renderUI({
-      HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[2]), ">"))
-    })
-    # Render the Leaflet map
-    output$listPL3 <- renderLeaflet({
-      leaflet() %>%
-        addTiles() %>%
-        addProviderTiles("OpenStreetMap.Mapnik") %>%
-        addPolygons(data = shape_data3,
-                    fillColor = "blue",
-                    fillOpacity = 0.6,
-                    color = "white",
-                    stroke = TRUE,
-                    weight = 1)
-    })
-    # Render the HTML shape name 3
-    output$shape_name3 <- renderUI({
-      HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[3]), "</p>"))
-    })
+   # output$align_map1 <- renderUI({
+   #   HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[1]), ">"))
+   # })
   })
+  
+  
   # Render the HTML align map3
-  output$align_map3 <- renderUI({
-    HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[3]), ">"))
-  })
+ # output$align_map3 <- renderUI({
+#    HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[3]), ">"))
+#  })
   
   
    # Polygonize start
