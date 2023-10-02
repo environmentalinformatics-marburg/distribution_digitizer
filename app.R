@@ -169,7 +169,8 @@ header <- dashboardHeader(
       menuItem("Points Matching", tabName = "tab3"),
       menuItem("Masking", tabName = "tab4" ),
       menuItem("Georeferencing", tabName = "tab5" ),
-      menuItem("Polygonize", tabName = "tab6" )
+      menuItem("Polygonize", tabName = "tab6" ),
+      menuItem("Save", tabName = "tab7" )
     )
   )
 )
@@ -198,7 +199,7 @@ body <- dashboardBody(
           fluidRow(column(4,selectInput("numberSitesPrint", label=configStartDialog$i3,  c("One site per scan" = 1 ,"Two sites per scan"= 2)))),
           
           # allprintedPages
-          fluidRow(column(3,textInput("allPrintedPages", label=configStartDialog$i4, value = 100 ))),
+          fluidRow(column(3,textInput("allPrintedPages", label=configStartDialog$i4, value = ''))),
           
           # format;
           fluidRow(column(3,selectInput("pFormat", label=configStartDialog$i5, c("tif"=1 , "png"=2, "jpg"=3), selected=1 ))),
@@ -216,7 +217,8 @@ body <- dashboardBody(
         )
     ),
   
-  # 1. Create templates #---------------------------------------------------------------------
+  
+  # 1. Create Templates #---------------------------------------------------------------------
     tabItem(
       tabName = "tab1",
       actionButton("listMTemplates",  label = "List saved map templates"),
@@ -225,12 +227,10 @@ body <- dashboardBody(
         column(4,
           wellPanel(
             h3(strong(shinyfields1$head, style = "color:black")),
-            
             p(shinyfields1$inf4, style = "color:black"),
             # Choose the file 
             fileInput("image",  label = h5(shinyfields1$lab1), buttonLabel = "Browse...",
                       placeholder = "No file selected"),
-            
             ),
           wellPanel(
             h4(strong(shinyfields1$save_template, style = "color:black")),
@@ -240,7 +240,6 @@ body <- dashboardBody(
             p(shinyfields1$inf1, style = "color:black"),                
             # Save the cropped template map image with the given index
             downloadButton('saveTemplate', 'Save map template', style="color:#FFFFFF;background:#999999"))),
-           
            ),
           wellPanel(
             h4(strong(shinyfields1$save_symbol, style = "color:black")),
@@ -251,7 +250,6 @@ body <- dashboardBody(
             p(shinyfields1$inf3, style = "color:black"),                
             # Save the cropped template map image with the given index
             downloadButton('saveSymbol', 'Save map symbol/Legende', style="color:#FFFFFF;background:#999999")))
-
           )
         ), # col 4
         column(8,
@@ -260,16 +258,16 @@ body <- dashboardBody(
                plotOutput("plot", click = "plot_click",  # Equiv, to click=clickOpts(id="plot_click")
                                hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
                                brush = brushOpts(id = "plot_brush")),
-
         )
       ) # END fluid Row
     ),  # END tabItem 1
     
-  # 2. Maps matching #----------------------------------------------------------------------
+  
+  # 2. Maps Matching #----------------------------------------------------------------------
     tabItem(
       tabName = "tab2",
       # which site become overview
-      fluidRow(column(3,textInput("siteNumberMapsMatching", label=shinyfields6$input, value = 100 ))),
+      fluidRow(column(3,textInput("siteNumberMapsMatching", label=shinyfields6$input, value = ''))),
       actionButton("listMapsMatching",  label = "List maps"),
       actionButton("listAlign",  label = "List aligned maps"),
       actionButton("listCropped",  label = "List cropped maps"),
@@ -298,17 +296,18 @@ body <- dashboardBody(
           )
         ), # col 4
         column(8,
-               uiOutput('listMaps', style="width:35%;float:left"),
-               uiOutput('listAlign', style="width:35%;float:left"),
-               uiOutput('listCropped', style="width:35%;float:left")
+               uiOutput('listMaps', style="width:30%;float:left"),
+               uiOutput('listAlign', style="width:30%;float:left"),
+               uiOutput('listCropped', style="width:30%;float:left")
         )
       ) # END fluid Row
     ),  # END tabItem 2
   
-  # 3.1 Points matching  #----------------------------------------------------------------------
+  
+  # 3. Points Matching  #----------------------------------------------------------------------
     tabItem(
       tabName = "tab3",
-      fluidRow(column(3,textInput("siteNumberPointsMatching", label=shinyfields6$input, value = 100 ))),
+      fluidRow(column(3,textInput("siteNumberPointsMatching", label=shinyfields6$input, value = ''))),
       actionButton("listMapsMatching2",  label = "List maps"),
       actionButton("listPointsM",  label = "List points matching"),
       actionButton("listPointsF",  label = "List points filterng"),
@@ -321,27 +320,25 @@ body <- dashboardBody(
                  p(shinyfields3$inf2, style = "color:black"),
                ),
                wellPanel(
+                 # ----------------------------------------# 3.1 Points detection Using template  FILE=shinyfields_detect_points #---------------------------------------------------------------------
                  h4(shinyfields3$head_sub, style = "color:black"),
                  p(shinyfields3$inf3, style = "color:black"),
                  # Threshold for point matching
                  fluidRow(column(8,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.87, min = 0, max = 1, step = 0.05))),
                  p(shinyfields3$inf4, style = "color:black"),
                  fluidRow(column(3, actionButton("pointMatching",  label = shinyfields3$lab, style="color:#FFFFFF;background:#999999"))),
-                 
                ),
                wellPanel(
-                 # ----------------------------------------# 3.2 Points detection Using filtering  FILE=shinyfields_detect_points_using_filtering #----------------------------------------------------------------------
+                 # ----------------------------------------# 3.2 Points detection Using filtering  FILE=shinyfields_detect_points_using_filtering #---------------------------------------------------
                  h4(shinyfields4$head, style = "color:black"),
                  fluidRow(column(8,numericInput("filterK", label = shinyfields4$lab1, value = 5))),#, width = NULL, placeholder = NULL)
                  p(shinyfields4$inf1, style = "color:black"),
                  fluidRow(column(8,numericInput("filterG", label = shinyfields4$lab2, value = 9))),#, width = NULL, placeholder = NULL)
                  p(shinyfields4$inf2, style = "color:black"),
                  fluidRow(column(3, actionButton("pointFiltering",  label = shinyfields4$lab3, style="color:#FFFFFF;background:#999999"))),
-                 
-                 
                ),
                wellPanel(
-                 # ----------------------------------------# 3.3 Points detection Using circle detection  FILE=shinyfields_detect_points_using_circle_detection #--------------------------------------------------------
+                 # ----------------------------------------# 3.3 Points detection Using circle detection  FILE=shinyfields_detect_points_using_circle_detection #------------------------------------
                  h4(shinyfields4.1$head, style = "color:black"),
                  fluidRow(column(8,numericInput("Gaussian", label = shinyfields4.1$lab1, value = 5, min = 0))),
                  p(shinyfields4.1$inf1, style = "color:black"),
@@ -357,7 +354,6 @@ body <- dashboardBody(
                  p(shinyfields4.1$inf6, style = "color:black"),
                  p(shinyfields4.1$inf7, style = "color:black"),
                  fluidRow(column(3, actionButton("pointCircleDetection",  label = shinyfields4.1$lab7, style="color:#FFFFFF;background:#999999"))),
-                 
                )
         ), # col 4
         column(8,
@@ -372,7 +368,7 @@ body <- dashboardBody(
   # 4. Masking #----------------------------------------------------------------------
   tabItem(
       tabName = "tab4",  
-      fluidRow(column(3,textInput("siteNumberMasks", label=shinyfields6$input, value = 100 ))),
+      fluidRow(column(3,textInput("siteNumberMasks", label=shinyfields6$input, value = ''))),
       actionButton("listMasks",  label = "List masks"),
       actionButton("listMasksB",  label = "List black masks"),
      # actionButton("listMPointsF",  label = "List points filterng"),
@@ -415,20 +411,14 @@ body <- dashboardBody(
         ),
         wellPanel(
             # which site become overview
-          fluidRow(column(3,textInput("siteNumberGeoreferencing", label=shinyfields6$input, value = 100 ))),
+          fluidRow(column(3,textInput("siteNumberGeoreferencing", label=shinyfields6$input, value = ''))),
           # start overview 
           actionButton("listGeoreferencing",  label = "List georeferenced files"),
-          
         ),
-      fluidRow(
-        column(6,
-               uiOutput('geo_listMaps', style="width:30%;float:left")
-        ),
-        column(6,
-               uiOutput("leaflet_outputs")
-        ), # col 4
-      )
-       # END fluid Row
+      wellPanel(
+          uiOutput('leaflet_outputs_GEO')
+        
+      )# END fluid Row
     ),# END tabItem 5
    
   # 5. Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
@@ -442,17 +432,35 @@ body <- dashboardBody(
       ),
       wellPanel(
         # which site become overview
-        fluidRow(column(3,textInput("siteNumberPolygonize", label=shinyfields6$input, value = 100 ))),
-        actionButton("listPolygonize",  label = "List polygonized files",),
-        
+        fluidRow(column(3,textInput("siteNumberPolygonize", label=shinyfields6$input, value = ''))),
+        actionButton("listPolygonize",  label = "Listf polygonized files",),
       ),
-      
       wellPanel( 
         uiOutput("leaflet_outputs_PL")
       )
-    )  # END tabItem 6
+    ),  # END tabItem 6
+  
+  # 7. SAVE #----------------------------------------------------------------------
+  tabItem(
+    tabName = "tab7", 
+    wellPanel(
+      h3(strong(shinyfields7$head, style = "color:black")),
+      p(shinyfields7$inf1, style = "color:black"),
+      p(shinyfields7$inf2, style = "color:black"),
+      actionButton("save_Output",  label ="", style="color:#FFFFFF;background:#999999")
+    ),
+    wellPanel(
+      # which site become overview
+      fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
+      actionButton("listSave",  label = "List",),
+    ),
+    wellPanel( 
+      uiOutput("leaflet_outputs_Save")
+    )
+  )  # END tabItem 6
+  
   ) # END tabItems
-) # END body
+) # END BODY
 
 
 sidebar <-
@@ -463,6 +471,7 @@ sidebar <-
     title = NULL,
     skin = "black"
   )
+
 
 
 ################################################################################
@@ -791,8 +800,9 @@ server <- shinyServer(function(input, output, session) {
         prepareImageView("/pointFiltering_png/", '.png')
       })
     }
-    
   })
+  
+  # List matching maps
   observeEvent(input$listMapsMatching2, {
     if(input$siteNumberPointsMatching != ''){
       output$listMapsMatching2 = renderUI({
@@ -902,29 +912,23 @@ server <- shinyServer(function(input, output, session) {
   })
   
   
-  # Reagieren Sie auf das Hochladen der TIFF-Datei
+  # Georeferencing list maps
   observeEvent(input$listGeoreferencing, {
     # Anzahl der Leaflet-Elemente, die Sie hinzufügen möchten
   
     listgeoTiffiles = list.files("D:/distribution_digitizer/data/output/rectifying/", full.names = T, pattern = paste0('*00',input$siteNumberGeoreferencing,'map'))
     #listgeoTiffiles = list.files("D:/distribution_digitizer/data/output/rectifying/", full.names = T, pattern = '.tif')
-    print( paste('00',input$siteNumber,'map'))
-    num_leaflet_outputs <- length(listgeoTiffiles)
+    print( paste('00',input$siteNumberGeoreferencing,'map'))
+    num_leaflet_outputs_GEO <- length(listgeoTiffiles)
     
-    if(input$siteNumberGeoreferencing!= ''){
-      output$geo_listMaps = renderUI({
-        prepareImageView("/georeferencing_png/", input$siteNumberGeoreferencing)
-      })
-    }
-    else{
-      output$geo_listMaps = renderUI({
-        prepareImageView("/georeferencing_png/", '.png')
-      })
-    }
+    # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
+    listpng = list.files("D:/distribution_digitizer/www/georeferencing_png/", full.names = F, pattern = input$siteNumberGeoreferencing)
+    print(listpng)
     
-    output$leaflet_outputs <- renderUI({
+    output$leaflet_outputs_GEO <- renderUI({
+      print( paste('00',input$siteNumberGeoreferencing,'map'))
       # Erstellen Sie eine Liste von Leaflet-Elementen
-      leaflet_outputs_list <- lapply(1:num_leaflet_outputs, function(i) {
+      leaflet_outputs_list <- lapply(1:num_leaflet_outputs_GEO, function(i) {
         leafletOutput(outputId = paste0("map_geo_", i))
       })
       
@@ -932,136 +936,42 @@ server <- shinyServer(function(input, output, session) {
       do.call(tagList, leaflet_outputs_list)
     })
     
-    #inFile <- "D:/distribution_digitizer/data/output/rectifying/georeferenced2_0069map_2_0_rectified.tif"
-
-    for (i in 1:num_leaflet_outputs) {
-     # inFile <- listgeoTiffiles[i]
-      if (!is.null(listgeoTiffiles[i])) {
-        if (i == 1){  
-          tif_file1 <- raster(listgeoTiffiles[i])
-          output[[paste0('map_geo_', i)]]  <- renderLeaflet({
-            leaflet() %>%
-              addTiles() %>%
-              setView(lng = 66, lat = 30, zoom = 4) %>%
-              #addMarkers(lng=66, lat=30, popup="The birthplace of R")  %>%
-              addRasterImage(tif_file1, opacity = 0.7)
-          })
-        }
-      
-      if (i == 2){  
-        tif_file2 <- raster(listgeoTiffiles[i])
-        output[[paste0('map_geo_', i)]]  <- renderLeaflet({
-        leaflet() %>%
-          addTiles() %>%
-          setView(lng = 66, lat = 30, zoom = 4) %>%
-          #addMarkers(lng=66, lat=30, popup="The birthplace of R")  %>%
-          addRasterImage(tif_file2, opacity = 0.7)
-        })
-      }
-      
-      if (i == 3){   
-        tif_file3 <- raster(listgeoTiffiles[i])
-        output[[paste0('map_geo_', i)]]  <- renderLeaflet({
-          leaflet() %>%
-            addTiles() %>%
-            setView(lng = 66, lat = 30, zoom = 4) %>%
-            #addMarkers(lng=66, lat=30, popup="The birthplace of R")  %>%
-            addRasterImage(tif_file3, opacity = 0.7)
-       })
-      }
-     }  # END if 
-    } # END for
- 
+    # Liste von Leaflet-Objektenlapply(seq_along(my_list), function(i) {
+    leaflet_list_GEO <- lapply(seq_along(listgeoTiffiles), function(i) {
+      print(listgeoTiffiles[i])
+      leaflet() %>%
+        addTiles("Test") %>%
+        addProviderTiles("OpenStreetMap.Mapnik") %>%
+        addRasterImage(raster(listgeoTiffiles[i]), opacity = 0.7) %>%
+        addControl(
+          htmltools::div(
+            p(listgeoTiffiles[i]),
+          ),
+          position = "bottomright"
+        ) %>%
+        addControl(
+          htmltools::div(
+            img(src = paste0("/georeferencing_png/",listpng[i]), width = 200, height = 200),
+            tags$a(href = paste0("/georeferencing_png/",listpng[i]), listpng[i], target="_blank"),
+          ),
+          position = "bottomleft"
+        )
+    })
+    
+    # Ergebnisse in den Output-Variablen speichern
+    
+    leaflet_lists <- lapply(1:length(leaflet_list_GEO), function(i) {
+      output[[paste0('map_geo_', i)]] <- renderLeaflet({ leaflet_list_GEO[[i]] })
+    })
     
   })
   
  
   
   # ----------------------------------------# Polygonize #----------------------------------------------------------------------
- 
-  observeEvent(input$listPolygonize, {
-    
-    # Load the shapefile data
-    listShapefiles = list.files("D:/distribution_digitizer/www/polygonize/", full.names = T, pattern = '.shp')
-    #input$siteNumberPolygonize='69'
-    listShapefiles = grep(input$siteNumberPolygonize, listShapefiles, value= TRUE)
-    
-    # diese shape files sind erstmal von keine Bedeutung
-    muster <- "filtered"
-    
-    # Index der Dateien finden, die das Muster nicht enthalten
-    listShapefiles <- grep(paste0("^((?!(", muster, ")).)*$"), listShapefiles, value = TRUE, perl = TRUE)
-    num_leaflet_outputs <- length(listShapefiles)
-    
-    output$leaflet_outputs_PL <- renderUI({
-      # Liste von Leaflet-Elementen
-      leaflet_outputs_list <- lapply(1:num_leaflet_outputs, function(i) {
-        leafletOutput(outputId = paste0("listPL", i))
-      })
-      
-      # Liste der Leaflet-Elemente in UI auszugeben
-      do.call(tagList, leaflet_outputs_list)
-    })
-    
-    # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
-    listpng = list.files("D:/distribution_digitizer/www/matching_png/", full.names = T, pattern = input$siteNumberPolygonize)
-    
-    # Liste von Leaflet-Objekten
-    leaflet_list <- lapply(listShapefiles, function(file,i) {
-      print(file)
-      leaflet() %>%
-        addTiles("Test") %>%
-        addProviderTiles("OpenStreetMap.Mapnik") %>%
-        addPolygons(data = st_read(file),
-                    fillColor = "blue",
-                    fillOpacity = 0.6,
-                    color = "white",
-                    stroke = TRUE,
-                    weight = 6) %>%
-        addControl(
-          htmltools::div(
-            p(file),
-          ),
-        position = "bottomright"
-        ) %>%
-        addControl(
-        htmltools::div(
-          img(src = "matching_png/2_0064map_1_0.png", width = 200, height = 200),
-        ),
-        position = "bottomleft"
-      )
-    })
-    
-    # Ergebnisse in den Output-Variablen speichern
-    
-    leaflet_lists <- lapply(1:length(leaflet_list), function(i) {
-      output[[paste0('listPL', i)]] <- renderLeaflet({ leaflet_list[[i]] })
-    })
-    
-    
-    
-    
-    
-    # Render the HTML shape name 1
-   # output$shape_name1 <- renderUI({
-    #  HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[1]), "</p>"))
-   # })
-    # Render the HTML align map1
-   # output$align_map1 <- renderUI({
-   #   HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[1]), ">"))
-   # })
-  })
-  
-  
-  # Render the HTML align map3
- # output$align_map3 <- renderUI({
-#    HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[3]), ">"))
-#  })
-  
-  
-   # Polygonize start
+  # Polygonize start
   observeEvent(input$polygonize, {
-   
+    print("Hallo")
     # call the function for filtering
     manageProcessFlow("polygonize", "polygonize", "polygonize")
     
@@ -1089,6 +999,90 @@ server <- shinyServer(function(input, output, session) {
       }
     }
   }) 
+  
+  # Polygonize list maps  
+  observeEvent(input$listPolygonize, {
+    # Load the shapefile data
+    listShapefiles = list.files("D:/distribution_digitizer/www/polygonize/", full.names = T, pattern = '.shp')
+    #input$siteNumberPolygonize='69'
+    listShapefiles = grep(input$siteNumberPolygonize, listShapefiles, value= TRUE)
+    
+    # diese shape files sind erstmal von keine Bedeutung
+    muster <- "filtered"
+    
+    # Index der Dateien finden, die das Muster nicht enthalten
+    listShapefiles <- grep(paste0("^((?!(", muster, ")).)*$"), listShapefiles, value = TRUE, perl = TRUE)
+    num_leaflet_outputs <- length(listShapefiles)
+    print(listShapefiles)
+    
+    # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
+    listpng = list.files("D:/distribution_digitizer/www/cropped_png/", full.names = F, pattern = input$siteNumberPolygonize)
+    print(listpng)
+    
+    output$leaflet_outputs_PL <- renderUI({
+      # Liste von Leaflet-Elementen
+      leaflet_outputs_list <- lapply(1:num_leaflet_outputs, function(i) {
+        leafletOutput(outputId = paste0("listPL", i))
+      })
+      
+      # Liste der Leaflet-Elemente in UI auszugeben
+      do.call(tagList, leaflet_outputs_list)
+    })
+    
+  
+    
+    # Liste von Leaflet-Objektenlapply(seq_along(my_list), function(i) {
+    leaflet_list_PL <- lapply(seq_along(listShapefiles), function(i) {
+      print(listShapefiles[i])
+      leaflet() %>%
+        addTiles("Test") %>%
+        addProviderTiles("OpenStreetMap.Mapnik") %>%
+        addPolygons(data = st_read(listShapefiles[i]),
+                    fillColor = "blue",
+                    fillOpacity = 0.6,
+                    color = "white",
+                    stroke = TRUE,
+                    weight = 6) %>%
+        addControl(
+          htmltools::div(
+            p(listShapefiles[i]),
+          ),
+        position = "bottomright"
+        ) %>%
+        addControl(
+        htmltools::div(
+          img(src = paste0("/cropped_png/",listpng[i]), width = 200, height = 200),
+          #p(listpng[i])
+          tags$a(href = paste0("/cropped_png/",listpng[i]), listpng[i], target="_blank"),
+        ),
+        
+        position = "bottomleft"
+      )
+    })
+    
+    # Ergebnisse in den Output-Variablen speichern
+    
+    leaflet_lists <- lapply(1:length(leaflet_list_PL), function(i) {
+      output[[paste0('listPL', i)]] <- renderLeaflet({ leaflet_list_PL[[i]] })
+    })
+    # Render the HTML shape name 1
+   # output$shape_name1 <- renderUI({
+    #  HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[1]), "</p>"))
+   # })
+    # Render the HTML align map1
+   # output$align_map1 <- renderUI({
+   #   HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[1]), ">"))
+   # })
+  })
+  
+  # Render the HTML align map3
+  # output$align_map3 <- renderUI({
+  #    HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[3]), ">"))
+  #  })
+  
+  
+
+
   
   
   manageProcessFlow <- function(processing, allertText1, allertText2){
@@ -1176,22 +1170,20 @@ server <- shinyServer(function(input, output, session) {
 
       if(processing == "georeferencing"){
         # processing georeferencing
-        #library(reticulate)
         fname=paste0(workingDir, "/", "src/georeferencing/mask_georeferencing.py")
         print(" Process georeferencing python script:")
         print(fname)
         source_python(fname)
         mainmaskgeoreferencingMaps(workingDir)
         mainmaskgeoreferencingMasks(workingDir)
-      }
-      if(processing=="polygonize"){
         # processing rectifying
         fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
         print(" Process rectifying python script:")
         print(fname)
         source_python(fname)
         mainRectifying(workingDir)
-        
+      }
+      if(processing=="polygonize"){
         # processing polygonize
         fname=paste0(workingDir, "/", "src/polygonize/polygonize.py")
         print(" Process polygonizing python script:")
@@ -1225,7 +1217,6 @@ server <- shinyServer(function(input, output, session) {
   # convert tif images to png and save in /www directory
   converTifToPngSave <- function(pathToTiffImages, patjhToPngImages){
     tifFiles <- list.files(pathToTiffImages, pattern = ".tif", recursive = FALSE)
-    
     # convert tif to png and save this into the given path
     for (f in tifFiles) {
       tifFile = paste0(pathToTiffImages, f)
