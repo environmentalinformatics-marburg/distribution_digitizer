@@ -444,18 +444,26 @@ body <- dashboardBody(
   tabItem(
     tabName = "tab7", 
     wellPanel(
-      h3(strong(shinyfields7$head, style = "color:black")),
-      p(shinyfields7$inf1, style = "color:black"),
-      p(shinyfields7$inf2, style = "color:black"),
-      actionButton("save_Output",  label ="", style="color:#FFFFFF;background:#999999")
+      h3(strong("Save the outputs in csv file", style = "color:black")),
+      p("hier kommt noch mehr Text", style = "color:black"),
+      p("hier kommt noch mehr Text", style = "color:black"),
+      actionButton("saveOutputs",  label ="Save the outputs", style="color:#FFFFFF;background:#999999")
     ),
     wellPanel(
       # which site become overview
-      fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
-      actionButton("listSave",  label = "List",),
+      #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
+      
+      actionButton("showSavedOutputs",  label = "showSavedOutputs",),
+      leafletOutput("mapShowSavedOutputs"),
+      verbatimTextOutput("hoverInfo")
     ),
     wellPanel( 
-      uiOutput("leaflet_outputs_Save")
+      downloadButton("downloadButton", "File download"),
+    ),
+    wellPanel( 
+      fileInput("file", "Choose CSV-file:"),
+      leafletOutput("mapShowCsv"),
+      actionButton("showCsv",  label = "Show the Koordinats",),
     )
   )  # END tabItem 6
   
@@ -975,14 +983,14 @@ server <- shinyServer(function(input, output, session) {
     # call the function for filtering
     manageProcessFlow("polygonize", "polygonize", "polygonize")
     
-    # Write new dir
+    # Write new directory
     new_directory <- paste0(workingDir, "/www/polygonize/")
     dir.create(new_directory)
     
     findTemplateResult = paste0(workingDir, "/data/output/polygonize/")
     shFiles <- list.files(findTemplateResult, pattern = ".sh", recursive = TRUE, full.names = TRUE)
     
-    # copy the shape files into /www
+    # copy the shape files into www directory
     for (f in shFiles) {
       # Source and destination file paths
       baseName = basename(f)
@@ -1080,10 +1088,92 @@ server <- shinyServer(function(input, output, session) {
   #    HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[3]), ">"))
   #  })
   
-  
+ 
 
-
+  # ----------------------------------------# Save the outputs #----------------------------------------------------------------------
+  observeEvent(input$saveOutputs, {
+    # Datei erstellen, z.B. mit write.csv()
+    
+    data <- data.frame(Name = c("Alice", "Bob", "Charlie"),
+                       Alter = c(25, 30, 22))
+    write.csv(data, "beispiel.csv", row.names = FALSE)
+  })
   
+  observeEvent(input$showSavedOutputs, {
+    
+    # Daten aus der hochgeladenen CSV-Datei lesen
+    data <- reactive({
+      #req(input$file)
+      #df <- read.csv(input$file$datapath)
+      df <- read.csv("D:/distribution_digitizer/data/output/dd_outputs.csv")
+      df
+    })
+    # eine benutzerdefinierten Mouseover-Funktion Erstellen 
+    customMouseover <- JS(
+      "function(event) {
+    var layer = event.target;
+    layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
+  }"
+    )
+    infos <- read.csv("D:/distribution_digitizer/data/output/dd_outputs.csv")
+    marker_data <- read.csv("D:/distribution_digitizer/data/output/dd_outputs.csv")
+    # OpenStreetMap show
+    output$mapShowSavedOutputs <- renderLeaflet({
+      leaflet() %>%
+        addTiles() %>%
+        addMarkers(
+          data = marker_data,
+          lat = ~Latitude,
+          lng = ~Longitude,
+          label = ~Name,
+          labelOptions = labelOptions(
+            direction = "auto",
+            noHide = TRUE,
+            onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
+          ),
+          #popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", marker_data$Name, "</a>")
+          popup = ~paste0("<b>", marker_data$Name, "</b><a href='/matching_png/", Link, "' target='_blank'><p>", marker_data$Link, "</p><img src='/matching_png/", Link, "' width='100' height='100'></a>")
+          
+        )
+    })
+ 
+    
+    # Daten aus der hochgeladenen CSV-Datei lesen
+    data2 <- reactive({
+      #req(input$file)
+      df <- read.csv(input$file$datapath)
+      df
+    })
+    
+    # OpenStreetMap show
+    output$mapShowCsv <- renderLeaflet({
+      leaflet(data = data2()) %>%
+        addTiles() %>%
+        addMarkers(lng = ~Longitude, lat = ~Latitude,
+        label = ~Name,
+        labelOptions = labelOptions(
+        direction = "auto",
+        noHide = TRUE
+        ),
+        popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", ~Link, "</a>")
+        )
+    })
+    
+  })
+  observeEvent(input$downloadButton, {
+    
+    file1 <- "beispiel.csv"
+    
+    # Geben Sie die herunterzuladende Datei zurück
+    output$downloadButton <- downloadHandler(
+      filename = function() {
+        paste("beispiel_", Sys.Date(), ".csv", sep = "")
+      },
+      content = function(file) {
+        file.copy(file, file1)
+      }
+    )
+  })
   
   manageProcessFlow <- function(processing, allertText1, allertText2){
    
