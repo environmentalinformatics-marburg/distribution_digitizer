@@ -4,6 +4,7 @@ import PIL
 from PIL import Image
 import cv2
 import glob
+import csv
 
 """
 Circle detection method for finding white circles with dark edges using cv2.HoughCircles
@@ -41,6 +42,9 @@ def circle_detection(tiffile, outdir, blur, min_dist, threshold_edge, threshold_
         maxRadius=max_radius
     )
     
+    # Initialize a list to store centroid coordinates
+    centroids = []
+    
     # draw blue circles around the detected contours
     if circles is not None:
         circles = np.uint16(np.around(circles))
@@ -48,9 +52,31 @@ def circle_detection(tiffile, outdir, blur, min_dist, threshold_edge, threshold_
             # Draw the outer circle
             cv2.circle(img, (circle[0], circle[1]), circle[2], (0, 0, 255), 2)
     
+            # Calculate centroid coordinates
+            centroid_x = int(circle[0])
+            centroid_y = int(circle[1])
+            centroid_y = centroid_y * (-1)
+            
+            # Append centroid coordinates to the list
+            centroids.append((centroid_x, centroid_y))
+            
+            # Draw a small red dot at the centroid position
+            cv2.circle(img, (centroid_x, centroid_y), 1, (139, 0, 0), -1)
+    
+    # Save the modified image
     PIL.Image.fromarray(img, 'RGB').save(os.path.join(outdir, os.path.basename(tiffile)))
+    
+    # Write centroids to a CSV file
+    csv_filename = os.path.splitext(os.path.basename(tiffile))[0] + '_centroids.csv'
+    csv_filepath = os.path.join(outdir, csv_filename)
+    
+    with open(csv_filepath, mode='w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerow(['X', 'Y'])  # Write header
+        csv_writer.writerows(centroids)
+    
+    return csv_filepath  # Return the path to the CSV file
 # end of function
-
 
 """
 Application:

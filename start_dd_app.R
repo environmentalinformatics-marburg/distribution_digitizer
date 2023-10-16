@@ -23,7 +23,7 @@ os <- import("os") # python module needed for managing files, folders and their 
 library(reticulate) # Python binding for R. 
 # install.packages("reticulate") # start the RStudio as admin and hit Y when prompted for the miniconda installation
 
-setwd("D:/dd/2023-08-30/distribution_digitizer/") # uncomment this line for setting the working directory manually.
+setwd("C:/Users/user/Documents/MSc_Physische_Geographie/HiWi/distribution_digitizer/") # uncomment this line for setting the working directory manually.
 
 getwd() # print the path to the working directory for copying into the Digitizer application (Field: "Working Directory").
 
