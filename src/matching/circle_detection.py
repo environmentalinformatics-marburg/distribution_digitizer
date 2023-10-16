@@ -86,4 +86,3 @@ def mainCircleDetection(workingDir, blur, min_dist, threshold_edge, threshold_ci
   for file in glob.glob(inputDir + '*.tif'):
     print(file)
     circle_detection(file, ouputTifDir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius)
-
