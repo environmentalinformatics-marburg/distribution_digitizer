@@ -1,2 +1,0 @@
-start_information;create_templates;select_image;save_template;add_number;cropped_maps;detect_maps;
-Your working directory is the local digitizer repository!;1.Create template maps or symbols;Choose the image;Save map templates;Add number to the file name of the created template file;Important! \n Save the cropped map in ;High threshold values will lead to few detections, low values to many detections. Start with the threshold value 0.4 and keep decreasing it until all the outputs are extracted. The minimum possible output value will be 0.2.;
