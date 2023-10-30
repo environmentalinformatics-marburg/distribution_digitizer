@@ -1233,17 +1233,21 @@ server <- shinyServer(function(input, output, session) {
       
       if(processing == "pointFiltering") {
         fname=paste0(workingDir, "/", "src/matching/point_filtering.py")
+        fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
         print(" Process pixel filtering  python script:")
         print(fname)
         source_python(fname)
+        source_python(fname2)
         mainPointFiltering(workingDir, input$filterK, input$filterG)
       }
       
       if(processing == "pointCircleDetection") {
         fname=paste0(workingDir, "/", "src/matching/circle_detection.py")
+        fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
         print("Processing circle detection python script:")
         print(fname)
         source_python(fname)
+        source_python(fname2)
         mainCircleDetection(workingDir, input$Gaussian, input$minDist, input$thresholdEdge, input$thresholdCircles, input$minRadius, input$maxRadius)
       }
       
