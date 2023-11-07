@@ -1,9 +1,6 @@
 """
 Script for initializing and appending csv files for coordinate extraction.
 """
-# import libraries
-import os
-import csv
 
 # define functions for initializing csv file
 def initialize_csv_file(output_dir):
@@ -11,7 +8,7 @@ def initialize_csv_file(output_dir):
     if not os.path.exists(csv_file_path):
         with open(csv_file_path, mode='w', newline='') as csv_file:
             csv_writer = csv.writer(csv_file)
-            csv_writer.writerow(['File', 'Detection_method', 'X', 'Y'])
+            csv_writer.writerow(['File', 'Detection method', 'X', 'Y'])
     return csv_file_path
 
 # define function for appending existing csv file

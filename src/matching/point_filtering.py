@@ -32,7 +32,6 @@ def edge(tiffile, outdir, n, m):
         if M["m00"] != 0:
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
-            cY = cY * (-1)
             # append centroids data frame
             centroids.append((cX, cY))
             # draw a red pixel at the centroid
