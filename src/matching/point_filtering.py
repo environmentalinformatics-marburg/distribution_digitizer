@@ -6,23 +6,44 @@ import glob
 import numpy as np 
 
 
-#Edge and Contour Detection
+# Edge and Contour Detection
 def edge(tiffile, outdir, n, m):
-  # Load image, grayscale, Otsu's threshold
-  ig = np.array(PIL.Image.open(tiffile))
-  gray = cv2.cvtColor(ig, cv2.COLOR_BGR2GRAY)
-  gray = cv2.GaussianBlur(gray,(m,m),0)
-  ret, thresh = cv2.threshold(gray,120,255,cv2.THRESH_TOZERO_INV)
-  # Morph open using elliptical shaped kernel
-  kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n,n))
-  opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=3)
-  #plot the mask
-  contours, hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-  # draw all contours
-  image = cv2.drawContours(ig, contours, -1, (0, 0, 255), 3)
-  # show the image with the drawn contours
-  PIL.Image.fromarray(image, 'RGB').save(os.path.join(outdir, os.path.basename(tiffile)))
- 
+    # Load image, grayscale, Otsu's threshold
+    ig = np.array(PIL.Image.open(tiffile))
+    gray = cv2.cvtColor(ig, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (m, m), 0)
+    ret, thresh = cv2.threshold(gray, 120, 255, cv2.THRESH_TOZERO_INV)
+    # Morph open using elliptical shaped kernel
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n, n))
+    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=3)
+    # Plot the mask
+    contours, hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Draw contours and centroids
+    
+    centroids = []
+    
+    image = ig.copy()  # Create a copy of the original image
+    for contour in contours:
+        # draw the contour
+        image = cv2.drawContours(image, [contour], -1, (0, 0, 255), 3)
+        # calculate the centroid of the contour
+        M = cv2.moments(contour)
+        if M["m00"] != 0:
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+            cY = cY * (-1)
+            # append centroids data frame
+            centroids.append((cX, cY))
+            # draw a red pixel at the centroid
+            image[cY, cX] = (139, 0, 0)
+    
+    # Save the image with contours and centroids
+    output_file = os.path.join(outdir, os.path.basename(tiffile))
+    PIL.Image.fromarray(image, 'RGB').save(output_file)
+    
+    return centroids, output_file
+
 #m = int(input(' Enter the value of Guassian filter or press enter for 9' )or 9)
 #n=int(input(' Enter the value of kernel filter or press enter for 5' )or 5)
 #input_tif = str(input("Enter the Input directory /..../"))
@@ -42,11 +63,17 @@ def mainPointFiltering(workingDir, n, m):
   print(n)
   print(m)
   
+  outputCsvDir = workingDir + "/data/output/maps/csv_files/"
+  os.makedirs(outputCsvDir, exist_ok=True)
+  csv_file_path = initialize_csv_file(outputCsvDir)  
+  
   ouputPngDir = workingDir+"/www/pointFiltering_png/"
   os.makedirs(ouputPngDir, exist_ok=True)
   
   for file in glob.glob(inputDir + '*.tif'):
     print(file)
-    edge(file, ouputTifDir, int(n), int(m))
+    centroids, output_file = edge(file, ouputTifDir, int(n), int(m))
+    append_to_csv_file(csv_file_path, centroids, os.path.basename(file), "point_filtering")
+
   #fileName="D:/distribution_digitizer//data/output/align_maps\2_0060map_1_0.tif"
   #edge(fileName, ouputDir, 5, 9)
