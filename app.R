@@ -148,6 +148,14 @@ if (file.exists(fileFullPath)){
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
 
+# 8 shinyfields_georef_coords_from_csv_file
+fileFullPath = (paste0(workingDir,'/config/shinyfields_georef_coords_from_csv_file.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields8 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
 header <- dashboardHeader(
   tags$li(
     class = "dropdown",
@@ -399,7 +407,7 @@ body <- dashboardBody(
       ) # END fluid Row
     ),  # END tabItem 4
   
-  # 5. Georeferencing  FILE=shinyfields_georeferensing #----------------------------------------------------------------------
+  # 5. Georeferencing  FILES=shinyfields_georeferensing & shinyfields_georef_coords_from_csv_file.csv #-------------------------------------------------
     tabItem(
       tabName = "tab5",  
         wellPanel(
@@ -417,8 +425,14 @@ body <- dashboardBody(
         ),
       wellPanel(
           uiOutput('leaflet_outputs_GEO')
-        
-      )# END fluid Row
+      ),
+      wellPanel(
+        h4(shinyfields8$head_sub, style = "color:black"),
+        p(shinyfields8$info1, style = "color:black"),
+        p(shinyfields8$info2, style = "color:black"),
+        actionButton("georef_coords_from_csv", label = shinyfields8$lab1, style="color:#FFFFFF;background:#999999")
+      )
+      # END fluid Row
     ),# END tabItem 5
    
   # 5. Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
@@ -974,6 +988,11 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
+  observeEvent(input$georef_coords_from_csv, {
+    # call the function for georeference extracted csv files mathematically
+    manageProcessFlow("georef_coords_from_csv", "georeferencing", "georef_coords_from_csv")
+  })
+  
  
   
   # ----------------------------------------# Polygonize #----------------------------------------------------------------------
@@ -1277,6 +1296,16 @@ server <- shinyServer(function(input, output, session) {
         source_python(fname)
         mainRectifying(workingDir)
       }
+      
+      if(processing == "georef_coords_from_csv"){
+        # processing georeferencing
+        fname=paste0(workingDir, "/", "src/georeferencing/centroid_georeferencing.py")
+        print(" Process georeferencing python script:")
+        print(fname)
+        source_python(fname)
+        mainCentroidGeoref(workingDir)
+      }
+      
       if(processing=="polygonize"){
         # processing polygonize
         fname=paste0(workingDir, "/", "src/polygonize/polygonize.py")
