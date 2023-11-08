@@ -1298,7 +1298,7 @@ server <- shinyServer(function(input, output, session) {
       }
       
       if(processing == "georef_coords_from_csv"){
-        # processing georeferencing
+        # processing mathematical georeferencing of extracted coordinates stored in csv file
         fname=paste0(workingDir, "/", "src/georeferencing/centroid_georeferencing.py")
         print(" Process georeferencing python script:")
         print(fname)
