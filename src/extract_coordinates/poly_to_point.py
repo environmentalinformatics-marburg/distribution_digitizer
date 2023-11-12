@@ -1,7 +1,22 @@
 """
+File: poly_to_point.py
 Author: Kai Richter
-added on: 2023/11/10
-last modified: 2023/11/10
+Date: 2023-11-10
+
+Description: 
+Script for converting the polygons representing georeferenced centroids of detected symbols into point-shapefiles. 
+
+In the function 'poly_to_point', the center coordinate of every polygon is calulated and stored in a list. 
+Based on this list, a GeoDataFrame with the crs of the input shapefile is created and saved. 
+
+function 'MainPolyToPoint_CD': Creates point-shapefiles for polygonized output of centroid masks detected by Circle Detection. 
+  
+function 'MainPolyToPoint_PF': Creates point-shapefiles for polygonized output of centroid masks detected by Point Filtering. 
+
+
+
+Comment:
+2023-11-12: Remains to be binded into the UI (app.R). 
 """
 
 # import libraries
@@ -11,22 +26,22 @@ import geopandas as gpd
 
 ## convert polygons to points
 def poly_to_point(input_shapefile, output_shapefile):
-    # Read the input shapefile
+    # read the input shapefile
     gdf = gpd.read_file(input_shapefile)
 
-    # Initialize a list to store the centroid points
+    # initialize a list to store the centroid points
     centroid_points = []
 
-    # Iterate through the polygons and calculate the centroid points
+    # iterate through the polygons and calculate the centroid points (center coordinate of the polygon)
     for index, row in gdf.iterrows():
         polygon = row['geometry']
         centroid = polygon.centroid
         centroid_points.append(centroid)
 
-    # Create a GeoDataFrame from the centroid points
+    # create a GeoDataFrame from the centroid points
     gdf_points = gpd.GeoDataFrame(geometry=centroid_points, crs=gdf.crs)
 
-    # Save the GeoDataFrame as a shapefile
+    # save the GeoDataFrame as a shapefile
     gdf_points.to_file(output_shapefile)
 
 

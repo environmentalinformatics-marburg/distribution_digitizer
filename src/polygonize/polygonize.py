@@ -1,9 +1,21 @@
 """
+File: polygonize.py
+Author: Spaska Forteva
 
-
-
-Last modified on 2023/11/10 by Kai Richter:
+Last modified on 2023-11-10 by Kai Richter:
   Addition of functions mainPolygonize_CD and mainPolygonize_PF
+  
+Description: 
+Script for polygonizing the rectified output of georeferenced tif files. 
+
+function 'polygonize': Polygonizes the pixels of input tif file. The relevant pixels representing the symbols resp. the 
+symbol centroids are filtered and written out. 
+  
+function 'mainPolygonize': polygonizes the georeferenced masks containing detected symbols. 
+
+function 'mainPolygonize_CD': polygonizes the georeferenced masks containing centroids detected by Circle Detection.
+
+function 'mainPolygonize_PF': polygonizes the georeferenced masks containing centroids detected by Point Filtering.
 """
 
 
@@ -57,7 +69,7 @@ def polygonize(input_raster, output_shape, dst_layername):
     
     gdal.Polygonize( srcband, None, dst_layer, dst_field, [], callback=None )
     
-    # loop over polygon features and filter polygons with 'HA' value of 255 to just keep the distribution extents
+    # loop over polygon features and filter polygons with 'HA' value of 255 to just keep the polygons representing symbols/symbol centroids
     extracted_features = []
     layer = dst_ds.GetLayer()
     for feature in layer:

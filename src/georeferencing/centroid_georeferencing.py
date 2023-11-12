@@ -1,9 +1,18 @@
 """
+File: centroid_georeferencing.py
+Author: Kai Richter
+Date: 2023-11-12
+
+Last modified on: 2023/11/06 by Kai Richter
+
+Description:
 Script for georeferencing the extracted coordinates of centroids mathematically (TO BE IMPROVED!!!)
 
-author: Kai Richter
-last modified on: 2023/11/06
-
+The input is the file 'coordinate.csv', that contains the original centroid coordinates extracted from the maps.
+The function 'centroid_georef' converts them into WGS84-coordinates through the calculation of transformation
+coefficients based on the GCP points and appends them to new columns of the csv file. 
+The output file is stored in /data/output/output_final.csv
+Also, a point-shapefile is stored in /data/output/output_shape/
 """
 
 ### Georeference extracted centroid coordinates

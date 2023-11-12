@@ -1,9 +1,24 @@
 """
-
-
+File: mask_georeferencing.py
+Author: Spaska Forteva
 
 Last modified on 2023/11/10 by Kai Richter:
-  Addition of functions mainmaskgeoreferencingMasks_CD and mainmaskgeoreferencingMasks_PF
+  Addition of functions 'mainmaskgeoreferencingMasks_CD', 'mainmaskgeoreferencingMasks_PF', and 'mainmaskgeoreferencingMaps_CD'
+
+Description: 
+Script for georeference tif files based on GCP file. 
+
+The function 'maskgeoreferencing' georeferences input tif files based on geopoints file. 
+
+function 'mainmaskgeoreferencingMaps': Georeferences maps containing symbols and centroids detected by Point Filtering.
+
+function 'mainmaskgeoreferencingMaps_CD': Georeferences maps containing symbols and centroids detected by Circle Detection.
+
+function 'mainmaskgeoreferencingMasks': Georeferences tif files masking detected symbols.
+
+function 'mainmaskgeoreferencingMasks_CD': Georeferences tif files masking centroids detected by Circle Detection.
+
+function 'mainmaskgeoreferencingMasks_PF': Georeferences tif files masking centroids detected by Point Filtering.
 """
 
 

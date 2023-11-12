@@ -1,7 +1,14 @@
 """
+File: mask_centroids.py
 Author: Kai Richter
-added on: 2023/11/10
-last modified: 2023/11/10
+Date: 2023-11-10
+
+Description: 
+Script for masking the red marked pixels representing centroids detected by Circle Detection and Point Filtering. 
+
+function 'mask_centroids': The red pixels represnting the centroids are masked. The output is the input for georeferencing.
+
+function 'MainMaskCentroids': Functions for looping over all files that should be processed. 
 """
 
 

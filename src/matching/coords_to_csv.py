@@ -1,7 +1,27 @@
 """
+File: coords_to_csv.py
+Author: Kai Richter
+Date: 2023-11-12
+
+Description:
 Script for initializing and appending csv files for coordinate extraction.
+
+The function 'initialize_csv_file' defines the header of a long-format csv file for storing coordinates of symbols. If
+the file 'coordinates.csv' does not exist in the defined output folder, a csv file with the columns headers "File" 
+(name of input tif file), "Detection method" (Circle detection or Point Filtering), "X" (original x cooridnate) 
+and "Y" (original y coordinate) are created.
+
+The function 'append_to_csv_file' has ti be calles afterwards and appends the rows to the initialized csv file. 
+
+This script is sourced in the main-functions of the scripts circle_detection.py and point_filtering.py
+
+
+
+Commment: 
+2023-11-12: @Spaska - append missing column names if needed. 
 """
 
+# load library
 import csv
 
 # define functions for initializing csv file

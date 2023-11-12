@@ -1,3 +1,17 @@
+"""
+File: point_filtering.py
+Author: Spaska Forteva
+
+Last modified on 2023-11-10 by Kai Richter:
+  - Addition of centroid detection in function 'edge' 
+  - Addition of function calls for initializing and appending a long-format csv file in the function 
+  'mainPointFiltering'.
+  
+Description: 
+Script for detecting symbols on a tif file through edge and contour detection. 
+"""
+
+
 import cv2
 import PIL
 from PIL import Image
@@ -64,6 +78,7 @@ def mainPointFiltering(workingDir, n, m):
   
   outputCsvDir = workingDir + "/data/output/maps/csv_files/"
   os.makedirs(outputCsvDir, exist_ok=True)
+  # initialize csv file for storing the cooridnates (if the file does not exist already)
   csv_file_path = initialize_csv_file(outputCsvDir)  
   
   ouputPngDir = workingDir+"/www/pointFiltering_png/"
@@ -72,6 +87,7 @@ def mainPointFiltering(workingDir, n, m):
   for file in glob.glob(inputDir + '*.tif'):
     print(file)
     centroids, output_file = edge(file, ouputTifDir, int(n), int(m))
+    # add centroids to the csv file that has been initialized previously
     append_to_csv_file(csv_file_path, centroids, os.path.basename(file), "point_filtering")
 
   #fileName="D:/distribution_digitizer//data/output/align_maps\2_0060map_1_0.tif"

@@ -1,9 +1,20 @@
 """
-
-
-
-Last modified on 2023/11/10 by Kai Richter:
+File: rectifying.py
+Author: Kai Richter
+Date: 2023-07-31
+Last modified on 2023-11-10 by Kai Richter:
   Addition of functions mainRectifying_CD and mainRectifying_PF
+
+Description: 
+Script for iteratively rectifying the georeferenced output GeoTIFF files from '5. Georeferencing'.
+
+The function 'rectifying' fills edges of input tif files with pixels of value "0", if the edges are warped and not straight.
+
+The function 'mainRectifying' processes it for the output files of masked symbols. 
+
+The function 'mainRectifying_CD' processes it for the output files of masked centroids detected by Circle Detection. 
+
+The function 'mainRectifying_PF' processes it for the output files of masked centroids detected by Point Filtering. 
 """
 
 
