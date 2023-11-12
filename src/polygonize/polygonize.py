@@ -1,3 +1,12 @@
+"""
+
+
+
+Last modified on 2023/11/10 by Kai Richter:
+  Addition of functions mainPolygonize_CD and mainPolygonize_PF
+"""
+
+
 from osgeo import gdal, ogr, osr
 import os,glob
 #os.environ['PROJ_LIB'] = "C:/ProgramData/miniconda3/Library/share/proj"
@@ -87,3 +96,34 @@ def mainPolygonize(workingDir):
     output_shape = output + dst_layername
     print(output_shape)
     polygonize(input_raster, output_shape, dst_layername)
+
+
+def mainPolygonize_CD(workingDir):
+  output= workingDir + "/data/output/polygonize/circleDetection/"
+  os.makedirs(output, exist_ok=True) 
+  inputdir = workingDir +"/data/output/rectifying/circleDetection/"
+  
+  for input_raster in glob.glob(inputdir + "*.tif"):
+    print(input_raster)
+    dst_layername = os.path.basename(input_raster)
+    print(dst_layername)
+    output_shape = output + dst_layername
+    print(output_shape)
+    polygonize(input_raster, output_shape, dst_layername)
+
+
+def mainPolygonize_PF(workingDir):
+  output= workingDir + "/data/output/polygonize/pointFiltering/"
+  os.makedirs(output, exist_ok=True) 
+  inputdir = workingDir +"/data/output/rectifying/pointFiltering/"
+  
+  for input_raster in glob.glob(inputdir + "*.tif"):
+    print(input_raster)
+    dst_layername = os.path.basename(input_raster)
+    print(dst_layername)
+    output_shape = output + dst_layername
+    print(output_shape)
+    polygonize(input_raster, output_shape, dst_layername)
+
+
+

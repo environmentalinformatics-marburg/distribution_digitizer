@@ -132,6 +132,15 @@ if (file.exists(fileFullPath)){
 } else{
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
+
+#5.1 shinyfields_mask_centroids
+fileFullPath = (paste0(workingDir,'/config/shinyfields_mask_centroids.csv'))
+if (file.exists(fileFullPath)){
+  shinyfields5.1 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
+
 #6 shinyfields_georeferensing
 fileFullPath = (paste0(workingDir,'/config/shinyfields_georeferensing.csv'))
 if (file.exists(fileFullPath)){
@@ -383,8 +392,11 @@ body <- dashboardBody(
       fluidRow(
         column(4,
                wellPanel(
+                 h3(strong(shinyfields5$head, style = "color:black"))
+               ),
+               wellPanel(
                  # ----------------------------------------# 4. 1 Masking (white)#----------------------------------------------------------------------
-                 h3(strong(shinyfields5$head, style = "color:black")),
+                 h3(shinyfields5$head_sub, style = "color:black"),
                  h4("You can extract masks with white background", style = "color:black"),
                  p(shinyfields5$inf1, style = "color:black"),
                  # p(shinyfields7$inf2, style = "color:black"),
@@ -392,11 +404,18 @@ body <- dashboardBody(
                  fluidRow(column(3, actionButton("masking",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
                ), 
                 wellPanel(
-                 # ----------------------------------------# 4. 2 Masking (black)#----------------------------------------------------------------------
+                 # ----------------------------------------# Masking (black)#----------------------------------------------------------------------
                  h4("Or you can extract masks with black background", style = "color:black"),
                  p(shinyfields5$inf2, style = "color:black"),
                  fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
                  fluidRow(column(3, actionButton("maskingBlack",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
+               ),
+                # ---------------------------------------- # 4.2 Masking centroids -----------------------------------------------------------------
+               wellPanel(
+                 h3(shinyfields5.1$head_sub, style = "color:black"),
+                 h4("You can mask the centroids of the points detected by Point Filtering and Circle Detection.", style = "color:black"),
+                 p(shinyfields5.1$inf1, style = "color:black"),
+                 fluidRow(column(3, actionButton("maskingCentroids",  label = shinyfields5.1$lab1, style="color:#FFFFFF;background:#999999")))
                )
         ), # col 4
         column(8,
@@ -435,7 +454,7 @@ body <- dashboardBody(
       # END fluid Row
     ),# END tabItem 5
    
-  # 5. Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
+  # 6. Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
   tabItem(
       tabName = "tab6", 
       wellPanel(
@@ -878,6 +897,11 @@ server <- shinyServer(function(input, output, session) {
     findTemplateResult = paste0(workingDir, "/data/output/masking_black/")
     converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/masking_black_png/"))
   })
+  # ---- # Masking centroids --------
+  observeEvent(input$maskingCentroids, {
+    # call the function for filtering
+    manageProcessFlow("maskingCentroids", "masking centroids", "maskingCentroids")
+  })
   
   observeEvent(input$listMasks, {
     if(input$siteNumberMasks!= ''){
@@ -1279,8 +1303,16 @@ server <- shinyServer(function(input, output, session) {
         fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
         source_python(fname)
         mainGeomaskB(workingDir, input$morph_ellipse)
-        }
-
+      }
+      
+      if(processing == "maskingCentroids"){
+        fname=paste0(workingDir, "/", "src/masking/mask_centroids.py")
+        print(" Process masking python script:")
+        print(fname)
+        source_python(fname)
+        MainMaskCentroids(workingDir)
+      }
+      
       if(processing == "georeferencing"){
         # processing georeferencing
         fname=paste0(workingDir, "/", "src/georeferencing/mask_georeferencing.py")
@@ -1288,6 +1320,7 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         mainmaskgeoreferencingMaps(workingDir)
+        mainmaskgeoreferencingMaps_CD(workingDir)
         mainmaskgeoreferencingMasks(workingDir)
         # processing rectifying
         fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")

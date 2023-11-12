@@ -1,3 +1,12 @@
+"""
+
+
+
+Last modified on 2023/11/10 by Kai Richter:
+  Addition of functions mainRectifying_CD and mainRectifying_PF
+"""
+
+
 #### Script for iteratively rectifying the georeferenced output GeoTIFF files from '5. Georeferencing'.
 
 import sys
@@ -37,4 +46,29 @@ def mainRectifying(workingDir):
     rectifying(input_raster, output_raster)
 
 
+def mainRectifying_CD(workingDir):
+  output= workingDir + "/data/output/rectifying/circleDetection/"
+  os.makedirs(output, exist_ok=True) 
+  inputdir = workingDir +"/data/output/georeferencing/masks/circleDetection/"
+  
+  for input_raster in glob.glob(inputdir + "*.tif"):
+    print(input_raster)
+    dst_layername = os.path.basename(input_raster)
+    print(dst_layername)
+    output_raster = output + dst_layername
+    print(output_raster)
+    rectifying(input_raster, output_raster)
 
+
+def mainRectifying_PF(workingDir):
+  output= workingDir + "/data/output/rectifying/pointFiltering/"
+  os.makedirs(output, exist_ok=True) 
+  inputdir = workingDir +"/data/output/georeferencing/masks/pointFiltering/"
+  
+  for input_raster in glob.glob(inputdir + "*.tif"):
+    print(input_raster)
+    dst_layername = os.path.basename(input_raster)
+    print(dst_layername)
+    output_raster = output + dst_layername
+    print(output_raster)
+    rectifying(input_raster, output_raster)

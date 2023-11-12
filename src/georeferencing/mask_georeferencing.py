@@ -1,3 +1,12 @@
+"""
+
+
+
+Last modified on 2023/11/10 by Kai Richter:
+  Addition of functions mainmaskgeoreferencingMasks_CD and mainmaskgeoreferencingMasks_PF
+"""
+
+
 from osgeo import gdal, gdalconst
 import string
 from functools import reduce
@@ -54,9 +63,18 @@ def maskgeoreferencing(input_raster,output_raster,gcp_points):
 #workingDir = "D:/distribution_digitizer-main"
 
 def mainmaskgeoreferencingMaps(workingDir):
-  output_raster= workingDir + "/data/output/georeferencing/maps/"
+  output_raster= workingDir + "/data/output/georeferencing/maps/pointFiltering/"
   os.makedirs(output_raster, exist_ok=True) 
   inputdir = workingDir +"/data/output/maps/pointFiltering/"
+  g_dir = workingDir + "/data/input/templates/geopoints/"
+  for gcp_points in glob.glob(g_dir + "*.points"):
+    for input_raster in glob.glob(inputdir + "*.tif"):
+       maskgeoreferencing(input_raster, output_raster,gcp_points)
+
+def mainmaskgeoreferencingMaps_CD(workingDir):
+  output_raster= workingDir + "/data/output/georeferencing/maps/circleDetection/"
+  os.makedirs(output_raster, exist_ok=True) 
+  inputdir = workingDir +"/data/output/maps/circleDetection/"
   g_dir = workingDir + "/data/input/templates/geopoints/"
   for gcp_points in glob.glob(g_dir + "*.points"):
     for input_raster in glob.glob(inputdir + "*.tif"):
@@ -66,6 +84,26 @@ def mainmaskgeoreferencingMasks(workingDir):
   output_raster= workingDir + "/data/output/georeferencing/masks/"
   os.makedirs(output_raster, exist_ok=True) 
   inputdir = workingDir +"/data/output/masking_black/"
+  #inputdir = workingDir +"/data/output/masking/"
+  g_dir = workingDir + "/data/input/templates/geopoints/"
+  for gcp_points in glob.glob(g_dir + "*.points"):
+    for input_raster in glob.glob(inputdir + "*.tif"):
+       maskgeoreferencing(input_raster, output_raster,gcp_points)
+
+def mainmaskgeoreferencingMasks_CD(workingDir):      
+  output_raster= workingDir + "/data/output/georeferencing/masks/circleDetection/"
+  os.makedirs(output_raster, exist_ok=True) 
+  inputdir = workingDir +"/data/output/masking_black/circleDetection/"
+  #inputdir = workingDir +"/data/output/masking/"
+  g_dir = workingDir + "/data/input/templates/geopoints/"
+  for gcp_points in glob.glob(g_dir + "*.points"):
+    for input_raster in glob.glob(inputdir + "*.tif"):
+       maskgeoreferencing(input_raster, output_raster,gcp_points)
+
+def mainmaskgeoreferencingMasks_PF(workingDir):      
+  output_raster= workingDir + "/data/output/georeferencing/masks/pointFiltering/"
+  os.makedirs(output_raster, exist_ok=True) 
+  inputdir = workingDir +"/data/output/masking_black/pointFiltering/"
   #inputdir = workingDir +"/data/output/masking/"
   g_dir = workingDir + "/data/input/templates/geopoints/"
   for gcp_points in glob.glob(g_dir + "*.points"):

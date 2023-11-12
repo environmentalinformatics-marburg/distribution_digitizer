@@ -1,2 +1,2 @@
-head;lab1;lab2;inf1;
-4. Masking data points on the map;Using the method MORPH_ELLIPSE;Start;You can find the extracted masks in your output directory /data/output/masking/;
+head;head_sub;lab1;lab2;inf1;
+4 Masking; 4.1 Masking data points on the map;Using the method MORPH_ELLIPSE;Start;You can find the extracted masks in your output directory /data/output/masking/;
