@@ -33,7 +33,7 @@ def poly_to_point(input_shapefile, output_shapefile):
 
 def MainPolyToPoint_CD(workingDir):
     input_folder = workingDir + "/data/output/polygonize/circleDetection/"
-    output_folder = workingDir + "/data/output/final_output/CircleDetection/"
+    output_folder = workingDir + "/data/output/final_output/circleDetection/"
     os.makedirs(output_folder, exist_ok=True) 
     # Iterate over subfolders in the input folder
     for subdir, dirs, files in os.walk(input_folder):

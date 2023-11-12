@@ -1322,12 +1322,16 @@ server <- shinyServer(function(input, output, session) {
         mainmaskgeoreferencingMaps(workingDir)
         mainmaskgeoreferencingMaps_CD(workingDir)
         mainmaskgeoreferencingMasks(workingDir)
+        mainmaskgeoreferencingMasks_CD(workingDir)
+        mainmaskgeoreferencingMasks_PF(workingDir)
         # processing rectifying
         fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
         print(" Process rectifying python script:")
         print(fname)
         source_python(fname)
         mainRectifying(workingDir)
+        mainRectifying_CD(workingDir)
+        mainRectifying_PF(workingDir)
       }
       
       if(processing == "georef_coords_from_csv"){
@@ -1346,7 +1350,10 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         mainPolygonize(workingDir)
+        mainPolygonize_CD(workingDir)
+        mainPolygonize_PF(workingDir)
       }
+      
       cat("\nSuccessfully executed")
       # show end action message
       if(processing != "mapMatching"){
