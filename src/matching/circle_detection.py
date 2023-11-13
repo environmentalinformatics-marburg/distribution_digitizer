@@ -91,7 +91,7 @@ def mainCircleDetection(workingDir, blur, min_dist, threshold_edge, threshold_ci
     outputCsvDir = workingDir + "/data/output/maps/csv_files/"
     os.makedirs(outputCsvDir, exist_ok=True)
     # initialize csv file for storing the cooridnates (if the file does not exist already)
-    csv_file_path = initialize_csv_file(outputCsvDir)
+    csv_file_path = initialize_csv_file(outputCsvDir, "X", "Y")
 
     ouputPngDir = workingDir + "/www/CircleDetection_png/"
     os.makedirs(ouputPngDir, exist_ok=True)
@@ -101,4 +101,4 @@ def mainCircleDetection(workingDir, blur, min_dist, threshold_edge, threshold_ci
         # call the function and store the centroid list
         centroids, output_file = circle_detection(file, outputTifDir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius)
         # add centroids to the csv file that has been initialized previously
-        append_to_csv_file(csv_file_path, centroids, os.path.basename(file), "circle_detection")
+        append_to_csv_file(csv_file_path, centroids, os.path.basename(file), "circle_detection", 0)

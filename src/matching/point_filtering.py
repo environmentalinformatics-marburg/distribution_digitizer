@@ -79,7 +79,7 @@ def mainPointFiltering(workingDir, n, m):
   outputCsvDir = workingDir + "/data/output/maps/csv_files/"
   os.makedirs(outputCsvDir, exist_ok=True)
   # initialize csv file for storing the cooridnates (if the file does not exist already)
-  csv_file_path = initialize_csv_file(outputCsvDir)  
+  csv_file_path = initialize_csv_file(outputCsvDir, "X", "Y")  
   
   ouputPngDir = workingDir+"/www/pointFiltering_png/"
   os.makedirs(ouputPngDir, exist_ok=True)
@@ -88,7 +88,7 @@ def mainPointFiltering(workingDir, n, m):
     print(file)
     centroids, output_file = edge(file, ouputTifDir, int(n), int(m))
     # add centroids to the csv file that has been initialized previously
-    append_to_csv_file(csv_file_path, centroids, os.path.basename(file), "point_filtering")
+    append_to_csv_file(csv_file_path, centroids, os.path.basename(file), "point_filtering", 0)
 
   #fileName="D:/distribution_digitizer//data/output/align_maps\2_0060map_1_0.tif"
   #edge(fileName, ouputDir, 5, 9)
