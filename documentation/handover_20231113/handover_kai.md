@@ -101,7 +101,10 @@ I suggest to not prioritize this approach and focus on the first approach in the
 
 *next steps to do:*
 - Binding the scripts poly_to_point.py and extract_coords.py into the shiny UI (app.R). I suggest to create a new menuItem for that 
-  (e.g. '7. Extraction of centroid coordinates').
+  (e.g. '7. Extraction of centroid coordinates'). First, the poly_to_point.py script should be sourced and the functions 
+  'MainPolyToPoint_CD' and 'MainPolyToPoint_PF' should be executed with an action Button. For creating the csv files, The script
+  extract_coords.py should be sourced and the functions 'mainExtractCoords_CD' and 'mainExtractCoords_PF' should be executed with a 
+  second action Button. 
 - Implement "List Files" buttons for the new created results obtained by running the new functions of the scripts 
   mask_georeferencing.py, rectifying.py, polygonize.py in the menuItems '4. Masking', '5. Georeferencing', '6. Polygonizing'.
   This would provide consistency among the workflow steps framed in the UI. 
