@@ -69,6 +69,7 @@ scripts added:
 - src/extract_coordinates/poly_to_point.py
 - src/georeferencing/centroid_georeferencing.py
 - src/matching/coords_to_csv.py
+- src/extract_coordinates/extract_coords.py
 
 Description: 
 First approach: For extracting the centroids of detected symbols, it is better to directly mask the centroid pixels on the 
@@ -81,7 +82,10 @@ Georeferencing and Polygonizing (mask_georeferencing.py, rectifying.py, polygoni
 for storing the outputs of Circle-Detection-centroids and Point-Filtering-centroids in seperate folders.
 The added main-functions as well as the script mask_centroids.py have been binded into the app.R script. 
 As last step, the polygonized centroids pixels have to be converted to point-shapefiles and the coordinates should be stored
-in a csv file. The script poly_to_point.py creates point-shapefiles. It remains to be binded into the UI (app.R)!
+in a csv file. The script poly_to_point.py creates point-shapefiles. The script extract_coords.py extracts the coordinates 
+from those point-shapefiles and writes them into a csv file. For coordinates detected by Circle Detection and Point Filtering,
+one separate csv file is initialized. 
+Both scripts poly_to_point.py and extract_coords.py have to be binded into the UI (app.R)!
 
 A second approach for extracting the centroid coordinates was to directly store the detected original coordinates in a csv file
 and georeference them mathematically. In the functions 'mainCircleDetection' (circle_detection.py) and 'mainPointFiltering'
@@ -92,15 +96,12 @@ the csv file do not match (Offset of 10-20 km).
 I suggest to not prioritize this approach and focus on the first approach in the future. 
 
 *status:* 
-- source code is almost finished (the coordinate extraction of point-shapefiles and storage in a long-format csv file remains to
-  be written)
+- Source code is finished
 - binding final steps into UI has still to be done
 
 *next steps to do:*
-- Binding the script poly_to_point.py into the shiny UI (app.R). I suggest to create a new menuItem for that 
+- Binding the scripts poly_to_point.py and extract_coords.py into the shiny UI (app.R). I suggest to create a new menuItem for that 
   (e.g. '7. Extraction of centroid coordinates').
-- Write a script for extracting the coordinates of the point-shapefiles and store them into a long-format csv file 
-  (The script src/matching/coords_to_csv.py may provide a well-suited template to build up on)
 - Implement "List Files" buttons for the new created results obtained by running the new functions of the scripts 
   mask_georeferencing.py, rectifying.py, polygonize.py in the menuItems '4. Masking', '5. Georeferencing', '6. Polygonizing'.
   This would provide consistency among the workflow steps framed in the UI. 
