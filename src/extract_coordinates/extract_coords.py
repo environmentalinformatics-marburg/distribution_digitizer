@@ -9,10 +9,18 @@ Script for creating a csv file with centroid coordinates based on point shapefil
 The function 'extract_coords' reads a point shapefile, extracts the coordinates and returns them in a list. 
 
 The function 'mainExtractCoords_CD' is for iteratively loop over all point shapefiles given out by poly_to_point.py script 
-for Circle Detection. 
+for Circle Detection. The csv file is stored in /data/output/final_output/circleDetection/coordinates.csv
 
 The function 'mainExtractCoords_PF' is for iteratively loop over all point shapefiles given out by poly_to_point.py script 
-for Point Filtering. 
+for Point Filtering. The csv file is stored in /data/output/final_output/pointFiltering/coordinates.csv
+
+The output csv file has 5 columns:
+  File                input filename
+  Detection method    "point_filtering" or "circle_detection"
+  X_WGS84             georeferenced x coordinate
+  Y_WGS84             georeferenced y coordinate
+  georef              Information if coordinates are georeferenced: 0 = not georeferenced; 1 = georeferenced. 
+                      In this case, 1 will be set, as the georeferenced coordinates are given in. 
 """
 
 

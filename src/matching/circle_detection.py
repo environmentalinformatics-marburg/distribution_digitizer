@@ -18,6 +18,14 @@ are written out and the centroids are returned.
 function 'mainCircleDetection':
 This function calls the 'circle_detection' and specifies the input and output directories. The function 'append_to_csv_file'
 contained in script 'coords_to_csv.py' is called to store the extracted centroid coordinates in a csv file. 
+
+The output csv file has 5 columns:
+  File                input filename
+  Detection method    "point_filtering" or "circle_detection". In this case, "circle_detection" will be set. 
+  X_WGS84             georeferenced x coordinate
+  Y_WGS84             georeferenced y coordinate
+  georef              Information if coordinates are georeferenced: 0 = not georeferenced; 1 = georeferenced. 
+                      In this case, 0 will be set, as the extracted coordinates are not georeferenced. 
 """
 
 

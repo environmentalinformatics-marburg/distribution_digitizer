@@ -9,6 +9,14 @@ Last modified on 2023-11-10 by Kai Richter:
   
 Description: 
 Script for detecting symbols on a tif file through edge and contour detection. 
+
+The output csv file has 5 columns:
+  File                input filename
+  Detection method    "point_filtering" or "circle_detection". In this case, "point_filtering" will be set.
+  X_WGS84             georeferenced x coordinate
+  Y_WGS84             georeferenced y coordinate
+  georef              Information if coordinates are georeferenced: 0 = not georeferenced; 1 = georeferenced. 
+                      In this case, 0 will be set, as the extracted coordinates are not georeferenced. 
 """
 
 
