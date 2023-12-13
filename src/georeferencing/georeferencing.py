@@ -4,6 +4,10 @@ Created on Mon Jun 21 11:01:17 2021
 
 @author: venkates
 """
+
+#import sys
+#sys.path.append("C:/OSGeo4W/bin/")
+  
 from osgeo import gdal, gdalconst
 import string
 from functools import reduce
