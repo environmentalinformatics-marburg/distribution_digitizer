@@ -6,85 +6,99 @@ import os
 import glob
 from PIL import Image
 
-def align_images(image, template, outputdir, maxFeatures=500, keepPercent=0.2,
-	debug=False):
-	# convert o both the input image and template to grayscale
-	image1 = np.array(PIL.Image.open(image))
-	template1 = np.array(PIL.Image.open(template))
-	imageGray = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-	templateGray = cv2.cvtColor(template1, cv2.COLOR_BGR2GRAY)
-	# use ORB to detect keypoints and extract (binary) local
-	# invariant features
-	orb = cv2.ORB_create(maxFeatures)
-	(kpsA, descsA) = orb.detectAndCompute(imageGray, None)
-	(kpsB, descsB) = orb.detectAndCompute(templateGray, None)
-	# match the features
-	method = cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING
-	matcher = cv2.DescriptorMatcher_create(method)
-	matches = matcher.match(descsA, descsB, None)
-	# sort the matches by their distance (the smaller the distance,
-	# the "more similar" the features are)
-	matches = sorted(matches, key=lambda x:x.distance)
-	# keep only the top matches
-	keep = int(len(matches) * keepPercent)
-	matches = matches[:keep]
-	# check to see if we should visualize the matched keypoints
-	if debug:
-		matchedVis = cv2.drawMatches(image, kpsA, template, kpsB,
-			matches, None)
-		matchedVis = imutils.resize(matchedVis, width=1000)
-		cv2.imshow("Matched Keypoints", matchedVis)
-		cv2.waitKey(0)
+__author__ = "Spaska Forteva"
+__date__ = "2022-12-14"
+__change_date__ = "2023-12-15"
 
-	# allocate memory for the keypoints (x, y)-coordinates from the
-	# top matches -- we'll use these coordinates to compute our
-	# homography matrix
-	ptsA = np.zeros((len(matches), 2), dtype="float")
-	ptsB = np.zeros((len(matches), 2), dtype="float")
-	# loop over the top matches
-	for (i, m) in enumerate(matches):
-		# indicate that the two keypoints in the respective images
-		# map to each other
-		ptsA[i] = kpsA[m.queryIdx].pt
-		ptsB[i] = kpsB[m.trainIdx].pt
+def align_images(image_path, template_path, output_dir, max_features=500, keep_percent=0.2, debug=False):
+    """
+    Align images using ORB features and homography.
 
-	# compute the homography matrix between the two sets of matched
-	# points
-	(H, mask) = cv2.findHomography(ptsA, ptsB, method=cv2.RANSAC)
-	# use the homography matrix to align the images
-	(h, w) = template1.shape[:2]
-	aligned = cv2.warpPerspective(image1, H, (w, h))
-	# return the aligned image
-	#return aligned
-	PIL.Image.fromarray(aligned).save(os.path.join(outputdir, os.path.basename(image)))
+    Args:
+    - image_path (str): Path to the input image.
+    - template_path (str): Path to the template image.
+    - output_dir (str): Output directory for aligned images.
+    - max_features (int): Maximum number of features to detect with ORB.
+    - keep_percent (float): Percentage of top features to keep.
+    - debug (bool): Flag to enable visualization of matched keypoints.
 
-	#y = 0
-	#x = 0
-	#h = 1200
-	#w = 1220
-	#crop_img = aligned[y:y + h, x:x + w]
-	#PIL.Image.fromarray(crop_img).save(os.path.join(outputdir, os.path.basename(image)))
+    Returns:
+    - bool: True for success, False for error.
+    """
+    try:
+        image = np.array(PIL.Image.open(image_path))
+        template = np.array(PIL.Image.open(template_path))
+        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+
+        orb = cv2.ORB_create(max_features)
+        (keypoints_image, descriptors_image) = orb.detectAndCompute(image_gray, None)
+        (keypoints_template, descriptors_template) = orb.detectAndCompute(template_gray, None)
+
+        method = cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING
+        matcher = cv2.DescriptorMatcher_create(method)
+        matches = matcher.match(descriptors_image, descriptors_template, None)
+
+        matches = sorted(matches, key=lambda x: x.distance)
+        keep = int(len(matches) * keep_percent)
+        matches = matches[:keep]
+
+        if debug:
+            matched_vis = cv2.drawMatches(image, keypoints_image, template, keypoints_template, matches, None)
+            matched_vis = imutils.resize(matched_vis, width=1000)
+            cv2.imshow("Matched Keypoints", matched_vis)
+            cv2.waitKey(0)
+
+        points_image = np.zeros((len(matches), 2), dtype="float")
+        points_template = np.zeros((len(matches), 2), dtype="float")
+
+        for (i, match) in enumerate(matches):
+            points_image[i] = keypoints_image[match.queryIdx].pt
+            points_template[i] = keypoints_template[match.trainIdx].pt
+
+        (homography_matrix, _) = cv2.findHomography(points_image, points_template, method=cv2.RANSAC)
+
+        (height, width) = template.shape[:2]
+        aligned = cv2.warpPerspective(image, homography_matrix, (width, height))
+
+        PIL.Image.fromarray(aligned).save(os.path.join(output_dir, os.path.basename(image_path)))
+
+        return True  # Success
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return False  # Error
 
 
+def align_images_directory(working_dir):
+    """
+    Aligns images in the specified working directory.
 
-#workingDir="D:/distribution_digitizer/"
+    Args:
+    - working_dir (str): Working directory containing input images.
 
-def align(wdr):
-    # OUTPUT
-  print("Working directory matching:")
-  print(wdr)
-  inputdir = wdr+"/data/output/maps/matching/"
-  tempdir = wdr+"/data/input/templates/align_ref/"
-  outputdir = wdr+"/data/output/maps/align/"
-  os.makedirs(outputdir, exist_ok=True)
-  
-  # prepare the png directory
-  # for the converted png images after the matching process 
-  outputpPngDir = wdr + "/www/align_png/"
-  os.makedirs(outputpPngDir, exist_ok=True)
-  
-  for templates in glob.glob(tempdir + '*.tif'):
-    for image in glob.glob(inputdir + '*.tif'):
-      print(image)
-      align_images(image, templates, outputdir)
+    Returns:
+    - None
+    """
+    # Output directory for aligned images
+    output_dir = working_dir + "/data/output/maps/align/"
+    os.makedirs(output_dir, exist_ok=True)
 
+    # Directory for template images
+    template_dir = working_dir + "/data/input/templates/align_ref/"
+
+    # Directory for input images
+    input_dir = working_dir + "/data/output/maps/matching/"
+
+    # Directory for converted PNG images after the matching process
+    output_png_dir = working_dir + "/www/align_png/"
+    os.makedirs(output_png_dir, exist_ok=True)
+
+    for template_path in glob.glob(template_dir + '*.tif'):
+        for image_path in glob.glob(input_dir + '*.tif'):
+            print(image_path)
+            success = align_images(image_path, template_path, output_dir)
+            if not success:
+                return False  # Exit the loop if there's an error
+
+    return True  # Success

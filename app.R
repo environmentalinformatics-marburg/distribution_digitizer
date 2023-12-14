@@ -1,3 +1,46 @@
+# ============================================================
+# Script Author: [Spaska Forteva]
+# Created On: 2021-06-10
+# ============================================================
+
+# ============================================================
+# Main Shiny App Distribution Digitization
+# ============================================================
+# 
+# 
+# ============================================================
+# # Tab 1 Config Dialog for Book Distribution Digitization
+# ============================================================
+# This configuration dialog is designed to gather essential 
+# information about a book before the digitization process. 
+# Users can input details to create a comprehensive summary 
+# for proper documentation. The dialog includes the following fields:
+# 
+# 1. Title: Enter the title of the book.
+# 2. Author: Provide the name of the book's author.
+# 3. Publication Year: Specify the year the book was published.
+# 4. Data Input Directory: Specify the directory where the raw 
+#    data for the book digitization is stored.
+# 5. Data Output Directory: Specify the directory where the 
+#    digitized output for the book will be stored.
+# 6. Number of Book Sites per One Print: Define the number of 
+#    book pages to be included in one printed output.
+# 7. All Printed Pages: Indicate whether all pages of the book 
+#     will be included in the digitization process.
+# 8. Site Number Position: Specify the placement of the site 
+#     number on each printed page (e.g., top-right, bottom-left).
+# 9. Image Format of the Scanned Sites: Choose the format 
+#     (e.g., JPEG, PNG) for the digitized pages.
+# 10. Page Color: Indicate the color of the book pages 
+#     (e.g., black and white, color).
+# 
+# This dialog aims to streamline the digitization process by 
+# ensuring that all relevant information is captured accurately. 
+# Once the user completes the form, the gathered details can 
+# be used for cataloging and organizing the digital version of 
+# the book, preserving its content for future reference.
+# ============================================================
+
 library(shiny)
 library(shinydashboard)
 
@@ -199,31 +242,45 @@ body <- dashboardBody(
   p(paste0(config$workingDirInformation,": ",workingDir) , style = "color:black"),
 
   tabItems(
-  # 0 Environment --------------------------------------------------------------------------------------------------------------
+  # Tab 0 Config Dialog --------------------------------------------------------------------------------------------------------------
     tabItem(
       tabName = "tab0",
       fluidRow(
         
         wellPanel(
           h3(configStartDialog$head, style = "color:black"),
+          #Project directory
+          p(paste0("Working directory - ",workingDir), style = "color:black"),
+          
+          # Title: Provide the name of the book's author.
+          fluidRow(column(3,textInput("title", label="Title", value = "Title"))),
+          
+          # Author: Provide the name of the book's author.
+          fluidRow(column(3,textInput("author", label="Author", value = "Autorname"))),
+          
+          # Publication Year: Specify the year the book was published.
+          fluidRow(column(3,textInput("pYear", label="Publication Year", value = "2023"))),
+          
           # Data input directory
-          fluidRow(column(8,textInput("dataInputDir", label=configStartDialog$i1, value = paste0(workingDir,"/data/input")))),
+          fluidRow(column(3,textInput("dataInputDir", label="Data input directory", value = paste0(workingDir,"/data/input")))),
           
           # Data output directory
-          fluidRow(column(8,textInput("dataOutputDir", label=configStartDialog$i2, value =paste0(workingDir,"/data/output") ))),
+          fluidRow(column(3,textInput("dataOutputDir", label="Data output directory", value =paste0(workingDir,"/data/output")))),
           
           # numberSitesPrint
-          fluidRow(column(4,selectInput("numberSitesPrint", label=configStartDialog$i3,  c("One site per scan" = 1 ,"Two sites per scan"= 2)))),
+          fluidRow(column(3,selectInput("numberSitesPrint", label="Number of Book Sites per One Print",  c("One site per scan" = 1 ,"Two sites per scan"= 2)))),
           
           # allprintedPages
-          fluidRow(column(3,textInput("allPrintedPages", label=configStartDialog$i4, value = ''))),
+          fluidRow(column(3,textInput("allPrintedPages", label="All Printed Pages", value = 100 ))),
+          
+          # site number position
+          fluidRow(column(3,selectInput("sNumberPosition", label="Site Number Position", c("top"=1 , "botom"=2), selected=1 ))),
           
           # format;
-          fluidRow(column(3,selectInput("pFormat", label=configStartDialog$i5, c("tif"=1 , "png"=2, "jpg"=3), selected=1 ))),
+          fluidRow(column(3,selectInput("pFormat", label="Image Format of the Scanned Sites", c("tif"=1 , "png"=2, "jpg"=3), selected=1 ))),
           
           # Page color;
-          fluidRow(column(4,selectInput("pColor", label=configStartDialog$i6, c("black white"=1 , "color"=2), selected=1 ))),
-          
+          fluidRow(column(3,selectInput("pColor", label="Page Color", c("black white"=1 , "color"=2), selected=1 ))),
           # width;
           #fluidRow(column(3,textInput("allprintedPages", label=configStartDialog$i4, value = config$allprintedPages ))),
           fluidRow(column(4, actionButton("saveConfig",  label = "Save", style="color:#FFFFFF;background:#999999"))),
@@ -235,7 +292,7 @@ body <- dashboardBody(
     ),
   
   
-  # 1. Create Templates #---------------------------------------------------------------------
+  # Tab 1 Create Templates #---------------------------------------------------------------------
     tabItem(
       tabName = "tab1",
       actionButton("listMTemplates",  label = "List saved map templates"),
@@ -280,7 +337,7 @@ body <- dashboardBody(
     ),  # END tabItem 1
     
   
-  # 2. Maps Matching #----------------------------------------------------------------------
+  # Tab 2 Maps Matching #----------------------------------------------------------------------
     tabItem(
       tabName = "tab2",
       # which site become overview
@@ -321,7 +378,7 @@ body <- dashboardBody(
     ),  # END tabItem 2
   
   
-  # 3. Points Matching  #----------------------------------------------------------------------
+  # Tab 3 Points Matching  #----------------------------------------------------------------------
     tabItem(
       tabName = "tab3",
       fluidRow(column(3,textInput("siteNumberPointsMatching", label=shinyfields6$input, value = ''))),
@@ -382,7 +439,7 @@ body <- dashboardBody(
       ) # END fluid Row
     ),  # END tabItem 3
    
-  # 4. Masking #----------------------------------------------------------------------
+  # Tab 4 Masking #----------------------------------------------------------------------
   tabItem(
       tabName = "tab4",  
       fluidRow(column(3,textInput("siteNumberMasks", label=shinyfields6$input, value = ''))),
@@ -426,7 +483,7 @@ body <- dashboardBody(
       ) # END fluid Row
     ),  # END tabItem 4
   
-  # 5. Georeferencing  FILES=shinyfields_georeferensing & shinyfields_georef_coords_from_csv_file.csv #-------------------------------------------------
+  # Tab 5 Georeferencing  FILES=shinyfields_georeferensing & shinyfields_georef_coords_from_csv_file.csv #-------------------------------------------------
     tabItem(
       tabName = "tab5",  
         wellPanel(
@@ -454,7 +511,7 @@ body <- dashboardBody(
       # END fluid Row
     ),# END tabItem 5
    
-  # 6. Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
+  # Tab 6 Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
   tabItem(
       tabName = "tab6", 
       wellPanel(
@@ -534,10 +591,14 @@ server <- shinyServer(function(input, output, session) {
     
     x <- data.frame(workingDir= workingDir, 
                     workingDirInformation = "Your working directory is the local digitizer repository!",
+                    title = input$title,
+                    autor = input$author,
+                    pYear = input$pYear,
                     dataInputDir = input$dataInputDir,
                     dataOutputDir = input$dataOutputDir,
                     numberSitesPrint = input$numberSitesPrint,
                     allPrintedPages = input$allPrintedPages,
+                    sNumberPosition = input$sNumberPosition,
                     pFormat = input$pFormat,
                     pColor = input$pColor)
     tf <- tempfile(fileext = ".csv")
@@ -1233,7 +1294,7 @@ server <- shinyServer(function(input, output, session) {
         source_python(fname)
         print("Threshold:")
         print(input$threshold_for_TM)
-        mainTemplateMatching(workingDir, input$threshold_for_TM)
+        main_template_matching(workingDir, input$threshold_for_TM, config$sNumberPosition)
         findTemplateResult = paste0(workingDir, "/data/output/maps/matching/")
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles = paste0(length(files),"")
@@ -1247,7 +1308,7 @@ server <- shinyServer(function(input, output, session) {
         print("Processing align python script:")
         print(fname)
         source_python(fname)
-        align(workingDir)
+        align_images_directory(workingDir)
         print(fname)
         cat("\nSuccessfully executed")
         findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
