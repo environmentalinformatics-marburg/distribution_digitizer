@@ -157,7 +157,7 @@ def match_template_tiff(tiff_file, template_map_file, output_dir, output_page_re
           ## writing the rows
           csvwriter.writerows(rows_records)
           
-        # print(out_dir) 
+        # print(output_dir) 
         threshold_last=str(threshold).split(".")
         #print(threshold_last[1])
         
@@ -165,13 +165,13 @@ def match_template_tiff(tiff_file, template_map_file, output_dir, output_page_re
         os.path.basename(tiff_file).rsplit('.', 1)[0] + 
         os.path.basename(template_map_file).rsplit('.', 1)[0] + '_' + str(count))
         
-        cv2.imwrite(out_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
-        print(out_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
+        cv2.imwrite(output_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
+        print(output_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
        
         
         # WRITE the fields and rows values into the page record csv file
         row = 0
-        rows = [[str(page_number),tiff_file, out_dir + img_map_path + '.tif', pt[0], pt[1], 
+        rows = [[str(page_number),tiff_file, output_dir + img_map_path + '.tif', pt[0], pt[1], 
           w, h ,size, threshold, (time.time() - start_time)]]  
         csv_path = output_page_records + img_map_path + '.csv'
         with open(csv_path, 'w', newline='') as page_record:  
@@ -214,10 +214,10 @@ def main_template_matching(working_dir, threshold, page_position):
   print("Working directory matching:")
   print(working_dir)
   
-  out_dir = working_dir + "/data/output/maps/matching/"
+  output_dir = working_dir + "/data/output/maps/matching/"
   print("Out directory:")
-  print(out_dir)
-  os.makedirs(out_dir, exist_ok=True)
+  print(output_dir)
+  os.makedirs(output_dir, exist_ok=True)
   
   print("Site number position:")
   print(page_position)
@@ -246,7 +246,7 @@ def main_template_matching(working_dir, threshold, page_position):
       
     for template_map_file in glob.glob(templates + '*.tif'): 
       for tif_ffile in glob.glob(input_dir +'*.tif'): 
-        match_template_tiff(tif_ffile, template_map_file, out_dir, 
+        match_template_tiff(tif_ffile, template_map_file, output_dir, 
           output_page_records, records, threshold, page_position)
 
             
