@@ -1,3 +1,8 @@
+# Author: Spaska Forteva  
+# Date: 18.12.2023
+# Description: This script contains functions for processing images, extracting information using Tesseract OCR,
+# and cropping specified regions from input images.
+
 import cv2
 import PIL
 from PIL import Image
@@ -15,7 +20,18 @@ import os
 
 
 def cropImage(source_image, outdir, x, y, w, h, i):
-    
+        """
+    Crop the specified region from the input image and save it.
+
+    Args:
+    source_image (str): Path to the input image.
+    outdir (str): Output directory for saving the cropped image.
+    x, y, w, h (int): Coordinates and dimensions of the region to be cropped.
+    i (str): Additional identifier for the output filename.
+
+    Returns:
+    str: Path to the saved cropped image.
+    """
     img = np.array(PIL.Image.open(source_image))
 
     imgc = img.copy()
