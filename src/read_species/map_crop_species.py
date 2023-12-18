@@ -1,4 +1,4 @@
-# Author: Spaska Forteva  
+# Author: Spaska Forteva
 # Date: 18.12.2023
 # Description: This script contains functions for processing images, extracting information using Tesseract OCR,
 # and cropping specified regions from input images.
@@ -20,7 +20,8 @@ import os
 
 
 def cropImage(source_image, outdir, x, y, w, h, i):
-        """
+    
+    """
     Crop the specified region from the input image and save it.
 
     Args:
