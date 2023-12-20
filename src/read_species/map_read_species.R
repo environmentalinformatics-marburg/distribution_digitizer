@@ -39,10 +39,10 @@ read_species2 <- function(working_dir) {
     if(!is.na(w) & !is.na(y) &!is.na(h) & !is.na(x)){
      # pathToPage = "D:/distribution_digitizer/data/input/pages/0060.tif"
       # use the crop Image function from the crop_species_name.py
-      spacies = crop_spacies(working_dir, file_name, map_name, x,y,w,h)
-      records_page$spacies = spacies
+      species = crop_species(working_dir, file_name, map_name, x,y,w,h)
+      records_page$species = species
       write.csv(records_page, records_pages[j])
-      results = paste0(results, "<br", mapName, ";", spacies)
+      results = paste0(results, "<br", map_name, ";", species)
     }
   } 
   return(results)

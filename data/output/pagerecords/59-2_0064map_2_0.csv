@@ -1,2 +1,2 @@
-page_number,file_name,map_name,x,y,w,h,size,threshold,time
-59,D:/distribution_digitizer/data/input/pages\0064.tif,D:/distribution_digitizer//data/output/maps/matching/59-2_0064map_2_0.tif,1865,343,1230,1220,60.507943499999996,0.2,32.167946577072144
+"","page_number","file_name","map_name","x","y","w","h","size","threshold","time","species"
+"1",59,"D:/distribution_digitizer/data/input/pages\0064.tif","D:/distribution_digitizer/data/output/maps/matching/59-2_0064map_2_0.tif",1865,343,1230,1220,60.5079435,0.2,28.8661170005798,"_danna"

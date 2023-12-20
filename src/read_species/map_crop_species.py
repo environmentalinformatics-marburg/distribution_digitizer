@@ -54,9 +54,9 @@ def cropImage(source_image, outdir, x, y, w, h, i):
 #working_dir = "D:/distribution_digitizer/"
 #mainTemplateMatching(working_dir, 0.99)
 
-#crop_spacies("D:/distribution_digitizer/data/input/pages/0060.tif")
+#crop_species("D:/distribution_digitizer/data/input/pages/0060.tif")
 
-def crop_spacies(working_dir, path_to_page, path_to_map, x, y, w, h):
+def crop_species(working_dir, path_to_page, path_to_map, x, y, w, h):
   
   # path_to_page = "D:/distribution_digitizer/data/input/pages/0060.tif"
   # outputdir = "D:/distribution_digitizer/data/input_align/"  

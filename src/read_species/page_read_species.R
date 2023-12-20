@@ -4,34 +4,47 @@ library(stringr)
 library(dplyr)
 
 
-workingDir="D:/distribution_digitizer"
+#workingDir="D:/distribution_digitizer"
 # Function to read the species
 readPageSpecies <- function(workingDir) {
   
   # Definiere einen leeren Datenrahmen (DataFrame)
-  pageSpeciesData <- data.frame(species = character(), pageName = character(), stringsAsFactors = FALSE)
+  pageSpeciesData <- data.frame(species = character(), page_name = character(), map_name = character(), stringsAsFactors = FALSE)
  
   # Speichere den leeren Datenrahmen in eine CSV-Datei
   recordsResultPath = paste0(workingDir, "/data/output/pageSpeciesData.csv")
   write.csv(pageSpeciesData, file = recordsResultPath, row.names = TRUE)
   
   
-  # Define the file path for the new CSV file
-  recordsPath = paste0(workingDir, "/data/output/records_species.csv")
-  recordsSpeciesData <- read.csv(recordsPath, sep=";", check.names = FALSE, quote="\"",
-                          na.strings=c("NA","NaN", " "))
+  # Setze den Pfad zum Ordner, der die CSV-Dateien enthält
+  folder_path <- paste0(workingDir, "/data/output/pagerecords/")
+  
+  # Liste aller CSV-Dateien im Ordner
+  file_list <- list.files(path = folder_path, pattern = "\\.csv", full.names = TRUE)
+  
+  # Initialisiere ein leeres Dataframe
+  combined_data <- data.frame()
+  
+  # Iteriere durch jede CSV-Datei und füge sie dem kombinierten Dataframe hinzu
+  for (file_path in file_list) {
+    # Lese die CSV-Datei ein
+    current_data <- read.csv(file_path)
+    
+    # Füge die Daten dem kombinierten Dataframe hinzu
+    combined_data <- rbind(combined_data, current_data)
+  }
   
   # Identifiziere die duplizierten Zeilen basierend auf der Spalte "species"
-  duplicated_rows <- duplicated(recordsSpeciesData$species)
+  duplicated_rows <- duplicated(combined_data$species)
   
   # Wähle die nicht duplizierten Zeilen aus
-  filteredData <- recordsSpeciesData[!duplicated_rows, ]
+  filteredData <- combined_data[!duplicated_rows, ]
   
   source_python(paste0(workingDir, "/src/read_species/page_crop_species.py"))
 
   for (i in 1:nrow(filteredData)) {
     #if(filteredData[i,"pageName"] == "004.tif"){
-      pagePath = paste0('D:/distribution_digitizer/data/input/pages/' ,filteredData[i,"pageName"])
+      pagePath = filteredData[i,"file_name"]
       print(pagePath)
       speciesData =  filteredData[i,"species"]
       
@@ -39,7 +52,9 @@ readPageSpecies <- function(workingDir) {
       speciesData <- speciesData[speciesData != ""]
       print(speciesData)
 
-      pageTitleSpecies = mainPageCropSpecies(pagePath,speciesData)
+      #pagePath = "D:/distribution_digitizer/data/input/pages/0064.tif"
+      #speciesData = "_danna"
+      pageTitleSpecies = mainPageCropSpecies(pagePath, speciesData)
 
       # Alle nicht-alfanumerischen Zeichen am Ende jeder Zeichenkette entfernen
       #pageTitleSpecies <- gsub("[^[:alnum:]]*$", "", pageTitleSpecies)
@@ -53,23 +68,39 @@ readPageSpecies <- function(workingDir) {
       # Gesplittete Liste ohne Duplikate
       
       # Doppelte Einträge entfernen
-      gesplittete_array_ohne_duplikate <- unique(pageTitleSpecies)
+      #gesplittete_array_ohne_duplikate <- unique(pageTitleSpecies)
       
-      gesplittete_array_ohne_duplikate <- lapply(pageTitleSpecies, function(x) unlist(strsplit(x, ";")))
+      gesplittete_array_ohne_duplikate <- unique(unlist(pageTitleSpecies))
+      
+      gesplittete_array_ohne_duplikate <- gesplittete_array_ohne_duplikate[!grepl("distribution", gesplittete_array_ohne_duplikate, ignore.case = TRUE)]
+      
+      #gesplittete_array_ohne_duplikate <- lapply(pageTitleSpecies, function(x) unlist(strsplit(x, ";")))
       
       # Datenrahmen erstellen
-      datenrahmen <- data.frame(matrix(unlist(gesplittete_array_ohne_duplikate), ncol = length(gesplittete_array_ohne_duplikate), byrow = TRUE))
+      #new_dataframe <- data.frame(matrix(unlist(gesplittete_array_ohne_duplikate), ncol = length(gesplittete_array_ohne_duplikate), byrow = TRUE))
+      
+      split_entries <- strsplit(gesplittete_array_ohne_duplikate, "; ")
+      
+      # Extrahieren Sie den Teil nach dem Semikolon und speichern Sie ihn in einem neuen Array
+      new_array <- sapply(split_entries, function(x) x[2])
+      
+      
+      # Verbinden Sie die Elemente des neuen Arrays zu einem einzelnen String
+      result_string <- paste(new_array, collapse = " ")
+      
+      new_dataframe <- data.frame(species = result_string, stringsAsFactors = FALSE)
       
       # Neue Spalte für den Dateinamen hinzufügen
-      datenrahmen$Dateiname <- rep(pagePath, nrow(datenrahmen))
+      new_dataframe$file_name <- pagePath
       
       # Neue Spalte für den Dateinamen hinzufügen
-      datenrahmen$mapName <- rep(filteredData[i,"mapName"], nrow(datenrahmen))
+      new_dataframe$map_name <- filteredData[i,"map_name"]
       
       # Datenrahmen in CSV speichern
-      write.table(datenrahmen, file = paste0(workingDir, "/ausgabe.csv"), sep = ",", row.names = FALSE, col.names = FALSE, append = TRUE)
+      write.table(new_dataframe, file = paste0(workingDir, "/ausgabe.csv"), sep = ";", row.names = FALSE, col.names = TRUE, append = TRUE)
+      
       # Das Ergebnis ausgeben
-      print(gesplittete_array_ohne_duplikate)
+      #print(gesplittete_array_ohne_duplikate)
       # Jeden String im Array nach "-" splitten
       # Funktion zum Splitten eines Strings nach "-"
       
@@ -86,7 +117,6 @@ readPageSpecies <- function(workingDir) {
       #myData <- data.frame(species=pageTitleSpecies,stringsAsFactors = FALSE)
    # }
   }
-}
 
 
 

@@ -12,7 +12,6 @@ __date__ = "24. September 2023"
 # pip install pytesseract
 #C:\ProgramData\miniconda3\python.exe -m pip install --upgrade pip
 
-import tensorflow
 import cv2
 import pytesseract
 import re 
