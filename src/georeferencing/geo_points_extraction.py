@@ -41,7 +41,7 @@ def geopointextract(tiffile, geofile,  outputcsv, n):
 # writing the data rows   
      csvwriter.writerows(rows)
      
-workingDir="D:/distribution_digitizer/"
+#workingDir="D:/distribution_digitizer/"
 def maingeopointextract(workingDir,n):
   inputdir = workingDir + "/data/output/georeferencing/masks/"
   outputcsv = workingDir + "/data/output/georecords.csv"

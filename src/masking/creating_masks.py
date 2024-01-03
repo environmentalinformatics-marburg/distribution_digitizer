@@ -18,6 +18,7 @@ def geomask(file, outputdir, n):
   PIL.Image.fromarray(blackAndWhiteImage).save(os.path.join(outputdir, os.path.basename(file)))
 
 
+#workingDir="D:/distribution_digitizer/"
 def mainGeomaskB(workingDir, n):
   """
   Generate geographical masks for all TIFF files in the input directory.

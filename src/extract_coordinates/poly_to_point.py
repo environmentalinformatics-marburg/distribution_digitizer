@@ -45,7 +45,7 @@ def poly_to_point(input_shapefile, output_shapefile):
     gdf_points.to_file(output_shapefile)
 
 
-
+#workingDir="D:/distribution_digitizer/"
 def MainPolyToPoint_CD(workingDir):
     input_folder = workingDir + "/data/output/polygonize/circleDetection/"
     output_folder = workingDir + "/data/output/final_output/circleDetection/"
