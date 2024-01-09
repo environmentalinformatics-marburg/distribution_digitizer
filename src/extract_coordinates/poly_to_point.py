@@ -46,7 +46,7 @@ def poly_to_point(input_shapefile, output_shapefile):
 
 
 #workingDir="D:/distribution_digitizer/"
-def MainPolyToPoint_CD(workingDir):
+def main_circle_detection(workingDir):
     input_folder = workingDir + "/data/output/polygonize/circleDetection/"
     output_folder = workingDir + "/data/output/final_output/circleDetection/"
     os.makedirs(output_folder, exist_ok=True) 
@@ -69,7 +69,7 @@ def MainPolyToPoint_CD(workingDir):
                 poly_to_point(input_shapefile, output_shapefile)
 
 
-def MainPolyToPoint_PF(workingDir):
+def main_point_filtering(workingDir):
     input_folder = workingDir + "/data/output/polygonize/pointFiltering/"
     output_folder = workingDir + "/data/output/final_output/pointFiltering/"
     os.makedirs(output_folder, exist_ok=True) 

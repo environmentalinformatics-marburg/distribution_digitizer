@@ -54,7 +54,7 @@ def extract_coords(shapefile):
 #workingDir = "D:/distribution_digitizer/"
 
 # function to loop over extract_coords function for coordinates detected by Circle Detection
-def mainExtractCoords_CD(workingDir):
+def main_circle_detection(workingDir):
     input_folder = workingDir + "/data/output/final_output/circleDetection/"
     outputCsvDir = workingDir + "/data/output/final_output/circleDetection/"
 
@@ -62,7 +62,11 @@ def mainExtractCoords_CD(workingDir):
     initialize_csv_file(outputCsvDir)
 
     # define csv filepath
-    csv_file_path = outputCsvDir + "coordinates.csv"
+    csv_file_path = outputCsvDir + "coordinates_circleDetection.csv"
+    with open(csv_file_path, 'a', newline='') as csvfile:
+      csv_writer = csv.writer(csvfile)
+      csv_writer.writerow(["Name","point_filtering","Longitude","Latitude","species"])
+
 
     # iterate over subfolders in the input folder
     for subdir, dirs, files in os.walk(input_folder):
@@ -79,7 +83,7 @@ def mainExtractCoords_CD(workingDir):
 
 
 # function to loop over extract_coords function for coordinates detected by Point Filtering
-def mainExtractCoords_PF(workingDir):
+def main_point_filtering(workingDir):
     input_folder = workingDir + "/data/output/final_output/pointFiltering/"
     outputCsvDir = workingDir + "/data/output/final_output/pointFiltering/"
 
@@ -87,7 +91,10 @@ def mainExtractCoords_PF(workingDir):
     initialize_csv_file(outputCsvDir)
 
     # define csv filepath
-    csv_file_path = outputCsvDir + "coordinates.csv"
+    csv_file_path = outputCsvDir + "coordinates_point_filtering.csv"
+    with open(csv_file_path, 'a', newline='') as csvfile:
+      csv_writer = csv.writer(csvfile)
+      csv_writer.writerow(["Name","point_filtering","Longitude","Latitude","species"])
 
     # iterate over subfolders in the input folder
     for subdir, dirs, files in os.walk(input_folder):
@@ -103,5 +110,5 @@ def mainExtractCoords_PF(workingDir):
                 append_to_csv_file(csv_file_path, coords, os.path.basename(file), "point_filtering", 1)
 
 # Call the functions
-mainExtractCoords_CD(workingDir)
-mainExtractCoords_PF(workingDir)
+#main_circle_detection(workingDir)
+#main_point_filtering(workingDir)

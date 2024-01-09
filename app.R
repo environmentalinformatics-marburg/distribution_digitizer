@@ -192,7 +192,7 @@ if (file.exists(fileFullPath)){
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
 
-#7 shinyfields_georeferensing
+#7 shinyfields_polygonize
 fileFullPath = (paste0(workingDir,'/config/shinyfields_polygonize.csv'))
 if (file.exists(fileFullPath)){
   shinyfields7 <- read.csv(fileFullPath,header = TRUE, sep = ';')
@@ -230,7 +230,7 @@ header <- dashboardHeader(
       menuItem("Masking", tabName = "tab4" ),
       menuItem("Georeferencing", tabName = "tab5" ),
       menuItem("Polygonize", tabName = "tab6" ),
-      menuItem("Save", tabName = "tab7" )
+      menuItem("Spatial View", tabName = "tab7" )
     )
   )
 )
@@ -366,7 +366,13 @@ body <- dashboardBody(
             # maps species 
             h3(shinyfields2$head_species, style = "color:black"),
             p(shinyfields2$inf4, style = "color:black"),
-            fluidRow(column(3, actionButton("cropSpecies",  label = shinyfields2$start3, style="color:#FFFFFF;background:#999999"))),
+            fluidRow(column(3, actionButton("mapReadRpecies",  label = shinyfields2$start3, style="color:#FFFFFF;background:#999999"))),
+          ),
+          wellPanel(  
+            # page species
+            h3(shinyfields2$head_page_species, style = "color:black"),
+            p(shinyfields2$inf5, style = "color:black"),
+            fluidRow(column(3, actionButton("pageReadRpecies",  label = shinyfields2$start4, style="color:#FFFFFF;background:#999999"))),
           )
         ), # col 4
         column(8,
@@ -533,28 +539,32 @@ body <- dashboardBody(
   # 7. SAVE #----------------------------------------------------------------------
   tabItem(
     tabName = "tab7", 
-    wellPanel(
-      h3(strong("Save the outputs in csv file", style = "color:black")),
-      p("hier kommt noch mehr Text", style = "color:black"),
-      p("hier kommt noch mehr Text", style = "color:black"),
-      actionButton("saveOutputs",  label ="Save the outputs", style="color:#FFFFFF;background:#999999")
-    ),
+   # wellPanel(
+    #  h3(strong("Save the outputs in csv file", style = "color:black")),
+    #  p("hier kommt noch mehr Text", style = "color:black"),
+    #  p("hier kommt noch mehr Text", style = "color:black"),
+    actionButton("startSpatialDataComputing",  label ="Spatial Data Computing", style="color:#FFFFFF;background:#999999"),
+    #),
     wellPanel(
       # which site become overview
       #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
       
-      actionButton("showSavedOutputs",  label = "showSavedOutputs",),
-      leafletOutput("mapShowSavedOutputs"),
+      actionButton("spatialViewCD",  label = "Start View circle detection",),
+      leafletOutput("mapSpatialViewCD"),
       verbatimTextOutput("hoverInfo")
     ),
+   wellPanel(
+     # which site become overview
+     #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
+     
+     actionButton("spatialViewPF",  label = "Start View point detection",),
+     leafletOutput("mapSpatialViewPF"),
+     verbatimTextOutput("hoverInfo3")
+   ),
     wellPanel( 
       downloadButton("downloadButton", "File download"),
     ),
-    wellPanel( 
-      fileInput("file", "Choose CSV-file:"),
-      leafletOutput("mapShowCsv"),
-      actionButton("showCsv",  label = "Show the Koordinats",),
-    )
+    
   )  # END tabItem 6
   
   ) # END tabItems
@@ -831,10 +841,10 @@ server <- shinyServer(function(input, output, session) {
   
   # ----------------------------------------# 2.2 Crop map species #---------------------------------------------------------------------- #
   # Crop map species
-  observeEvent(input$cropSpecies, {
+  observeEvent(input$mapReadRpecies, {
     
     # call the function for cropping
-    manageProcessFlow("croppingMap", "cropping map species", "align")
+    manageProcessFlow("mapReadRpecies", "cropping map species", "align")
     
     # convert the tif images to png and show this on the plot
     findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
@@ -854,6 +864,15 @@ server <- shinyServer(function(input, output, session) {
         prepareImageView("/cropped_png/", '.png')
       })
     }
+  })
+  
+  
+  # Crop page species
+  observeEvent(input$pageReadRpecies, {
+    
+    # call the function for cropping
+    manageProcessFlow("pageReadRpecies", "read page species", "output")
+    
   })
   
   # ----------------------------------------# 3. Points Matching #----------------------------------------------------------------------
@@ -989,7 +1008,6 @@ server <- shinyServer(function(input, output, session) {
       })
     }
   })
-  
 
   
   # ----------------------------------------# Georeferencing #----------------------------------------------------------------------
@@ -1023,13 +1041,13 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listGeoreferencing, {
     # Anzahl der Leaflet-Elemente, die Sie hinzufügen möchten
   
-    listgeoTiffiles = list.files("D:/distribution_digitizer/data/output/rectifying/", full.names = T, pattern = paste0('*00',input$siteNumberGeoreferencing,'map'))
+    listgeoTiffiles = list.files( paste0(workingDir, "/data/output/rectifying/"), full.names = T, pattern = paste0('*00',input$siteNumberGeoreferencing,'map'))
     #listgeoTiffiles = list.files("D:/distribution_digitizer/data/output/rectifying/", full.names = T, pattern = '.tif')
     print( paste('00',input$siteNumberGeoreferencing,'map'))
     num_leaflet_outputs_GEO <- length(listgeoTiffiles)
     
     # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
-    listpng = list.files("D:/distribution_digitizer/www/georeferencing_png/", full.names = F, pattern = input$siteNumberGeoreferencing)
+    listpng = list.files(paste0(workingDir, "/www/georeferencing_png/"), full.names = F, pattern = input$siteNumberGeoreferencing)
     print(listpng)
     
     output$leaflet_outputs_GEO <- renderUI({
@@ -1083,7 +1101,6 @@ server <- shinyServer(function(input, output, session) {
   # ----------------------------------------# Polygonize #----------------------------------------------------------------------
   # Polygonize start
   observeEvent(input$polygonize, {
-    print("Hallo")
     # call the function for filtering
     manageProcessFlow("polygonize", "polygonize", "polygonize")
     
@@ -1115,7 +1132,7 @@ server <- shinyServer(function(input, output, session) {
   # Polygonize list maps  
   observeEvent(input$listPolygonize, {
     # Load the shapefile data
-    listShapefiles = list.files("D:/distribution_digitizer/www/polygonize/", full.names = T, pattern = '.shp')
+    listShapefiles = list.files(paste0(workingDir, "/www/polygonize/"), full.names = T, pattern = '.shp')
     #input$siteNumberPolygonize='69'
     listShapefiles = grep(input$siteNumberPolygonize, listShapefiles, value= TRUE)
     
@@ -1128,7 +1145,7 @@ server <- shinyServer(function(input, output, session) {
     print(listShapefiles)
     
     # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
-    listpng = list.files("D:/distribution_digitizer/www/cropped_png/", full.names = F, pattern = input$siteNumberPolygonize)
+    listpng = list.files(paste0(workingDir, "/www/cropped_png/"), full.names = F, pattern = input$siteNumberPolygonize)
     print(listpng)
     
     output$leaflet_outputs_PL <- renderUI({
@@ -1203,26 +1220,55 @@ server <- shinyServer(function(input, output, session) {
     write.csv(data, "beispiel.csv", row.names = FALSE)
   })
   
-  observeEvent(input$showSavedOutputs, {
+  
+  observeEvent(input$startSpatialDataComputing, {
     
     # Daten aus der hochgeladenen CSV-Datei lesen
-    data <- reactive({
-      #req(input$file)
-      #df <- read.csv(input$file$datapath)
-      df <- read.csv("D:/distribution_digitizer/data/output/dd_outputs.csv")
-      df
-    })
+    #data <- reactive({
+    #req(input$file)
+    #df <- read.csv(input$file$datapath)
+    # df <- read.csv("D:/distribution_digitizer/data/output/coordinates.csv")
+    # df
+    #})
     # eine benutzerdefinierten Mouseover-Funktion Erstellen 
+    
+    #Processing georeferencing
+    library(reticulate)
+    fname=paste0(workingDir, "/", "src/extract_coordinates/poly_to_point.py")
+    source_python(fname)
+    main_circle_detection(workingDir)
+    main_point_filtering(workingDir)
+    
+    fname=paste0(workingDir, "/", "src/extract_coordinates/extract_coords.py")
+    source_python(fname)
+    main_circle_detection(workingDir)
+    main_point_filtering(workingDir)
+    
+  })
+  
+  observeEvent(input$spatialViewPF, {
+    
+    # Daten aus der hochgeladenen CSV-Datei lesen
+    #data <- reactive({
+    #req(input$file)
+    #df <- read.csv(input$file$datapath)
+    # df <- read.csv("D:/distribution_digitizer/data/output/coordinates.csv")
+    # df
+    #})
+    # eine benutzerdefinierten Mouseover-Funktion Erstellen 
+    
+    #Processing georeferencing
+    
     customMouseover <- JS(
       "function(event) {
     var layer = event.target;
     layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
   }"
     )
-    infos <- read.csv("D:/distribution_digitizer/data/output/dd_outputs.csv")
-    marker_data <- read.csv("D:/distribution_digitizer/data/output/dd_outputs.csv")
+    marker_data <- read.csv(paste0(workingDir, "/data/output/final_output/pointFiltering/coordinates_point_filtering.csv"))
+    
     # OpenStreetMap show
-    output$mapShowSavedOutputs <- renderLeaflet({
+    output$mapSpatialViewPF <- renderLeaflet({
       leaflet() %>%
         addTiles() %>%
         addMarkers(
@@ -1236,34 +1282,73 @@ server <- shinyServer(function(input, output, session) {
             onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
           ),
           #popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", marker_data$Name, "</a>")
-          popup = ~paste0("<b>", marker_data$Name, "</b><a href='/matching_png/", Link, "' target='_blank'><p>", marker_data$Link, "</p><img src='/matching_png/", Link, "' width='100' height='100'></a>")
+          popup = ~paste0("<b>", marker_data$Name, "</b><a href='/matching_png/", Name, "' target='_blank'><p>", marker_data$Name, "</p><img src='/matching_png/", Name, "' width='100' height='100'></a>")
           
         )
     })
- 
     
-    # Daten aus der hochgeladenen CSV-Datei lesen
-    data2 <- reactive({
-      #req(input$file)
-      df <- read.csv(input$file$datapath)
-      df
-    })
+   
+    cat("\nSuccessfully executed")
+    
+  })
+  
+  observeEvent(input$spatialViewCD, {
+    print("Hello")
+    
+    customMouseover <- JS(
+      "function(event) {
+    var layer = event.target;
+    layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
+  }"
+    )
+    marker_data <- read.csv(paste0(workingDir, "/data/output/final_output/circleDetection/coordinates_circle_detection.csv"))
     
     # OpenStreetMap show
-    output$mapShowCsv <- renderLeaflet({
-      leaflet(data = data2()) %>%
+    output$mapSpatialViewCD <- renderLeaflet({
+      leaflet() %>%
         addTiles() %>%
-        addMarkers(lng = ~Longitude, lat = ~Latitude,
-        label = ~Name,
-        labelOptions = labelOptions(
-        direction = "auto",
-        noHide = TRUE
-        ),
-        popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", ~Link, "</a>")
+        addMarkers(
+          data = marker_data,
+          lat = ~Latitude,
+          lng = ~Longitude,
+          label = ~Name,
+          labelOptions = labelOptions(
+            direction = "auto",
+            noHide = TRUE,
+            onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
+          ),
+          #popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", marker_data$Name, "</a>")
+          popup = ~paste0("<b>", marker_data$Name, "</b><a href='/matching_png/", Name, "' target='_blank'><p>", marker_data$Name, "</p><img src='/matching_png/", Name, "' width='100' height='100'></a>")
+          
         )
     })
     
+   
+    cat("\nSuccessfully executed")
+ 
   })
+    # Daten aus der hochgeladenen CSV-Datei lesen
+    #data2 <- reactive({
+      #req(input$file)
+    #  df <- read.csv(input$file$datapath)
+    #  df
+   # })
+    
+    # OpenStreetMap show
+   # output$mapShowCsv <- renderLeaflet({
+     # leaflet(data = data2()) %>%
+      #  addTiles() %>%
+      #  addMarkers(lng = ~Longitude, lat = ~Latitude,
+     #   label = ~Name,
+     #   labelOptions = labelOptions(
+     #   direction = "auto",
+      #  noHide = TRUE
+     #   ),
+     #   popup = ~paste0("<a href='/matching_png/", Name, "' target='_blank'>", ~Link, "</a>")
+      #  )
+    #})
+    
+  
   observeEvent(input$downloadButton, {
     
     file1 <- "beispiel.csv"
@@ -1317,14 +1402,24 @@ server <- shinyServer(function(input, output, session) {
         print(countFiles)
       }
       
-      if(processing == "croppingMap" ){
+      if(processing == "mapReadRpecies" ){
         # Croping
         fname=paste0(workingDir, "/", "src/read_species/map_read_species.R")
-        print("Croping the species names R script:")
+        print("Croping the species names from the map botton R script:")
         print(fname)
         source(fname)
-        species = readSpecies2(workingDir)
+        species = read_species2(workingDir)
       }
+      
+      if(processing == "pageReadRpecies" ){
+        # read page species
+        fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
+        print("Reading page species data and saving the results to a pageSpeciesData CSV file in D:/distribution_digitizer/data/output.")
+        print(fname)
+        source(fname)
+        species = readPageSpecies(workingDir)
+      }
+      
       
       if(processing == "pointMatching") {
         # Processing points matching
@@ -1437,6 +1532,26 @@ server <- shinyServer(function(input, output, session) {
   }
   
 
+  # ----------------------------------------
+  # Function to list CSV files as links
+  # ----------------------------------------
+  prepareCSVLinks <- function(dirName, index) {
+    #pathToCSVFiles = paste0(workingDir, "/www", dirName)
+    listCSVFiles = list.files(paste0(workingDir, "/data/output"), full.names = FALSE, pattern = index)
+    
+    display_link = function(i) {
+      HTML(paste0('<div class="csv-link" > 
+                <a href="', paste0(dirName, listCSVFiles[i]), '" target="_blank">', listCSVFiles[i], '</a></div>'))
+    }
+    
+    lapply(1:length(listCSVFiles), display_link)
+  }
+  
+  # Beispielaufruf:
+  dirName <- "/example_directory"
+  index <- ".csv"  # Muster für die CSV-Dateien
+  prepareCSVLinks(dirName, index)
+  
   
   # convert tif images to png and save in /www directory
   converTifToPngSave <- function(pathToTiffImages, patjhToPngImages){
