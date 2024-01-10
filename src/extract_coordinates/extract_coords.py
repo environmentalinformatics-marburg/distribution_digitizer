@@ -41,7 +41,7 @@ def initialize_csv_file(file_path, *header):
     if not os.path.exists(file_path):
         with open(file_path, 'w', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
-            csv_writer.writerow(["File", "Detection method", "X_WGS84", "Y_WGS84", "georef"])
+            csv_writer.writerow(["Name", "Detection method", "Longitude", "Latitude", "georef"])
             if header:
                 csv_writer.writerow(header)
 
@@ -58,15 +58,13 @@ def main_circle_detection(workingDir):
     input_folder = workingDir + "/data/output/final_output/circleDetection/"
     outputCsvDir = workingDir + "/data/output/final_output/circleDetection/"
 
-    # initialize csv file for storing the coordinates (if the file does not exist already)
-    initialize_csv_file(outputCsvDir)
+
 
     # define csv filepath
-    csv_file_path = outputCsvDir + "coordinates_circleDetection.csv"
-    with open(csv_file_path, 'a', newline='') as csvfile:
-      csv_writer = csv.writer(csvfile)
-      csv_writer.writerow(["Name","point_filtering","Longitude","Latitude","species"])
-
+    csv_file_path = outputCsvDir + "coordinates_circle_detection.csv"
+    
+        # initialize csv file for storing the coordinates (if the file does not exist already)
+    initialize_csv_file(csv_file_path)
 
     # iterate over subfolders in the input folder
     for subdir, dirs, files in os.walk(input_folder):
@@ -87,14 +85,10 @@ def main_point_filtering(workingDir):
     input_folder = workingDir + "/data/output/final_output/pointFiltering/"
     outputCsvDir = workingDir + "/data/output/final_output/pointFiltering/"
 
-    # initialize csv file for storing the coordinates (if the file does not exist already)
-    initialize_csv_file(outputCsvDir)
-
     # define csv filepath
     csv_file_path = outputCsvDir + "coordinates_point_filtering.csv"
-    with open(csv_file_path, 'a', newline='') as csvfile:
-      csv_writer = csv.writer(csvfile)
-      csv_writer.writerow(["Name","point_filtering","Longitude","Latitude","species"])
+        # initialize csv file for storing the coordinates (if the file does not exist already)
+    initialize_csv_file(csv_file_path)
 
     # iterate over subfolders in the input folder
     for subdir, dirs, files in os.walk(input_folder):

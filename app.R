@@ -1223,41 +1223,25 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$startSpatialDataComputing, {
     
-    # Daten aus der hochgeladenen CSV-Datei lesen
-    #data <- reactive({
-    #req(input$file)
-    #df <- read.csv(input$file$datapath)
-    # df <- read.csv("D:/distribution_digitizer/data/output/coordinates.csv")
-    # df
-    #})
-    # eine benutzerdefinierten Mouseover-Funktion Erstellen 
-    
     #Processing georeferencing
     library(reticulate)
     fname=paste0(workingDir, "/", "src/extract_coordinates/poly_to_point.py")
     source_python(fname)
     main_circle_detection(workingDir)
     main_point_filtering(workingDir)
-    
+
     fname=paste0(workingDir, "/", "src/extract_coordinates/extract_coords.py")
     source_python(fname)
     main_circle_detection(workingDir)
     main_point_filtering(workingDir)
     
+    # prepare pages as png for the spatia view
+    converTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/pages/"))
+    source(paste0(workingDir, "/src/spatial_view/merge_final_data.R"))
+    mergeFinalData(workingDir)
   })
   
   observeEvent(input$spatialViewPF, {
-    
-    # Daten aus der hochgeladenen CSV-Datei lesen
-    #data <- reactive({
-    #req(input$file)
-    #df <- read.csv(input$file$datapath)
-    # df <- read.csv("D:/distribution_digitizer/data/output/coordinates.csv")
-    # df
-    #})
-    # eine benutzerdefinierten Mouseover-Funktion Erstellen 
-    
-    #Processing georeferencing
     
     customMouseover <- JS(
       "function(event) {
@@ -1265,25 +1249,34 @@ server <- shinyServer(function(input, output, session) {
     layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
   }"
     )
-    marker_data <- read.csv(paste0(workingDir, "/data/output/final_output/pointFiltering/coordinates_point_filtering.csv"))
+    
+    marker_data <- read.csv(paste0(workingDir, "/data/output/final_data.csv"))
+    filtered_data <- marker_data[marker_data$Detection.method == "point_filtering", ]
+    name = paste0(filtered_data$File,".png")
+    page = basename(filtered_data$file_name)
+    page <- sub("\\.tif$", "", basename(filtered_data$file_name))
+    page = paste0(page, ".png")
+    # OpenStreetMap show "File","Detection.method","X","Y","georef","X_WGS84","Y_WGS84","species","file_name"
     
     # OpenStreetMap show
     output$mapSpatialViewPF <- renderLeaflet({
       leaflet() %>%
         addTiles() %>%
         addMarkers(
-          data = marker_data,
-          lat = ~Latitude,
-          lng = ~Longitude,
-          label = ~Name,
+          data = filtered_data,
+          lat = ~Y_WGS84,
+          lng = ~X_WGS84,
+          label = name,
           labelOptions = labelOptions(
             direction = "auto",
             noHide = TRUE,
             onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
           ),
           #popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", marker_data$Name, "</a>")
-          popup = ~paste0("<b>", marker_data$Name, "</b><a href='/matching_png/", Name, "' target='_blank'><p>", marker_data$Name, "</p><img src='/matching_png/", Name, "' width='100' height='100'></a>")
-          
+          popup = ~paste0("<b>", filtered_data$species, "</b><a href='/matching_png/", name, "' target='_blank'>",
+                          "<img src='/matching_png/", name, "' width='100' height='100'></a>",
+                          "<a href='/pages/", page, "' target='_blank'>",
+                          "<img src='/pages/", page, "' width='100' height='100'></a>")
         )
     })
     
@@ -1301,25 +1294,34 @@ server <- shinyServer(function(input, output, session) {
     layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
   }"
     )
-    marker_data <- read.csv(paste0(workingDir, "/data/output/final_output/circleDetection/coordinates_circle_detection.csv"))
+    marker_data <- read.csv(paste0(workingDir, "/data/output/final_data.csv"))
+    filtered_data <- marker_data[marker_data$Detection.method == "circle_detection", ]
+    name = paste0(filtered_data$File,".png")
+    page = basename(filtered_data$file_name)
+    page <- sub("\\.tif$", "", basename(filtered_data$file_name))
+    page = paste0(page, ".png")
+    # OpenStreetMap show "File","Detection.method","X","Y","georef","X_WGS84","Y_WGS84","species","file_name"
     
-    # OpenStreetMap show
+ 
     output$mapSpatialViewCD <- renderLeaflet({
+      
       leaflet() %>%
         addTiles() %>%
         addMarkers(
-          data = marker_data,
-          lat = ~Latitude,
-          lng = ~Longitude,
-          label = ~Name,
+          data = filtered_data,
+          lat = ~Y_WGS84,
+          lng = ~X_WGS84,
+          label = name,
           labelOptions = labelOptions(
             direction = "auto",
             noHide = TRUE,
             onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
           ),
           #popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", marker_data$Name, "</a>")
-          popup = ~paste0("<b>", marker_data$Name, "</b><a href='/matching_png/", Name, "' target='_blank'><p>", marker_data$Name, "</p><img src='/matching_png/", Name, "' width='100' height='100'></a>")
-          
+          popup = ~paste0("<b>", filtered_data$species, "</b><a href='/matching_png/", name, "' target='_blank'>",
+                          "<img src='/matching_png/", name, "' width='100' height='100'></a>",
+                          "<a href='/pages/", page, "' target='_blank'>",
+                          "<img src='/pages/", page, "' width='100' height='100'></a>")
         )
     })
     
