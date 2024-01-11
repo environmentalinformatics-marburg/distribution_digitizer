@@ -21,7 +21,6 @@ function 'mainmaskgeoreferencingMasks_CD': Georeferences tif files masking centr
 function 'mainmaskgeoreferencingMasks_PF': Georeferences tif files masking centroids detected by Point Filtering.
 """
 
-
 from osgeo import gdal, gdalconst
 import string
 from functools import reduce
