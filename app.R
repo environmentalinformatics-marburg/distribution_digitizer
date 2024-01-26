@@ -1228,14 +1228,6 @@ server <- shinyServer(function(input, output, session) {
  
 
   # ----------------------------------------# Save the outputs #----------------------------------------------------------------------
-  observeEvent(input$saveOutputs, {
-    # Datei erstellen, z.B. mit write.csv()
-    
-    data <- data.frame(Name = c("Alice", "Bob", "Charlie"),
-                       Alter = c(25, 30, 22))
-    write.csv(data, "beispiel.csv", row.names = FALSE)
-  })
-  
   
   observeEvent(input$startSpatialDataComputing, {
     
@@ -1296,14 +1288,16 @@ server <- shinyServer(function(input, output, session) {
   }"
     )
     
-    marker_data <- read.csv(paste0(workingDir, "/data/output/spatial_final_data.csv"))
+    marker_data <- read.csv(paste0(workingDir, "/data/output/spatial_final_data.csv"), sep = ";", header = TRUE)
     filtered_data <- marker_data[marker_data$Detection.method == "point_filtering", ]
-    name = paste0(filtered_data$File,".png")
+    name_on_top = paste0(filtered_data$specie_on_map,": ", filtered_data$File,".png")
+    name = paste0( filtered_data$File,".png")
     page = basename(filtered_data$file_name)
     page <- sub("\\.tif$", "", basename(filtered_data$file_name))
     page = paste0(page, ".png")
-    # OpenStreetMap show "File","Detection.method","X","Y","georef","X_WGS84","Y_WGS84","species","file_name"
-    
+    # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
+    filtered_data$X_WGS84 <- as.numeric(gsub(",", ".", filtered_data$X_WGS84))
+    filtered_data$Y_WGS84 <- as.numeric(gsub(",", ".", filtered_data$Y_WGS84))
     # OpenStreetMap show
     output$mapSpatialViewPF <- renderLeaflet({
       leaflet() %>%
@@ -1312,14 +1306,14 @@ server <- shinyServer(function(input, output, session) {
           data = filtered_data,
           lat = ~Y_WGS84,
           lng = ~X_WGS84,
-          label = name,
+          label = name_on_top,
           labelOptions = labelOptions(
             direction = "auto",
             noHide = TRUE,
             onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
           ),
           #popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", marker_data$Name, "</a>")
-          popup = ~paste0("<b>", filtered_data$species, "</b><a href='/matching_png/", name, "' target='_blank'>",
+          popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$specie_on_map, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
                           "<img src='/matching_png/", name, "' width='100' height='100'></a>",
                           "<a href='/pages/", page, "' target='_blank'>",
                           "<img src='/pages/", page, "' width='100' height='100'></a>")
@@ -1339,36 +1333,41 @@ server <- shinyServer(function(input, output, session) {
     layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
   }"
     )
-    marker_data <- read.csv(paste0(workingDir, "/data/output/spatial_final_data.csv"))
+    marker_data <- read.csv(paste0(workingDir, "/data/output/spatial_final_data.csv"), sep = ";", header = TRUE)
     filtered_data <- marker_data[marker_data$Detection.method == "circle_detection", ]
-    name = paste0(filtered_data$File,".png")
+    name_on_top = paste0(filtered_data$specie_on_map,": ", filtered_data$File,".png")
+    name = paste0( filtered_data$File,".png")
     page = basename(filtered_data$file_name)
     page <- sub("\\.tif$", "", basename(filtered_data$file_name))
     page = paste0(page, ".png")
-    # OpenStreetMap show "File","Detection.method","X","Y","georef","X_WGS84","Y_WGS84","species","file_name"
     
- 
+    # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
+    filtered_data$X_WGS84 <- as.numeric(gsub(",", ".", filtered_data$X_WGS84))
+    filtered_data$Y_WGS84 <- as.numeric(gsub(",", ".", filtered_data$Y_WGS84))
+    
     output$mapSpatialViewCD <- renderLeaflet({
-      
       leaflet() %>%
-        addTiles() %>%
+        addTiles() %>% 
         addMarkers(
           data = filtered_data,
           lat = ~Y_WGS84,
           lng = ~X_WGS84,
-          label = name,
+          label = name_on_top,
           labelOptions = labelOptions(
             direction = "auto",
             noHide = TRUE,
             onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
           ),
-          #popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", marker_data$Name, "</a>")
-          popup = ~paste0("<b>", filtered_data$species, "</b><a href='/matching_png/", name, "' target='_blank'>",
+          popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$specie_on_map, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
                           "<img src='/matching_png/", name, "' width='100' height='100'></a>",
                           "<a href='/pages/", page, "' target='_blank'>",
                           "<img src='/pages/", page, "' width='100' height='100'></a>")
         )
+     # addLegend(position = "bottomright", colors = "red", labels = "Your Legend Text") %>%
+     # addControl(position = "bottomright", title = "Legend", html = "<div style='background-color: #ffffff; padding: 10px;'>Your Legend Text</div>")
+      
     })
+    
     
    
     cat("\nSuccessfully executed")
@@ -1418,8 +1417,12 @@ server <- shinyServer(function(input, output, session) {
     
     # Hier können Sie Daten für Ihre Tabelle oder Visualisierung laden
     # In diesem Beispiel lesen wir die CSV-Datei
+
     data <- reactive({
-      read.csv(csv_path)
+      my_data <- read.table(csv_path, sep = ";", header = TRUE, check.names = FALSE)
+      
+      print(colnames(my_data))
+      return(my_data)
     })
     
     output$myTable <- renderDataTable({
@@ -1474,14 +1477,16 @@ server <- shinyServer(function(input, output, session) {
         source(fname)
         species = read_species2(workingDir)
       }
-      
+     
       if(processing == "pageReadRpecies" ){
         # read page species
         fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
         print("Reading page species data and saving the results to a pageSpeciesData CSV file in D:/distribution_digitizer/data/output.")
         print(fname)
         source(fname)
-        species = readPageSpecies(workingDir)
+        #'D:/distribution_digitizer_11_01_2024/data/input/pages/0058.tif', "_cinnara", "Range", keyword_top = 2, middle=True)
+        #'(workingDir, keyword, keyword_top, keaword_bottom, middle=TRUE) 
+        species = readPageSpecies(workingDir,"Range", 0,0, TRUE)
       }
       
       
