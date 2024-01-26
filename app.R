@@ -277,6 +277,9 @@ body <- dashboardBody(
           # site number position
           fluidRow(column(3,selectInput("sNumberPosition", label="Site Number Position", c("top"=1 , "botom"=2), selected=1 ))),
           
+          # keayword to read species data
+          fluidRow(column(3,textInput("keywordReadSpecies", label="Possible keyword to find the species data",  value="Range" ))),
+          
           # format;
           fluidRow(column(3,selectInput("pFormat", label="Image Format of the Scanned Sites", c("tif"=1 , "png"=2, "jpg"=3), selected=1 ))),
           
@@ -614,6 +617,7 @@ server <- shinyServer(function(input, output, session) {
                     numberSitesPrint = input$numberSitesPrint,
                     allPrintedPages = input$allPrintedPages,
                     sNumberPosition = input$sNumberPosition,
+                    keywordReadSpecies = input$keywordReadSpecies,
                     pFormat = input$pFormat,
                     pColor = input$pColor)
     tf <- tempfile(fileext = ".csv")
@@ -1481,12 +1485,17 @@ server <- shinyServer(function(input, output, session) {
       if(processing == "pageReadRpecies" ){
         # read page species
         fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
-        print("Reading page species data and saving the results to a pageSpeciesData CSV file in D:/distribution_digitizer/data/output.")
+        print(paste0("Reading page species data and saving the results to a pageSpeciesData CSV file in ",workingDir,"/data/output."))
         print(fname)
         source(fname)
         #'D:/distribution_digitizer_11_01_2024/data/input/pages/0058.tif', "_cinnara", "Range", keyword_top = 2, middle=True)
         #'(workingDir, keyword, keyword_top, keaword_bottom, middle=TRUE) 
-        species = readPageSpecies(workingDir,"Range", 0,0, TRUE)
+        if(length(config$keywordReadSpecies) > 2) {
+          species = readPageSpecies(workingDir,config$keywordReadSpecies, 2, 0, TRUE)
+        }
+        else{
+          species = readPageSpecies(workingDir,'None', 0, 0, TRUE)
+        }
       }
       
       
