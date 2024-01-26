@@ -7,10 +7,10 @@ library(stringr)
 # Load the dplyr package
 library(dplyr)
 
-#workingDir="D:/distribution_digitizer"
+workingDir="D:/distribution_digitizer_11_01_2024/"
 
 # Function to read the species
-readPageSpecies <- function(workingDir) {
+readPageSpecies <- function(workingDir, keyword, keyword_top, keaword_bottom, middle) {
   
   # Set the path to the folder containing CSV files
   folder_path <- paste0(workingDir, "/data/output/pagerecords/")
@@ -37,10 +37,11 @@ readPageSpecies <- function(workingDir) {
   filteredData <- combined_data[!duplicated_rows, ]
   
   source_python(paste0(workingDir, "/src/read_species/page_crop_species.py"))
-  
+
   for (i in 1:nrow(filteredData)) {
     #if(filteredData[i,"pageName"] == "004.tif"){
     pagePath = filteredData[i,"file_name"]
+
     print(pagePath)
     speciesData =  filteredData[i,"species"]
     
@@ -48,24 +49,29 @@ readPageSpecies <- function(workingDir) {
     speciesData <- speciesData[speciesData != ""]
     print(speciesData)
     
+    previous_page_path = filteredData[i,"previous_page_path"]
+    next_page_path = filteredData[i,"next_page_path"]
     #pagePath = "D:/distribution_digitizer/data/input/pages/0064.tif"
     #speciesData = "_danna"
-    pageTitleSpecies = mainPageCropSpecies(pagePath, speciesData)
-    
+   # 'D:/distribution_digitizer_11_01_2024/data/input/pages/0058.tif', "_cinnara", "Range", keyword_top = 2, middle=True)
+    pageTitleSpecies = find_specie_context(previous_page_path, next_page_path, pagePath, speciesData, "Range", 2, 0, TRUE)
+    #find_specie_context(previous_page_path, next_page_path,'D:/distribution_digitizer_11_01_2024/data/input/pages/0058.tif', "_bevani", "Range", 2, 0, TRUE)
     # Remove duplicate entries
     #unique_entries_without_duplicates <- unique(pageTitleSpecies)
-    unique_entries_without_duplicates <- unique(unlist(pageTitleSpecies))
+    if ( length(pageTitleSpecies) >1 ){
+      unique_entries_without_duplicates <- unique(unlist(pageTitleSpecies))
     
-    unique_entries_without_duplicates <- unique_entries_without_duplicates[!grepl("distribution", unique_entries_without_duplicates, ignore.case = TRUE)]
+      unique_entries_without_duplicates <- unique_entries_without_duplicates[!grepl("distribution", unique_entries_without_duplicates, ignore.case = TRUE)]
+      
+      split_entries <- strsplit(unique_entries_without_duplicates, "; ")
+      
+      # Extract the part after the semicolon and save it in a new array
+      new_array <- sapply(split_entries, function(x) x[2])
+      
+      # Combine the elements of the new array into a single string
+      result_string <- paste(new_array, collapse = " ")
     
-    split_entries <- strsplit(unique_entries_without_duplicates, "; ")
-    
-    # Extract the part after the semicolon and save it in a new array
-    new_array <- sapply(split_entries, function(x) x[2])
-    
-    # Combine the elements of the new array into a single string
-    result_string <- paste(new_array, collapse = " ")
-    
+    } else result_string = pageTitleSpecies
     new_dataframe <- data.frame(species = result_string, stringsAsFactors = FALSE)
     
     # Add a new column for the file name
@@ -83,3 +89,5 @@ readPageSpecies <- function(workingDir) {
   
   print(pageTitleSpecies)
 }
+
+

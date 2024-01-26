@@ -42,7 +42,7 @@ def centroid_georef(gcppoints, input_csv, output_csv, output_shape):
     centroid_df['Y_WGS84'] = m22 * centroid_df['Y'] + b2
 
     # Save the georeferenced centroid coordinates to the output_csv file
-    centroid_df.to_csv(output_csv, index=False)
+    centroid_df.to_csv(output_csv, index=False, sep=';')
     
     # Create a GeoDataFrame from the georeferenced DataFrame
     geometry = [Point(x, y) for x, y in zip(centroid_df['X_WGS84'], centroid_df['Y_WGS84'])]

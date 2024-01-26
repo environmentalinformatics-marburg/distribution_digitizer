@@ -3,9 +3,11 @@
 # Created On: 2024-01-10
 # ============================================================
 
+#workingDir="D:/distribution_digitizer_11_01_2024/"
+  
 mergeFinalData <- function(workingDir) {
   # Load data from CSV files
-  data2 <- read.csv(paste0(workingDir, "/data/output/output_final.csv"), sep = ",")
+  data2 <- read.csv(paste0(workingDir, "/data/output/output_final.csv"), sep = ";")
   data1 <- read.csv(paste0(workingDir, "/data/output/pageSpeciesData.csv"), sep = ";")
   
   # Steps:
@@ -29,5 +31,5 @@ mergeFinalData <- function(workingDir) {
   
   # Display the result
   # Save final_data as a new CSV file
-  write.csv(final_data, file = paste0(workingDir, "/data/output/spatial_final_data.csv"), row.names = FALSE)
+  write.csv2(final_data, file = paste0(workingDir, "/data/output/spatial_final_data.csv"), row.names = FALSE)
 }
