@@ -246,54 +246,57 @@ body <- dashboardBody(
   # Tab 0 Config Dialog --------------------------------------------------------------------------------------------------------------
     tabItem(
       tabName = "tab0",
-      fluidRow(
-        
-        wellPanel(
-          h3(configStartDialog$head, style = "color:black"),
-          #Project directory
-          p(paste0("Working directory - ",workingDir), style = "color:black"),
-          
-          # Title: Provide the name of the book's author.
-          fluidRow(column(3,textInput("title", label="Title", value = "Title"))),
-          
-          # Author: Provide the name of the book's author.
-          fluidRow(column(3,textInput("author", label="Author", value = "Autorname"))),
-          
-          # Publication Year: Specify the year the book was published.
-          fluidRow(column(3,textInput("pYear", label="Publication Year", value = "2023"))),
-          
-          # Data input directory
-          fluidRow(column(3,textInput("dataInputDir", label="Data input directory", value = paste0(workingDir,"/data/input")))),
-          
-          # Data output directory
-          fluidRow(column(3,textInput("dataOutputDir", label="Data output directory", value =paste0(workingDir,"/data/output")))),
-          
-          # numberSitesPrint
-          fluidRow(column(3,selectInput("numberSitesPrint", label="Number of Book Sites per One Print",  c("One site per scan" = 1 ,"Two sites per scan"= 2)))),
-          
-          # allprintedPages
-          fluidRow(column(3,textInput("allPrintedPages", label="All Printed Pages", value = 100 ))),
-          
-          # site number position
-          fluidRow(column(3,selectInput("sNumberPosition", label="Site Number Position", c("top"=1 , "botom"=2), selected=1 ))),
-          
-          # keayword to read species data
-          fluidRow(column(3,textInput("keywordReadSpecies", label="Possible keyword to find the species data",  value="Range" ))),
-          
-          # format;
-          fluidRow(column(3,selectInput("pFormat", label="Image Format of the Scanned Sites", c("tif"=1 , "png"=2, "jpg"=3), selected=1 ))),
-          
-          # Page color;
-          fluidRow(column(3,selectInput("pColor", label="Page Color", c("black white"=1 , "color"=2), selected=1 ))),
-          # width;
-          #fluidRow(column(3,textInput("allprintedPages", label=configStartDialog$i4, value = config$allprintedPages ))),
-          fluidRow(column(4, actionButton("saveConfig",  label = "Save", style="color:#FFFFFF;background:#999999"))),
-          #useShinyjs(),
-          #extendShinyjs(text = jscode, functions = c("closeWindow")),
-         # actionButton("close", "Close window")
+        fluidRow(
+          # Linke Spalte
+          column(
+            width = 6, # Zum Beispiel die Hälfte der Breite des Containers
+            wellPanel(
+              h3(strong("General configuration fields", style = "color:black")),
+              # Title: Provide the name of the book's author.
+              fluidRow(textInput("title", label = "Title", value = "Title")),
+              # Author: Provide the name of the book's author.
+              fluidRow(textInput("author", label = "Author", value = "Autorname")),
+              # Publication Year: Specify the year the book was published.
+              fluidRow(textInput("pYear", label = "Publication Year", value = "2023")),
+              # Data input directory
+              fluidRow(textInput("dataInputDir", label = "Data input directory", value = paste0(workingDir, "/data/input"))),
+              # Data output directory
+              fluidRow(textInput("dataOutputDir", label = "Data output directory", value = paste0(workingDir, "/data/output"))),
+              # numberSitesPrint
+               # format
+              fluidRow(selectInput("pFormat", label = "Image Format of the Scanned Sites", c("tif" = 1, "png" = 2, "jpg" = 3), selected = 1)),
+              # Page color
+              fluidRow(selectInput("pColor", label = "Page Color", c("black white" = 1, "color" = 2), selected = 1)),
+              
+              fluidRow(selectInput("numberSitesPrint", label = "Number of Book Sites per One Print", c("One site per scan" = 1, "Two sites per scan" = 2))),
+
+            )
+          ),
+          # Rechte Spalte
+          column(
+            width = 6, # Zum Beispiel die Hälfte der Breite des Containers
+            wellPanel(
+              h3(strong(" Additional specific configuration input fields", style = "color:black")),
+              # allprintedPages
+              fluidRow(textInput("allPrintedPages", label = "All Printed Pages", value = 100)),
+              # site number position
+              fluidRow(selectInput("sNumberPosition", label = "Site Number Position", c("top" = 1, "botom" = 2), selected = 1)),
+              # keayword to read species data
+              fluidRow(textInput("keywordReadSpecies", label = "Possible keyword to find the species data", value = "Range")),
+              fluidRow(selectInput("specieRowForKey", label = "Is the keyword a few lines before the species name? If yes, how many? ", c("0" = 0, "1" = 1, "2" = 2, "3" = 3), selected = 0)),
+              
+              fluidRow(selectInput("specieRowForKey", label = "Is the keyword a few lines after the species name? If yes, please specify how many.", c("0" = 0, "1" = 1, "2" = 2, "3" = 3), selected = 0)),
+              # Is the term "species name" inclusive of special patterns such as year, parentheses, or symbols?
+              fluidRow(selectInput("numberSitesPrint", label = "Is the term species name inclusive of special patterns such as year?", c( "No" = 2, "Yes" = 1 ))),
+              #Is the keyword a few lines before the species name? If yes, how many? 
+              #Is the keyword exactly on the line with the species name? 
+              #Is the keyword a few lines after the species name? If yes, please specify how many."
+              # Save button
+              fluidRow(actionButton("saveConfig", label = "Save", style = "color:#FFFFFF;background:#999999"))
+            )
           )
         )
-    ),
+      ),
   
   
   # Tab 1 Create Templates #---------------------------------------------------------------------
@@ -1294,7 +1297,7 @@ server <- shinyServer(function(input, output, session) {
     
     marker_data <- read.csv(paste0(workingDir, "/data/output/spatial_final_data.csv"), sep = ";", header = TRUE)
     filtered_data <- marker_data[marker_data$Detection.method == "point_filtering", ]
-    name_on_top = paste0(filtered_data$specie_on_map,": ", filtered_data$File,".png")
+    name_on_top = paste0(filtered_data$species)#,": ", filtered_data$File,".png")
     name = paste0( filtered_data$File,".png")
     page = basename(filtered_data$file_name)
     page <- sub("\\.tif$", "", basename(filtered_data$file_name))
@@ -1339,7 +1342,7 @@ server <- shinyServer(function(input, output, session) {
     )
     marker_data <- read.csv(paste0(workingDir, "/data/output/spatial_final_data.csv"), sep = ";", header = TRUE)
     filtered_data <- marker_data[marker_data$Detection.method == "circle_detection", ]
-    name_on_top = paste0(filtered_data$specie_on_map,": ", filtered_data$File,".png")
+    name_on_top = paste0(filtered_data$species)#,": ", filtered_data$File,".png")
     name = paste0( filtered_data$File,".png")
     page = basename(filtered_data$file_name)
     page <- sub("\\.tif$", "", basename(filtered_data$file_name))

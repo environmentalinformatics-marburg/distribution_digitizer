@@ -1,8 +1,12 @@
-# -*- coding: utf-8 -*-
+# ============================================================
+# Script Author: [Spaska Forteva]
+# Script Author: [Madhu Venkates]
+# Created On: 2023-01-10
+# ============================================================
 """
 Description: This script edits book pages and creates map images using the matching method.
 """
-__author__ = "Madhu Venkates, Spaska Forteva"  
+ 
 
 # It is recommended the use of Snake Case for functions and variables, 
 # for examples: find_page_number!

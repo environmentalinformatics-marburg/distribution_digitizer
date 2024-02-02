@@ -117,5 +117,3 @@ def crop_species(working_dir, path_to_page, path_to_map, x, y, w, h):
     return species
      
   #print("End")  
-
-

@@ -1,10 +1,11 @@
-# -*- coding: utf-8 -*-
+# ============================================================
+# Script Author: [Spaska Forteva]
+# Created On: 2023-24-09
+# ============================================================
 """
 Description: This script edits book pages and crops the main spacies titles.
 """
 
-__author__ = "Spaska Forteva"
-__date__ = "24. September 2023"
 # start miniconda promt as admin 
 # conda activate base
 # conda install opencsv
@@ -149,9 +150,6 @@ def find_specie_context(previous_page_path, next_page_path, page_path="", words_
         if(specie_content != 'none'):
           all_results.append(specie_content)
           return all_resultseak
-  
-  
-   
     
   if (keyword is None) or (specie_content == ""):
     print("if5")

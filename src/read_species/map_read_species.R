@@ -6,11 +6,11 @@ os <- import("os")
 library(stringr)
 
 
-#working_dir = "D:/distribution_digitizer/"
+working_dir = "D:/distribution_digitizer_11_01_2024"
 
 # Function to read the species
 read_species2 <- function(working_dir) {
- 
+  
   results = "The following species were found: "
   source_python(paste0(working_dir, "/src/read_species/map_crop_species.py"))
   pagerecords = paste0(working_dir, "/data/output/pagerecords/")
@@ -20,9 +20,9 @@ read_species2 <- function(working_dir) {
   
   # for loop into the list
   j = 1
-  for(j in j:length(records_pages)) { 
+  for(j in j:length(records_pages)) {
     records_page <- read.csv(records_pages[j], sep=",", check.names = FALSE, quote="\"",
-                            na.strings=c("NA","NaN", " "))
+                             na.strings=c("NA","NaN", " "))
     #print(records_page$filename[j])
     #print(j)
     species <- c()
@@ -37,7 +37,7 @@ read_species2 <- function(working_dir) {
     file_name=records_page$file_name
     map_name=records_page$map_name
     if(!is.na(w) & !is.na(y) &!is.na(h) & !is.na(x)){
-     # pathToPage = "D:/distribution_digitizer/data/input/pages/0060.tif"
+      # pathToPage = "D:/distribution_digitizer/data/input/pages/0060.tif"
       # use the crop Image function from the crop_species_name.py
       species = crop_species(working_dir, file_name, map_name, x,y,w,h)
       records_page$species = species
@@ -62,7 +62,7 @@ read_species <- function(working_dir) {
   j = 1
   for(j in j:length(records_pages)) { 
     records_page <- read.csv(records_pages[j], sep=",", check.names = FALSE, quote="\"",
-                            na.strings=c("NA","NaN", " "))
+                             na.strings=c("NA","NaN", " "))
     #print(records_page$filename[j])
     #print(j)
     species <- c()

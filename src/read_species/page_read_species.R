@@ -1,17 +1,24 @@
-# Author: Your Name
-# Date: December 20, 2023
+# ============================================================
+# Script Author: [Spaska Forteva]
+# Created On: 2024-01-10
+# ============================================================
 # Description: R script for reading species data from CSV files, processing it, and saving the results to a new CSV file.
 
+# Import the 'os' module
 os <- import("os") 
+
+# Load the 'stringr' package
 library(stringr)
-# Load the dplyr package
+
+# Load the 'dplyr' package
 library(dplyr)
 
-workingDir="D:/distribution_digitizer_11_01_2024/"
+# Set the working directory
+#workingDir="D:/distribution_digitizer_11_01_2024/"
 
 # Function to read the species
-readPageSpecies <- function(workingDir, keyword, keyword_top, keaword_bottom, middle) {
-  
+readPageSpecies <- function(workingDir, keywordReadSpecies, keyword_top, keyword_bottom, middle) {
+  #keywordReadSpecies="Range"
   # Set the path to the folder containing CSV files
   folder_path <- paste0(workingDir, "/data/output/pagerecords/")
   
@@ -36,12 +43,12 @@ readPageSpecies <- function(workingDir, keyword, keyword_top, keaword_bottom, mi
   # Select non-duplicated rows
   filteredData <- combined_data[!duplicated_rows, ]
   
+  # Import the Python script for species reading
   source_python(paste0(workingDir, "/src/read_species/page_crop_species.py"))
-
+  
   for (i in 1:nrow(filteredData)) {
-    #if(filteredData[i,"pageName"] == "004.tif"){
     pagePath = filteredData[i,"file_name"]
-
+    
     print(pagePath)
     speciesData =  filteredData[i,"species"]
     
@@ -51,16 +58,15 @@ readPageSpecies <- function(workingDir, keyword, keyword_top, keaword_bottom, mi
     
     previous_page_path = filteredData[i,"previous_page_path"]
     next_page_path = filteredData[i,"next_page_path"]
-    #pagePath = "D:/distribution_digitizer/data/input/pages/0064.tif"
-    #speciesData = "_danna"
-   # 'D:/distribution_digitizer_11_01_2024/data/input/pages/0058.tif', "_cinnara", "Range", keyword_top = 2, middle=True)
-    pageTitleSpecies = find_specie_context(previous_page_path, next_page_path, pagePath, speciesData, "Range", 2, 0, TRUE)
-    #find_specie_context(previous_page_path, next_page_path,'D:/distribution_digitizer_11_01_2024/data/input/pages/0058.tif', "_bevani", "Range", 2, 0, TRUE)
+    
+    # Call the Python function for species identification
+    pageTitleSpecies = find_specie_context(previous_page_path, next_page_path, 
+                      pagePath, speciesData, keywordReadSpecies, keyword_top, keyword_bottom, middle)
+    
     # Remove duplicate entries
-    #unique_entries_without_duplicates <- unique(pageTitleSpecies)
     if ( length(pageTitleSpecies) >1 ){
       unique_entries_without_duplicates <- unique(unlist(pageTitleSpecies))
-    
+      
       unique_entries_without_duplicates <- unique_entries_without_duplicates[!grepl("distribution", unique_entries_without_duplicates, ignore.case = TRUE)]
       
       split_entries <- strsplit(unique_entries_without_duplicates, "; ")
@@ -70,15 +76,18 @@ readPageSpecies <- function(workingDir, keyword, keyword_top, keaword_bottom, mi
       
       # Combine the elements of the new array into a single string
       result_string <- paste(new_array, collapse = " ")
-    
+      
     } else result_string = pageTitleSpecies
+    
+    # Create a new dataframe with the processed species data
     new_dataframe <- data.frame(species = result_string, stringsAsFactors = FALSE)
     
     # Add a new column for the file name
     new_dataframe$file_name <- pagePath
     
-    # Add a new column for the map name
+    # Add new columns for map name and original species name
     new_dataframe$map_name <- filteredData[i,"map_name"]
+    new_dataframe$specie_on_map <- filteredData[i,"species"]
     
     # Save the dataframe to CSV
     if (i == 1) {
@@ -90,4 +99,5 @@ readPageSpecies <- function(workingDir, keyword, keyword_top, keaword_bottom, mi
   print(pageTitleSpecies)
 }
 
-
+# Call the function with specified arguments
+#readPageSpecies(workingDir, keyword, keyword_top, keaword_bottom, middle)
