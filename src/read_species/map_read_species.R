@@ -6,7 +6,7 @@ os <- import("os")
 library(stringr)
 
 
-working_dir = "D:/distribution_digitizer_11_01_2024"
+#working_dir = "D:/distribution_digitizer_11_01_2024"
 
 # Function to read the species
 read_species2 <- function(working_dir) {
