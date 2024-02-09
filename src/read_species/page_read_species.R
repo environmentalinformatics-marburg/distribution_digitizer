@@ -14,11 +14,19 @@ library(stringr)
 library(dplyr)
 
 # Set the working directory
-#workingDir="D:/distribution_digitizer_11_01_2024/"
+workingDir="D:/distribution_digitizer_11_01_2024/"
 
 # Function to read the species
-readPageSpecies <- function(workingDir, keywordReadSpecies, keyword_top, keyword_bottom, middle) {
-  #keywordReadSpecies="Range"
+readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywordThen, middle) {
+  #species = readPageSpecies(workingDir,config$keywordReadSpecies, 2, 0, TRUE)
+  #print(keywordReadSpecies)
+  #print(keywordBefore)
+  #print(keywordThen)
+  #print(middle)
+  #keywordReadSpecies = "Range"
+  #keywordBefore = 0
+  ##keywordThen = 2
+  middle = 1
   # Set the path to the folder containing CSV files
   folder_path <- paste0(workingDir, "/data/output/pagerecords/")
   
@@ -48,20 +56,19 @@ readPageSpecies <- function(workingDir, keywordReadSpecies, keyword_top, keyword
   
   for (i in 1:nrow(filteredData)) {
     pagePath = filteredData[i,"file_name"]
-    
+    #pagePath = 'D:/distribution_digitizer_11_01_2024/data/input/pages/0051.tif'
     print(pagePath)
     speciesData =  filteredData[i,"species"]
-    
     # Split string at spaces and remove empty strings
     speciesData <- speciesData[speciesData != ""]
     print(speciesData)
     
     previous_page_path = filteredData[i,"previous_page_path"]
     next_page_path = filteredData[i,"next_page_path"]
-    
+   
     # Call the Python function for species identification
-    pageTitleSpecies = find_specie_context(previous_page_path, next_page_path, 
-                      pagePath, speciesData, keywordReadSpecies, keyword_top, keyword_bottom, middle)
+    pageTitleSpecies = find_species_context(pagePath, speciesData, previous_page_path, next_page_path, 
+                       keywordReadSpecies, keywordBefore, keywordThen, middle)
     
     # Remove duplicate entries
     if ( length(pageTitleSpecies) >1 ){
@@ -100,4 +107,4 @@ readPageSpecies <- function(workingDir, keywordReadSpecies, keyword_top, keyword
 }
 
 # Call the function with specified arguments
-#readPageSpecies(workingDir, keyword, keyword_top, keaword_bottom, middle)
+#readPageSpecies(workingDir, keyword, keywordBefore, keywordThen, middle)

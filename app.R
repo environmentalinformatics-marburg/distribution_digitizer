@@ -241,7 +241,13 @@ body <- dashboardBody(
   # Working directory
   titlePanel("Distribution Digitizer"),
   p(paste0(config$workingDirInformation,": ",workingDir) , style = "color:black"),
-
+  p("In this version 1.0 of ", strong("Distribution Digitizer"), ", when searching for species names, all lines containing special characters such as double",
+    strong("quotes\""), ",",strong(" point ."),", ", strong("colons :"),", or the word", strong(" \"distribution\"")," are skipped.",
+    br(),
+    "Additionally, it searches for a species name from the legend map and for a ", strong("regular expression matching the year"),", if you define one regular expression year hier.",
+    br(),
+    "If you defined an ",strong("additional keyword"),", please be sure to specify whether it is present before, after, or on the line containing the searched species name."
+  ),
   tabItems(
   # Tab 0 Config Dialog --------------------------------------------------------------------------------------------------------------
     tabItem(
@@ -253,15 +259,15 @@ body <- dashboardBody(
             wellPanel(
               h3(strong("General configuration fields", style = "color:black")),
               # Title: Provide the name of the book's author.
-              fluidRow(textInput("title", label = "Title", value = "Title")),
+              fluidRow(textInput("title", label = "Please write the title of the book.", value = "Title")),
               # Author: Provide the name of the book's author.
-              fluidRow(textInput("author", label = "Author", value = "Autorname")),
+              fluidRow(textInput("author", label = "Please write the author of the book.", value = "Autorname")),
               # Publication Year: Specify the year the book was published.
               fluidRow(textInput("pYear", label = "Publication Year", value = "2023")),
               # Data input directory
-              fluidRow(textInput("dataInputDir", label = "Data input directory", value = paste0(workingDir, "/data/input"))),
+              fluidRow(textInput("dataInputDir", label = "Please write the path to the scanned images", value = paste0(workingDir, "/data/input"))),
               # Data output directory
-              fluidRow(textInput("dataOutputDir", label = "Data output directory", value = paste0(workingDir, "/data/output"))),
+              fluidRow(textInput("dataOutputDir", label = "Please write the path to the output environment of the distribution digitizer", value = paste0(workingDir, "/data/output"))),
               # numberSitesPrint
                # format
               fluidRow(selectInput("pFormat", label = "Image Format of the Scanned Sites", c("tif" = 1, "png" = 2, "jpg" = 3), selected = 1)),
@@ -278,16 +284,22 @@ body <- dashboardBody(
             wellPanel(
               h3(strong(" Additional specific configuration input fields", style = "color:black")),
               # allprintedPages
-              fluidRow(textInput("allPrintedPages", label = "All Printed Pages", value = 100)),
-              # site number position
-              fluidRow(selectInput("sNumberPosition", label = "Site Number Position", c("top" = 1, "botom" = 2), selected = 1)),
-              # keayword to read species data
-              fluidRow(textInput("keywordReadSpecies", label = "Possible keyword to find the species data", value = "Range")),
-              fluidRow(selectInput("specieRowForKey", label = "Is the keyword a few lines before the species name? If yes, how many? ", c("0" = 0, "1" = 1, "2" = 2, "3" = 3), selected = 0)),
+              fluidRow(textInput("allPrintedPages", label = "Please provide the number of scanned images:", value = 100)),
               
-              fluidRow(selectInput("specieRowForKey", label = "Is the keyword a few lines after the species name? If yes, please specify how many.", c("0" = 0, "1" = 1, "2" = 2, "3" = 3), selected = 0)),
+              # site number position
+              fluidRow(selectInput("sNumberPosition", label = "Please indicate whether the page number is positioned at the top or bottom of the page.", c("top" = 1, "botom" = 2), selected = 1)),
+              
               # Is the term "species name" inclusive of special patterns such as year, parentheses, or symbols?
-              fluidRow(selectInput("numberSitesPrint", label = "Is the term species name inclusive of special patterns such as year?", c( "No" = 2, "Yes" = 1 ))),
+              fluidRow(selectInput("middle", label = "Is the term shifted to the right, indented?", c( "No" = 0, "Yes" = 1 ))),
+              
+              fluidRow(selectInput("regExYear", label = "Does the term contain a regular expression like a year?", c( "No" = 0, "Yes" = 1))),# keayword to read species data
+              
+              fluidRow(textInput("keywordReadSpecies", label = "If there is a keyword related to the term 'species', please write it here. Please note that the word should almost always appear a few lines before, after, or directly on the same line as the species term.", value = "Range")),
+              
+              fluidRow(selectInput("keywordBefore", label = "Is the keyword located a few lines before the species name? If so, how many lines?", c("0" = 0, "1" = 1, "2" = 2, "3" = 3), selected = 0)),
+              
+              fluidRow(selectInput("keywordThen", label = "Is the keyword located a few lines after the species name? If yes, please specify how many.", c("0" = 0, "1" = 1, "2" = 2, "3" = 3), selected = 0)),
+
               #Is the keyword a few lines before the species name? If yes, how many? 
               #Is the keyword exactly on the line with the species name? 
               #Is the keyword a few lines after the species name? If yes, please specify how many."
@@ -620,7 +632,11 @@ server <- shinyServer(function(input, output, session) {
                     numberSitesPrint = input$numberSitesPrint,
                     allPrintedPages = input$allPrintedPages,
                     sNumberPosition = input$sNumberPosition,
+                    middle = input$middle,
+                    regExYear = input$regExYear,
                     keywordReadSpecies = input$keywordReadSpecies,
+                    keywordBefore = input$keywordBefore,
+                    keywordThen = input$keywordThen,
                     pFormat = input$pFormat,
                     pColor = input$pColor)
     tf <- tempfile(fileext = ".csv")
@@ -717,7 +733,7 @@ server <- shinyServer(function(input, output, session) {
     output$listMapTemplates = renderUI({
       # Define the directory path
       new_directory <- paste0(workingDir, "/www/map_templates_png/")
-      print(new_directory)
+      #print(new_directory)
       # Check if the directory already exists
       if (!dir.exists(new_directory)) {
         # Create the directory if it doesn't exist
@@ -811,7 +827,7 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listMapsMatching, {
     if(input$siteNumberMapsMatching != ''){
-      print(input$siteNumberMapsMatching)
+      #print(input$siteNumberMapsMatching)
       output$listMaps = renderUI({
         prepareImageView("/matching_png/", input$siteNumberMapsMatching)
       })
@@ -838,7 +854,7 @@ server <- shinyServer(function(input, output, session) {
 
   observeEvent(input$listAlign, {
     if(input$siteNumberMapsMatching != ''){
-      print(input$siteNumberMapsMatching)
+      #print(input$siteNumberMapsMatching)
       output$listAlign = renderUI({
         prepareImageView("/align_png/", input$siteNumberMapsMatching)
       })
@@ -866,7 +882,7 @@ server <- shinyServer(function(input, output, session) {
 
   observeEvent(input$listCropped, {
     if(input$siteNumberMapsMatching != ''){
-      print(input$siteNumberMapsMatching)
+      #print(input$siteNumberMapsMatching)
       output$listCropped = renderUI({
         prepareImageView("/cropped_png/", input$siteNumberMapsMatching)
       })
@@ -899,7 +915,7 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listPointsM, {
     if(input$siteNumberPointsMatching != ''){
-      print(input$siteNumberPointsMatching)
+      #print(input$siteNumberPointsMatching)
       output$listPM = renderUI({
         prepareImageView("/pointMatching_png/", input$siteNumberPointsMatching)
       })
@@ -923,7 +939,7 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listPointsF, {
     if(input$siteNumberPointsMatching != ''){
-      print(input$siteNumberPointsMatching)
+      #print(input$siteNumberPointsMatching)
       output$listPF = renderUI({
         prepareImageView("/pointFiltering_png/", input$siteNumberPointsMatching)
       })
@@ -1079,7 +1095,7 @@ server <- shinyServer(function(input, output, session) {
     
     # Liste von Leaflet-Objektenlapply(seq_along(my_list), function(i) {
     leaflet_list_GEO <- lapply(seq_along(listgeoTiffiles), function(i) {
-      print(listgeoTiffiles[i])
+      #print(listgeoTiffiles[i])
       leaflet() %>%
         addTiles("Test") %>%
         addProviderTiles("OpenStreetMap.Mapnik") %>%
@@ -1139,7 +1155,7 @@ server <- shinyServer(function(input, output, session) {
       # Source and destination file paths
       baseName = basename(f)
       destination_file <- paste0(workingDir, "/www/polygonize/", baseName)
-      print(destination_file)
+      #print(destination_file)
       # Copy the file
       file.copy(from = f, to = destination_file, overwrite = TRUE)
       
@@ -1165,11 +1181,11 @@ server <- shinyServer(function(input, output, session) {
     # Index der Dateien finden, die das Muster nicht enthalten
     listShapefiles <- grep(paste0("^((?!(", muster, ")).)*$"), listShapefiles, value = TRUE, perl = TRUE)
     num_leaflet_outputs <- length(listShapefiles)
-    print(listShapefiles)
+    #print(listShapefiles)
     
     # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
     listPng = list.files(paste0(workingDir, "/www/cropped_png/"), full.names = F, pattern = input$siteNumberPolygonize)
-    print(listPng)
+    #print(listPng)
     
     output$leaflet_outputs_PL <- renderUI({
       # Liste von Leaflet-Elementen
@@ -1185,7 +1201,7 @@ server <- shinyServer(function(input, output, session) {
     
     # Liste von Leaflet-Objektenlapply(seq_along(my_list), function(i) {
     leaflet_list_PL <- lapply(seq_along(listShapefiles), function(i) {
-      print(listShapefiles[i])
+      #print(listShapefiles[i])
       leaflet() %>%
         addTiles("Test") %>%
         addProviderTiles("OpenStreetMap.Mapnik") %>%
@@ -1428,7 +1444,7 @@ server <- shinyServer(function(input, output, session) {
     data <- reactive({
       my_data <- read.table(csv_path, sep = ";", header = TRUE, check.names = FALSE)
       
-      print(colnames(my_data))
+      #print(colnames(my_data))
       return(my_data)
     })
     
@@ -1451,8 +1467,8 @@ server <- shinyServer(function(input, output, session) {
         print("Processing template matching python script:")
         print(fname)
         source_python(fname)
-        print("Threshold:")
-        print(input$threshold_for_TM)
+        #print("Threshold:")
+        #print(input$threshold_for_TM)
         main_template_matching(workingDir, input$threshold_for_TM, config$sNumberPosition)
         findTemplateResult = paste0(workingDir, "/data/output/maps/matching/")
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
@@ -1468,7 +1484,7 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         align_images_directory(workingDir)
-        print(fname)
+        #print(fname)
         cat("\nSuccessfully executed")
         findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
@@ -1488,16 +1504,23 @@ server <- shinyServer(function(input, output, session) {
       if(processing == "pageReadRpecies" ){
         # read page species
         fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
-        print(paste0("Reading page species data and saving the results to a pageSpeciesData CSV file in ",workingDir,"/data/output."))
+        print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ",workingDir,"/data/output directory"))
         print(fname)
         source(fname)
+        #print(config$middle)
+        #print(config$regExYear)
+        #print(config$keywordReadSpecies)
+        #print(config$keywordBefore)
+        #print(config$keywordThen)
+        #print(config$keywordReadSpecies, config$)
         #'D:/distribution_digitizer_11_01_2024/data/input/pages/0058.tif', "_cinnara", "Range", keyword_top = 2, middle=True)
         #'(workingDir, keyword, keyword_top, keaword_bottom, middle=TRUE) 
-        if(length(config$keywordReadSpecies) > 2) {
-          species = readPageSpecies(workingDir,config$keywordReadSpecies, 2, 0, TRUE)
+        #print(length(config$keywordReadSpecies))
+        if(length(config$keywordReadSpecies) > 0) {
+          species = readPageSpecies(workingDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
         }
         else{
-          species = readPageSpecies(workingDir,'None', 0, 0, TRUE)
+          species = readPageSpecies(workingDir,'None', config$keywordBefore, config$keywordThen, config$middle)
         }
       }
       
