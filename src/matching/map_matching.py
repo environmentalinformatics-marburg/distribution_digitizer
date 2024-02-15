@@ -294,6 +294,6 @@ def main_template_matching(working_dir, threshold, page_position):
 #test = find_page_number(img,1)
 #print(test)
 
-working_dir="D:/distribution_digitizer_11_01_2024/"
+#working_dir="D:/distribution_digitizer_11_01_2024/"
 # Function to perform the main template matching in a loop
-main_template_matching(working_dir, 0.2, 1)
+#main_template_matching(working_dir, 0.2, 1)

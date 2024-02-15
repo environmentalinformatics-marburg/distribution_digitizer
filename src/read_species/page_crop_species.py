@@ -113,6 +113,7 @@ def find_specie_context_with_keyword(page_path, search_specie, keyword_page_Spec
 def find_species_context(page_path="", words_to_find="", previous_page_path=None, next_page_path=None, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
   
   # Load the image
+  print
   image = Image.open(page_path)
   words = words_to_find.split("_")
   # Lambda function to remove empty strings from the list
@@ -127,28 +128,39 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
   if(middle==1): middle=True
   
   for search_specie in words:
-    specie_content = find_specie_context( page_path,
+    print(search_specie)
+    specie_content = find_specie_context(page_path,
                       search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
     if (len(specie_content) > 3):
       all_results.append(specie_content)
-      return all_results
+      continue
 
-  if (len(specie_content) == 0) and (previous_page_path is not None):
-    for search_specie in words:
-      specie_content = find_specie_context( previous_page_path,
-                        search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
-      if(specie_content is not None):             
+    if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
+      print("if1")
+      print(previous_page_path)
+      specie_content = find_specie_context(previous_page_path,
+                          search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
+      if (len(specie_content) > 3): 
         all_results.append(specie_content)
-        return all_results
-    
-  if (len(specie_content) == 0) and (next_page_path is not None):
-    for search_specie in words:
-      specie_content = find_specie_context( next_page_path,
-                        search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
+        continue
+     
+    if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
+        print("if2")
+        print(next_page_path)
+        specie_content = find_specie_context(next_page_path,
+                           search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
+        if (len(specie_content) > 3):
+          all_results.append(specie_content)
+          continue
+        
+    if(len(specie_content) == 0):
+      print("if3")
+      specie_content = find_specie_context_RegExReduce(page_path,
+                          search_specie)
       if(specie_content is not None):
         all_results.append(specie_content)
-        return all_results
-    
+        continue
+      
   if(len(all_results) == 0):
     all_results.append("the specie was not found")
   return all_results
@@ -199,9 +211,9 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
   for line_num, line in enumerate(lines, start=0):
     _result = "" 
     if re.search(r"^\s*\".*\bdistribution\b", line) or ("." in line) or (":" in line) or ("|" in line and not line.startswith("\"")):
-      print(f"Found '\"' and 'distribution' in: {line}")
+      #print(f"Found '\"' and 'distribution' in: {line}")
       continue
-
+    #print(line)
     if search_specie in line:
       _result = line
       if year_pattern.search(line):
@@ -214,6 +226,7 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
             _result = line
             if keyword_page_Specie is None: return _result
           else: return '' # Important when the spacie is not finded on this page, but is on the previous page
+          
           if keyword_page_Specie is not None:
             difference = 0
             difference = keyword_bottom if keyword_bottom > 0 else -keyword_top
@@ -230,12 +243,13 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
 
         return _result # search_specie in the line and regEx year
   if(len(_result) == 0):
-    _result = find_specie_context_RegExReduce(lines,search_specie, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None)
+    _result = find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
+ 
   return _result
 
 # Function to find species context with a given keyword
-def find_specie_context_RegExReduce(lines, search_specie, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
- 
+def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
+  #print("regEx")
   _result = ""  # Initialize the result variable
 
   # Regular expression for a four-digit year
@@ -252,10 +266,11 @@ def find_specie_context_RegExReduce(lines, search_specie, keyword_page_Specie=No
   for line_num, line in enumerate(lines, start=0):
     _result = "" 
     if re.search(r"^\s*.*\bdistribution\b", line) or ("." in line) or (":" in line):
-      print(f"Found '\"' and 'distribution' in: {line}")
+      #print(f"Found '\"' and 'distribution' in: {line}")
       continue
 
     if search_specie in line:
+      line = line.replace('|', '') 
       _result = line
       if year_pattern.search(line):
         _result = line
@@ -263,10 +278,11 @@ def find_specie_context_RegExReduce(lines, search_specie, keyword_page_Specie=No
           index_left = extracted_data['text'].index(line.split()[0])
           maxPos = max(extracted_data['left'])
           if int(extracted_data['left'][index_left]) > (int(maxPos/4)/10):
-            print(f"Spacie {search_specie} was FOUND in this line: {line} in the middle")
+            #print(f"Spacie {search_specie} was FOUND in this line: {line} in the middle")
             _result = line
             if keyword_page_Specie is None: return _result
           else: return '' # Important when the spacie is not finded on this page, but is on the previous page
+          
           if keyword_page_Specie is not None:
             difference = 0
             difference = keyword_bottom if keyword_bottom > 0 else -keyword_top
@@ -276,21 +292,59 @@ def find_specie_context_RegExReduce(lines, search_specie, keyword_page_Specie=No
             #print(difference)
             #print(temp_line)
             if keyword_page_Specie in temp_line:
-              print(f"The spacie {search_specie} was FOUND in this line: {line} in the middle and Keyword: {keyword_page_Specie}")
+              #print(f"The spacie {search_specie} was FOUND in this line: {line} in the middle and Keyword: {keyword_page_Specie}")
               return line # search_specie in the line and the line and in middle and and regEx year and has keyword
            
           return _result # search_specie in the line and the line and in middle and regEx year
 
         return _result # search_specie in the line and regEx year
-  _result = line.replace('|', '')          
+           
   return _result
 
+
+# Function to find species context with a given keyword
+def find_specie_context_RegExReduce(page_path, search_specie):
+  #print("regExRed")
+  image = Image.open(page_path)
+
+  # Extract text from the image
+  extracted_text = pytesseract.image_to_string(image)
+  year_pattern = re.compile(r'\b\d{4}\b')
+  # Extract text data with detailed information
+  #extracted_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
+
+  # Split the text into lines
+  lines = extracted_text.split('\n')
+  # Remove unnecessary characters from the search_specie
+  search_specie = search_specie.strip(' ,.?!()[]{}_"\';')
+  _result = ""
+  # Iterate through each line and search for the keyword_page_Specie
+  for line_num, line in enumerate(lines, start=0):
+    if search_specie in line:
+      _result = line
+      _result = _result.replace('|', '')
+      if year_pattern.search(_result):
+        match = re.search(year_pattern, _result)
+        erster_teil = _result[:match.start()].strip()
+        year = match.group()
+        #print("Erster Teil des Satzes:", erster_teil)
+        #print("Jahr:", year)
+        
+        temp_result = re.split(year_pattern, _result)
+        temp_result = temp_result[0].strip()
+        return temp_result + year
+      else:
+        continue
+  return _result
+
+
+
 # Test the function
-#test = find_species_context('D:/distribution_digitizer_11_01_2024/data/input/pages/0057.tif', "_bada", previous_page_path='D:/distribution_digitizer_11_01_2024/data/input/pages/0056.tif', middle=1, keyword_page_Specie="Range", keyword_bottom=2)
+#test = find_species_context('D:/distribution_digitizer_11_01_2024/data/input/pages/0041.tif', "_litoralis", previous_page_path="D:/distribution_digitizer_11_01_2024/data/input/pages/0040.tif", next_page_path="D:/distribution_digitizer_11_01_2024/data/input/pages/0042.tif", middle=1, keyword_page_Specie="Range", keyword_bottom=2)
 #test = find_specie_context('D:/distribution_digitizer_11_01_2024/data/input/pages/0056.tif', "_thrax", middle=True, keyword_page_Specie="Range", keyword_bottom=2)
 #test = find_specie_context('D:/distribution_digitizer_11_01_2024/data/input/pages/0051.tif', "_angulata", middle=True, keyword_page_Specie="Range", keyword_bottom=2)
 #test = find_specie_context('D:/distribution_digitizer_11_01_2024/data/input/pages/0052.tif', "_leucocera", middle=True)
-#test = find_specie_context('D:/distribution_digitizer_11_01_2024/data/input/pages/0053.tif', "_yerburyi", middle=True, keyword_page_Specie="Range", keyword_bottom=2)
+#test = find_specie_context_RegExReduce('D:/distribution_digitizer_11_01_2024/data/input/pages/0041.tif', "_litoralis")
 
 #print(test)
 

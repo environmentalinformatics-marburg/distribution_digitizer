@@ -1473,7 +1473,7 @@ server <- shinyServer(function(input, output, session) {
         findTemplateResult = paste0(workingDir, "/data/output/maps/matching/")
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles = paste0(length(files),"")
-        message=paste0("Process align maps is ended on: ", format(current_time(), "%H:%M:%S \n ."), " The number extracted outputs with threshold=",input$threshold_for_TM , " are ", countFiles ,"! \n High threshold values lead to few matchings, low values to many matchings.")
+        message=paste0("Process template matching maps is ended on: ", format(current_time(), "%H:%M:%S \n ."), " The number extracted outputs with threshold=",input$threshold_for_TM , " are ", countFiles ,"! \n High threshold values lead to few matchings, low values to many matchings.")
 
       }
      
@@ -1489,7 +1489,7 @@ server <- shinyServer(function(input, output, session) {
         findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles = paste0(length(files),"")
-        print(countFiles)
+       # print(countFiles)
       }
       
       if(processing == "mapReadRpecies" ){
@@ -1505,7 +1505,7 @@ server <- shinyServer(function(input, output, session) {
         # read page species
         fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
         print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ",workingDir,"/data/output directory"))
-        print(fname)
+        #print(fname)
         source(fname)
         #print(config$middle)
         #print(config$regExYear)

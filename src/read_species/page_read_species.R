@@ -14,7 +14,7 @@ library(stringr)
 library(dplyr)
 
 # Set the working directory
-workingDir="D:/distribution_digitizer_11_01_2024/"
+#workingDir="D:/distribution_digitizer_11_01_2024/"
 
 # Function to read the species
 readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywordThen, middle) {
@@ -71,24 +71,26 @@ readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywo
                        keywordReadSpecies, keywordBefore, keywordThen, middle)
     
     # Remove duplicate entries
-    if ( length(pageTitleSpecies) >1 ){
+    if ( length(pageTitleSpecies) > 1 ){
       unique_entries_without_duplicates <- unique(unlist(pageTitleSpecies))
       
       unique_entries_without_duplicates <- unique_entries_without_duplicates[!grepl("distribution", unique_entries_without_duplicates, ignore.case = TRUE)]
       
-      split_entries <- strsplit(unique_entries_without_duplicates, "; ")
+      result_string = pageTitleSpecies
+      print(result_string)
+      #split_entries <- strsplit(unique_entries_without_duplicates, "; ")
       
       # Extract the part after the semicolon and save it in a new array
-      new_array <- sapply(split_entries, function(x) x[2])
+      #new_array <- sapply(split_entries, function(x) x[2])
       
       # Combine the elements of the new array into a single string
-      result_string <- paste(new_array, collapse = " ")
+      #result_string <- paste(new_array, collapse = " ")
       
     } else result_string = pageTitleSpecies
     
     # Create a new dataframe with the processed species data
     new_dataframe <- data.frame(species = result_string, stringsAsFactors = FALSE)
-    
+
     # Add a new column for the file name
     new_dataframe$file_name <- pagePath
     
@@ -96,13 +98,16 @@ readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywo
     new_dataframe$map_name <- filteredData[i,"map_name"]
     new_dataframe$specie_on_map <- filteredData[i,"species"]
     
+    
     # Save the dataframe to CSV
     if (i == 1) {
       write.table(new_dataframe, file = paste0(workingDir, "/data/output/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = TRUE, append = TRUE)
     }
-    write.table(new_dataframe, file = paste0(workingDir, "/data/output/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = FALSE, append = TRUE)
+    else{
+      write.table(new_dataframe, file = paste0(workingDir, "/data/output/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = FALSE, append = TRUE)
+    }
+    
   }
-  
   print(pageTitleSpecies)
 }
 
