@@ -241,17 +241,17 @@ body <- dashboardBody(
   # Working directory
   titlePanel("Distribution Digitizer"),
   p(paste0(config$workingDirInformation,": ",workingDir) , style = "color:black"),
-  p("In this version 1.0 of ", strong("Distribution Digitizer"), ", when searching for species names, all lines containing special characters such as double",
-    strong("quotes\""), ",",strong(" point ."),", ", strong("colons :"),", or the word", strong(" \"distribution\"")," are skipped.",
-    br(),
-    "Additionally, it searches for a species name from the legend map and for a ", strong("regular expression matching the year"),", if you define one regular expression year hier.",
-    br(),
-    "If you defined an ",strong("additional keyword"),", please be sure to specify whether it is present before, after, or on the line containing the searched species name."
-  ),
   tabItems(
   # Tab 0 Config Dialog --------------------------------------------------------------------------------------------------------------
     tabItem(
       tabName = "tab0",
+        p("In this version 1.0 of ", strong("Distribution Digitizer"), ", when searching for species names, all lines containing special characters such as double",
+          strong("quotes\""), ",",strong(" point ."),", ", strong("colons :"),", or the word", strong(" \"distribution\"")," are skipped.",
+          br(),
+          "Additionally, it searches for a species name from the legend map and for a ", strong("regular expression matching the year"),", if you define one regular expression year hier.",
+          br(),
+          "If you defined an ",strong("additional keyword"),", please be sure to specify whether it is present before, after, or on the line containing the searched species name."
+        ),
         fluidRow(
           # Linke Spalte
           column(
@@ -1336,7 +1336,7 @@ server <- shinyServer(function(input, output, session) {
             onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
           ),
           #popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", marker_data$Name, "</a>")
-          popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$specie_on_map, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
+          popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$search_specie, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
                           "<img src='/matching_png/", name, "' width='100' height='100'></a>",
                           "<a href='/pages/", page, "' target='_blank'>",
                           "<img src='/pages/", page, "' width='100' height='100'></a>")
@@ -1381,7 +1381,7 @@ server <- shinyServer(function(input, output, session) {
             noHide = TRUE,
             onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
           ),
-          popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$specie_on_map, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
+          popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$search_specie, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
                           "<img src='/matching_png/", name, "' width='100' height='100'></a>",
                           "<a href='/pages/", page, "' target='_blank'>",
                           "<img src='/pages/", page, "' width='100' height='100'></a>")

@@ -46,7 +46,7 @@ def rectifying(input_raster, output_raster):
 def mainRectifying(workingDir):
   output= workingDir + "/data/output/rectifying/"
   os.makedirs(output, exist_ok=True) 
-  inputdir = workingDir +"/data/output/georeferencing/masks/"
+  inputdir = workingDir +"/data/output/geor/masks/"
   
   for input_raster in glob.glob(inputdir + "*.tif"):
     print(input_raster)
@@ -60,7 +60,7 @@ def mainRectifying(workingDir):
 def mainRectifying_CD(workingDir):
   output= workingDir + "/data/output/rectifying/circleDetection/"
   os.makedirs(output, exist_ok=True) 
-  inputdir = workingDir +"/data/output/georeferencing/masks/circleDetection/"
+  inputdir = workingDir +"/data/output/geor/masks/circleDetection/"
   
   for input_raster in glob.glob(inputdir + "*.tif"):
     print(input_raster)
@@ -74,7 +74,7 @@ def mainRectifying_CD(workingDir):
 def mainRectifying_PF(workingDir):
   output= workingDir + "/data/output/rectifying/pointFiltering/"
   os.makedirs(output, exist_ok=True) 
-  inputdir = workingDir +"/data/output/georeferencing/masks/pointFiltering/"
+  inputdir = workingDir +"/data/output/geor/masks/pointFiltering/"
   
   for input_raster in glob.glob(inputdir + "*.tif"):
     print(input_raster)

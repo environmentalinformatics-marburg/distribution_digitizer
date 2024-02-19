@@ -37,12 +37,19 @@ readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywo
   combined_data <- data.frame()
   
   # Iterate through each CSV file and append it to the combined Dataframe
+  # Iterate through each CSV file and append it to the combined Dataframe
   for (file_path in file_list) {
-    # Read the CSV file
-    current_data <- read.csv(file_path)
-    
-    # Append the data to the combined Dataframe
-    combined_data <- rbind(combined_data, current_data)
+    print(file_path)  # Print the file path
+    tryCatch({
+      # Read the CSV file
+      current_data <- read.csv(file_path)
+      
+      # Append the data to the combined Dataframe
+      combined_data <- rbind(combined_data, current_data)
+    }, error = function(e) {
+      cat("Error occurred while processing file:", file_path, "\n")
+      message(e)
+    })
   }
   
   # Identify duplicated rows based on the "species" column

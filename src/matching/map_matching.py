@@ -159,11 +159,15 @@ def match_template_tiff(previous_page_path, next_page_path, current_page_path,
         rows_records = 0
         # WRITE the fields and rows values into the main records csv file
         rows_records = [[str(page_number),previous_page_path, next_page_path ,current_page_path, pt[0], pt[1], w, h ,size, threshold, (time.time() - start_time)]]   
+        
+        # Überprüfe, ob die Datei leer ist
+        is_empty = os.stat(records).st_size == 0
+
         with open(records, 'a', newline='') as csv_file:  
           # creating a csv writer object   
           csvwriter = csv.writer(csv_file) 
-          #if count == 0: 
-          csvwriter.writerow(fields)
+          if is_empty:
+            csvwriter.writerow(fields)
           ## writing the rows
           csvwriter.writerows(rows_records)
           

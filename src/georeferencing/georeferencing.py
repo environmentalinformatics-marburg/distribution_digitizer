@@ -29,7 +29,7 @@ def georeferencing(input_raster,output_raster,gcp_points):
   modified_df['sourceY'] = modified_df['sourceY']*(-1)
   gcp_list=[]
 # Create a copy of the original file and save it as the output filename:
-  out_file= output_raster + 'georeferenced' + os.path.basename(input_raster) 
+  out_file= output_raster + 'geor' + os.path.basename(input_raster) 
   src_ds = gdal.Open(input_raster)
   format = "GTiff"
   driver = gdal.GetDriverByName(format)  
@@ -49,7 +49,7 @@ def georeferencing(input_raster,output_raster,gcp_points):
   src_ds = None
   
 def maingeoreferencing(workingDir):
- output_raster= workingDir + "data/output/georeferencing/"
+ output_raster= workingDir + "data/output/geor/"
  os.makedirs(output_raster, exist_ok=True)
  inputdir = workingDir +"data/output/classification/filtering/"
  g_dir = workingDir + "data/input/templates/geopoints/"
