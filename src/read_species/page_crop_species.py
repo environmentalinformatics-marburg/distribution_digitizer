@@ -46,6 +46,7 @@ def find_specie_context_with_keyword(page_path, search_specie, keyword_page_Spec
    # year_pattern = re.compile(r'\(\D*\d{4}\)')
     #year_pattern = re.compile(r'\b(?:\(\D*\d{4}\)|\d{4})\b')
     year_pattern = re.compile(r'\b\d{4}\b')
+    
     # Remove unnecessary characters from the search_specie
     search_specie = search_specie.strip(' ,.?!()[]{}_"\';')
 
@@ -113,44 +114,52 @@ def find_specie_context_with_keyword(page_path, search_specie, keyword_page_Spec
 def find_species_context(page_path="", words_to_find="", previous_page_path=None, next_page_path=None, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
   
   # Load the image
-  print
   image = Image.open(page_path)
+  
   words = words_to_find.split("_")
   # Lambda function to remove empty strings from the list
   words = list(filter(lambda x: x != "", words))
   
   # Patter for special species
   pattern = r'\b\d{4}\b'
+  
   all_results = []
   
   specie_content = "" 
   
   if(middle==1): middle=True
+  flag = 0
   
   for search_specie in words:
     print(search_specie)
+    if("distribution" in search_specie):
+      search_specie = search_specie.replace("distribution", "")
+      flag = 1
+    if("locality" in search_specie):
+      search_specie = search_specie.replace("locality", "")
+      flag = 2
     specie_content = find_specie_context(page_path,
                       search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
     if (len(specie_content) > 3):
-      all_results.append(specie_content)
+      all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
       continue
 
     if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
       print("if1")
-      print(previous_page_path)
+      #print(previous_page_path)
       specie_content = find_specie_context(previous_page_path,
                           search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
       if (len(specie_content) > 3): 
-        all_results.append(specie_content)
+        all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
         continue
      
     if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
         print("if2")
-        print(next_page_path)
+        #print(next_page_path)
         specie_content = find_specie_context(next_page_path,
                            search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
         if (len(specie_content) > 3):
-          all_results.append(specie_content)
+          all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
           continue
         
     if(len(specie_content) == 0):
@@ -158,7 +167,7 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
       specie_content = find_specie_context_RegExReduce(page_path,
                           search_specie)
       if(specie_content is not None):
-        all_results.append(specie_content)
+        all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
         continue
       
   if(len(all_results) == 0):

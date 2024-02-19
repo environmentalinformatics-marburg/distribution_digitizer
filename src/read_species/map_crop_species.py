@@ -42,7 +42,7 @@ def cropImage(source_image, outdir, x, y, w, h, i):
     thresholded=((imgc>120)*255).astype(np.uint8)
     #Image.fromarray(thresholded).show()
     cropedImagespecie = outdir + '_' +os.path.basename(source_image).rsplit('.', 1)[0] + i + '.tif'
-    print(cropedImagespecie)
+    #print(cropedImagespecie)
     cv2.imwrite(cropedImagespecie, thresholded[ y:(y+150), x:(x + w),:])
     
     # Save
@@ -65,30 +65,29 @@ def crop_specie(working_dir, path_to_page, path_to_map, x, y, w, h):
   image = cv2.imread(path_to_page)
   rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
   #cv2.imshow('img', rgb)
-
+  legend1='distribution'
+  legend2='locality'
   d = pytesseract.image_to_data(rgb, output_type=Output.DICT)
   n_boxes = len(d['level'])
   specie = ''
-   
+  double_specie = ''
   for i in range(n_boxes-2):
     (x1, y1, w1, h1, c1) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i], d['conf'][i])
     text=d['text'][i].lstrip()
     
     pre = d['text'][i+1].lstrip()
-    if (text == 'distribution'):
-      print(text)
+    if (text == legend1 or text == legend2):
+      #print(text)
       if (pre == 'of'):
         if( abs(y1 - (y+h)) < h ):
-          specie = specie + "_" + (d['text'][i+2].lstrip())
-          #print(str(x) , ",", str(x1))
-          #print(str(y+h) , ",", str(y1))
-          
-    if (text == 'locality'):
-      if (pre == 'of'):
-        if( abs(y1 - (y+h)) < h ):
-          specie = specie + "_" + (d['text'][i+2].lstrip())
-          #print(str(x) , ",", str(x1))
-          #print(str(y+h) , ",", str(y1))
+          if(double_specie != d['text'][i+2].lstrip()):
+            double_specie = (d['text'][i+2].lstrip())
+            if text == legend1:
+              specie = specie + "_" + (d['text'][i+2].lstrip()) + legend1
+            else:
+              specie = specie + "_" + (d['text'][i+2].lstrip()) + legend2
+          else:
+            continue
     
   #print(specie)
   specie = re.sub(r"[^\w\s]", "", specie)

@@ -57,9 +57,9 @@ readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywo
   for (i in 1:nrow(filteredData)) {
     pagePath = filteredData[i,"file_name"]
     #pagePath = 'D:/distribution_digitizer_11_01_2024/data/input/pages/0051.tif'
-    print(pagePath)
+    #print(pagePath)
     speciesData =  filteredData[i,"species"]
-    # Split string at spaces and remove empty strings
+    # remove empty strings
     speciesData <- speciesData[speciesData != ""]
     print(speciesData)
     
@@ -69,35 +69,48 @@ readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywo
     # Call the Python function for species identification
     pageTitleSpecies = find_species_context(pagePath, speciesData, previous_page_path, next_page_path, 
                        keywordReadSpecies, keywordBefore, keywordThen, middle)
-    
+    print(pageTitleSpecies)
     # Remove duplicate entries
-    if ( length(pageTitleSpecies) > 1 ){
-      unique_entries_without_duplicates <- unique(unlist(pageTitleSpecies))
+    if (length(pageTitleSpecies) > 0) {
+      # Splitting flag, search_species, and rspecies
+      #pageTitleSpecies <- c("1_elma_Gomalia elma (Trimen, 1862)" ,   "2_litoralis_“Gomalia litoralis, n. sp.” — SWINHOE, C.1885")
+      splitted_results <- unique(pageTitleSpecies)
+      splitted_results <- strsplit(pageTitleSpecies, "_")
       
-      unique_entries_without_duplicates <- unique_entries_without_duplicates[!grepl("distribution", unique_entries_without_duplicates, ignore.case = TRUE)]
+      # Extracting flag, search_species, and rspecies
+      legend_keys <- sapply(splitted_results, function(x) as.numeric(x[1]))
+      print(legend_keys)
+      search_species <- sapply(splitted_results, function(x) x[2])
+      print(search_species)
+      rspecies <- sapply(splitted_results, function(x) x[3])
+      print(rspecies)
       
-      result_string = pageTitleSpecies
-      print(result_string)
-      #split_entries <- strsplit(unique_entries_without_duplicates, "; ")
+      # Entferne Einträge, die das Wort "distribution" enthalten
+      #rspecies <- rspecies[!grepl("distribution", rspecies, ignore.case = TRUE)]
       
-      # Extract the part after the semicolon and save it in a new array
-      #new_array <- sapply(split_entries, function(x) x[2])
+      # Bestimme die maximale Länge der Vektoren
+     # max_length <- max(length(legend_keys), length(search_species), length(rspecies))
       
-      # Combine the elements of the new array into a single string
-      #result_string <- paste(new_array, collapse = " ")
-      
-    } else result_string = pageTitleSpecies
+      # Fülle die Vektoren auf die gleiche Länge auf, indem du fehlende Elemente mit NA auffüllst
+      #legend_keys <- c(legend_keys, rep(NA, max_length - length(legend_keys)))
+      #search_species <- c(search_species, rep(NA, max_length - length(search_species)))
+      #rspecies <- c(rspecies, rep(NA, max_length - length(rspecies)))
+    } else {
+        # Setze alle Vektoren auf NA, wenn es nur einen Eintrag gibt
+        legend_keys <- NA
+        search_species <- NA
+        rspecies <- NA
+    }
     
     # Create a new dataframe with the processed species data
-    new_dataframe <- data.frame(species = result_string, stringsAsFactors = FALSE)
+    new_dataframe <- data.frame(species = rspecies, legend_key = legend_keys, search_specie = search_species, stringsAsFactors = FALSE)
 
     # Add a new column for the file name
     new_dataframe$file_name <- pagePath
     
     # Add new columns for map name and original species name
     new_dataframe$map_name <- filteredData[i,"map_name"]
-    new_dataframe$specie_on_map <- filteredData[i,"species"]
-    
+ 
     
     # Save the dataframe to CSV
     if (i == 1) {
@@ -108,7 +121,7 @@ readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywo
     }
     
   }
-  print(pageTitleSpecies)
+  #print(pageTitleSpecies)
 }
 
 # Call the function with specified arguments
