@@ -97,7 +97,7 @@ def crop_specie(working_dir, path_to_page, path_to_map, y, h):
   specie = re.sub(r"[^\w\s]", "", specie)
   #print(specie)
   
-  output_png= working_dir + "/www/cropped_png/"
+  output_png= working_dir + "/www/data/cropped_png/"
   os.makedirs(output_png, exist_ok=True)    
   if (specie == ''):
         specie = 'notfounddistribution'

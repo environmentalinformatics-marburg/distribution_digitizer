@@ -209,7 +209,8 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
 
   # Split the text into lines
   lines = extracted_text.split('\n')
-
+  legend1 = 'distribution'
+  legend2 = 'locality'
   # Regular expression for a four-digit year
  # year_pattern = re.compile(r'\(\D*\d{4}\)')
   #year_pattern = re.compile(r'\b(?:\(\D*\d{4}\)|\d{4})\b')
@@ -271,14 +272,14 @@ def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page
   year_pattern = re.compile(r'\b\d{4}\b')
   # Remove unnecessary characters from the search_specie
   search_specie = search_specie.strip(' ,.?!()[]{}_"\';')
-
+  legend1 = 'distribution'
+  legend2 = 'locality'
   # Initialize temp_line
   temp_line = ""
   
   # Iterate through each line and search for the keyword_page_Specie
   for line_num, line in enumerate(lines, start=0):
-    _result = "" 
-    .*\b" + legend1 + r"\b"
+    _result = "\b" + legend1 + r"\b"
     
     if re.search(r"^\s*.*\b" + legend1 + r"\b", line) or ("." in line) or (":" in line):
 

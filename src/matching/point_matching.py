@@ -50,7 +50,7 @@ def mainPointMatching(workingDir, point_threshold):
   pointTemplates = workingDir+"/data/input/templates/symbols/"
   
   # create out directory for the result images as png
-  ouputPngDir = workingDir+"/www/pointMatching_png/"
+  ouputPngDir = workingDir+"/www/data/pointMatching_png/"
   os.makedirs(ouputPngDir, exist_ok=True)
   print(outputTiffDir)
   print(ouputPngDir)

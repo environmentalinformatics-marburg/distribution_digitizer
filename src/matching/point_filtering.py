@@ -89,7 +89,7 @@ def mainPointFiltering(workingDir, n, m):
   # initialize csv file for storing the cooridnates (if the file does not exist already)
   csv_file_path = initialize_csv_file(outputCsvDir, "X", "Y")  
   
-  ouputPngDir = workingDir+"/www/pointFiltering_png/"
+  ouputPngDir = workingDir+"/www/data/pointFiltering_png/"
   os.makedirs(ouputPngDir, exist_ok=True)
   
   for file in glob.glob(inputDir + '*.tif'):

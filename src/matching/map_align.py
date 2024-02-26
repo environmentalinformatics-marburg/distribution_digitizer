@@ -91,7 +91,7 @@ def align_images_directory(working_dir):
     input_dir = working_dir + "/data/output/maps/matching/"
 
     # Directory for converted PNG images after the matching process
-    output_png_dir = working_dir + "/www/align_png/"
+    output_png_dir = working_dir + "/www/data/align_png/"
     os.makedirs(output_png_dir, exist_ok=True)
 
     for template_path in glob.glob(template_dir + '*.tif'):

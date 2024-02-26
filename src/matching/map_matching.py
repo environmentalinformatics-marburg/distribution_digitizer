@@ -68,17 +68,17 @@ def find_page_number(image, page_position):
     d = pytesseract.image_to_data(croped_image, output_type=Output.DICT)
     for element in d['text']:
       if element.isdigit() and 0 < int(element) < 100:
-          result = int(element)
-          break
+        result = int(element)
+        break
   elif page_position == 2:
-      croped_image = imgc[h-h_temp:h, 0:w]
-        # !Important  
-      croped_image = cv2.bilateralFilter(croped_image, 9, 75, 75)
-      d = pytesseract.image_to_data(croped_image, output_type=Output.DICT)
-      for element in reversed(d['text']):
-        if element.isdigit() and 0 < int(element) < 100:
-          result = int(element)
-          break
+    croped_image = imgc[h-h_temp:h, 0:w]
+      # !Important  
+    croped_image = cv2.bilateralFilter(croped_image, 9, 75, 75)
+    d = pytesseract.image_to_data(croped_image, output_type=Output.DICT)
+    for element in reversed(d['text']):
+      if element.isdigit() and 0 < int(element) < 100:
+        result = int(element)
+        break
 
   print(result)    
   # Return 0 if no suitable number is found
@@ -147,64 +147,64 @@ def match_template_tiff(previous_page_path, next_page_path, current_page_path,
     # check that the coords are not already in the list, if they are then skip the match
     if pt[0] not in lspointY and pt[1] not in lspointX:
       
-        # draw a yellow boundary around a match- USE this just for tests!
-        #rect = cv2.rectangle(img, pt, (pt[0] + h, pt[1] + w), (0, 0, 0), 3)
-        size = w * h * (2.54/400 ) *( 2.54/400 )
-        
-        # put text with the information values - USE this just for tests!
-        #cv2.putText(rect, "{:.1f}cm^2".format(size), (pt[0] + h, pt[1] + w), font, 4,0, 0, 255), 3)
-        #cv2.imwrite('rect.png',rect)
-        
-        # data rows of csv file   
-        rows_records = 0
-        # WRITE the fields and rows values into the main records csv file
-        rows_records = [[str(page_number),previous_page_path, next_page_path ,current_page_path, pt[0], pt[1], w, h ,size, threshold, (time.time() - start_time)]]   
-        
-        # Überprüfe, ob die Datei leer ist
-        is_empty = os.stat(records).st_size == 0
+      # draw a yellow boundary around a match- USE this just for tests!
+      #rect = cv2.rectangle(img, pt, (pt[0] + h, pt[1] + w), (0, 0, 0), 3)
+      size = w * h * (2.54/400 ) *( 2.54/400 )
+      
+      # put text with the information values - USE this just for tests!
+      #cv2.putText(rect, "{:.1f}cm^2".format(size), (pt[0] + h, pt[1] + w), font, 4,0, 0, 255), 3)
+      #cv2.imwrite('rect.png',rect)
+      
+      # data rows of csv file   
+      rows_records = 0
+      # WRITE the fields and rows values into the main records csv file
+      rows_records = [[str(page_number),previous_page_path, next_page_path ,current_page_path, pt[0], pt[1], w, h ,size, threshold, (time.time() - start_time)]]   
+      
+      # Überprüfe, ob die Datei leer ist
+      is_empty = os.stat(records).st_size == 0
 
-        with open(records, 'a', newline='') as csv_file:  
-          # creating a csv writer object   
-          csvwriter = csv.writer(csv_file) 
-          if is_empty:
-            csvwriter.writerow(fields)
-          ## writing the rows
-          csvwriter.writerows(rows_records)
-          
-        # print(output_dir) 
-        threshold_last=str(threshold).split(".")
-        #print(threshold_last[1])
+      with open(records, 'a', newline='') as csv_file:  
+        # creating a csv writer object   
+        csvwriter = csv.writer(csv_file) 
+        if is_empty:
+          csvwriter.writerow(fields)
+        ## writing the rows
+        csvwriter.writerows(rows_records)
         
-        img_map_path = (str(page_number) + '-' + str(threshold_last[1]) + '_' +
-        os.path.basename(current_page_path).rsplit('.', 1)[0] + 
-        os.path.basename(template_map_file).rsplit('.', 1)[0] + '_' + str(count))
-        
-        cv2.imwrite(output_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
-        #print(output_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
-       
-        
-        # WRITE the fields and rows values into the page record csv file
-        row = 0
-        rows = [[str(page_number), previous_page_path, next_page_path, current_page_path, output_dir + img_map_path + '.tif', pt[0], pt[1], 
-          w, h ,size, threshold, (time.time() - start_time)]]  
-        csv_path = output_page_records + img_map_path + '.csv'
-        with open(csv_path, 'w', newline='') as page_record:  
-          ## creating a csv writer object   
-          pageCsvwriter = csv.writer(page_record)  
-          pageCsvwriter.writerow(fields_page_record)
-          ## writing the rows
-          pageCsvwriter.writerows(rows)
-              
-        ## append a range from first y coord to x + width
-        for k in range((pt[1]), ((pt[1])+h), 1):
-	          lspointX.append(k)
-        ## append a range from first y coord to y + high
-        for i in range((pt[0]), ((pt[0])+w), 1):
-            lspointY.append(i)
-        count += 1
+      # print(output_dir) 
+      threshold_last=str(threshold).split(".")
+      #print(threshold_last[1])
+      
+      img_map_path = (str(page_number) + '-' + str(threshold_last[1]) + '_' +
+      os.path.basename(current_page_path).rsplit('.', 1)[0] + 
+      os.path.basename(template_map_file).rsplit('.', 1)[0] + '_' + str(count))
+      
+      cv2.imwrite(output_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
+      #print(output_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
+     
+      
+      # WRITE the fields and rows values into the page record csv file
+      row = 0
+      rows = [[str(page_number), previous_page_path, next_page_path, current_page_path, output_dir + img_map_path + '.tif', pt[0], pt[1], 
+        w, h ,size, threshold, (time.time() - start_time)]]  
+      csv_path = output_page_records + img_map_path + '.csv'
+      with open(csv_path, 'w', newline='') as page_record:  
+        ## creating a csv writer object   
+        pageCsvwriter = csv.writer(page_record)  
+        pageCsvwriter.writerow(fields_page_record)
+        ## writing the rows
+        pageCsvwriter.writerows(rows)
+            
+      ## append a range from first y coord to x + width
+      for k in range((pt[1]), ((pt[1])+h), 1):
+        lspointX.append(k)
+      ## append a range from first y coord to y + high
+      for i in range((pt[0]), ((pt[0])+w), 1):
+        lspointY.append(i)
+      count += 1
     else:
-        continue
-    
+      continue
+  
   print(template_map_file)
   print(current_page_path)
   print("--- %s seconds ---" % (time.time() - start_time))
@@ -212,7 +212,7 @@ def match_template_tiff(previous_page_path, next_page_path, current_page_path,
 
 
 
-#working_dir="D:/distribution_digitizer_11_01_2024/"
+working_dir="D:/distribution_digitizer"
 # Function to perform the main template matching in a loop
 def main_template_matching(working_dir, threshold, page_position):
   """
@@ -239,7 +239,7 @@ def main_template_matching(working_dir, threshold, page_position):
   #threshold=0.2
   # prepare the png directory
   # for the converted png images after the matching process 
-  output_png_dir = working_dir + "/www/matching_png/"
+  output_png_dir = working_dir + "/www/data/matching_png/"
   os.makedirs(output_png_dir, exist_ok=True)
 
   # page_records csv file with the map coordinats

@@ -38,7 +38,7 @@ read_species2 <- function(working_dir) {
     #x=as.integer(records_page$x[1])
     file_name=records_page$file_name
     map_name=records_page$map_name
-    if(!is.na(w) & !is.na(y) &!is.na(h) & !is.na(x)){
+    if(!is.na(y) &!is.na(h)){
       # pathToPage = "D:/distribution_digitizer/data/input/pages/0060.tif"
       # use the crop Image function from the crop_species_name.py
       species = crop_specie(working_dir, file_name, map_name, y, h)
@@ -56,7 +56,7 @@ read_species <- function(working_dir) {
   source_python(paste0(working_dir, "/src/read_species/map_crop_species.py"))
   pagerecords = paste0(working_dir, "/data/output/pagerecords/")
   outTifdir =  paste0(working_dir, "/data/output/maps/align/")
-  outPngdir =  paste0(working_dir, "/www/croped_png/")
+  outPngdir =  paste0(working_dir, "/www/data/croped_png/")
   # select all pages record information csv files as list
   records_pages <- list.files(path=pagerecords,pattern=".csv",full.names=T,recursive=T)
   
