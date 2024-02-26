@@ -1,10 +1,12 @@
-#install.packages("reticulate")
-#library(reticulate)
-#install.packages("tesseract")
-library(tesseract)
-os <- import("os") 
-library(stringr)
+# ============================================================
+# Script Author: [Spaska Forteva]
+# Created On: 2024-01-10
+# ============================================================
 
+# Required libraries
+library(tesseract)
+library(stringr)
+os <- import("os") 
 
 #working_dir = "D:/distribution_digitizer_11_01_2024"
 
@@ -30,16 +32,16 @@ read_species2 <- function(working_dir) {
     #print(length(records_page))
     
     #ERROR HANDLING define
-    w=as.integer(records_page$w[1])
+    #w=as.integer(records_page$w[1])
     y=as.integer(records_page$y[1])
     h=as.integer(records_page$h[1])
-    x=as.integer(records_page$x[1])
+    #x=as.integer(records_page$x[1])
     file_name=records_page$file_name
     map_name=records_page$map_name
     if(!is.na(w) & !is.na(y) &!is.na(h) & !is.na(x)){
       # pathToPage = "D:/distribution_digitizer/data/input/pages/0060.tif"
       # use the crop Image function from the crop_species_name.py
-      species = crop_specie(working_dir, file_name, map_name, x,y,w,h)
+      species = crop_specie(working_dir, file_name, map_name, y, h)
       records_page$species = species
       write.csv(records_page, records_pages[j])
       results = paste0(results, "<br", map_name, ";", species)

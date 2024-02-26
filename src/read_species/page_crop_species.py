@@ -2,7 +2,6 @@
 # Script Author: [Spaska Forteva]
 # Created On: 2023-24-09
 # ============================================================
-
 # Description: This script edits book pages and crops the main spacies titles.
 
 # Required libraries
@@ -123,6 +122,11 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
   # Patter for special species
   pattern = r'\b\d{4}\b'
   
+  # Map legends
+  legend1 = 'distribution'
+  legend2 = 'locality'
+  
+  # return result
   all_results = []
   
   specie_content = "" 
@@ -131,12 +135,12 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
   flag = 0
   
   for search_specie in words:
-    print(search_specie)
-    if("distribution" in search_specie):
-      search_specie = search_specie.replace("distribution", "")
+    #print(search_specie)
+    if(legend1 in search_specie):
+      search_specie = search_specie.replace(legend1, "")
       flag = 1
-    if("locality" in search_specie):
-      search_specie = search_specie.replace("locality", "")
+    if(legend2 in search_specie):
+      search_specie = search_specie.replace(legend1, "")
       flag = 2
     specie_content = find_specie_context(page_path,
                       search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
@@ -219,8 +223,8 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
   # Iterate through each line and search for the keyword_page_Specie
   for line_num, line in enumerate(lines, start=0):
     _result = "" 
-    if re.search(r"^\s*\".*\bdistribution\b", line) or ("." in line) or (":" in line) or ("|" in line and not line.startswith("\"")):
-      #print(f"Found '\"' and 'distribution' in: {line}")
+    if re.search(r"^\s*\".*\b" + legend1 + r"\b", line) or ("." in line) or (":" in line) or ("|" in line and not line.startswith("\"")):
+    #print(f"Found '\"' and 'distribution' in: {line}")
       continue
     #print(line)
     if search_specie in line:
@@ -274,7 +278,10 @@ def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page
   # Iterate through each line and search for the keyword_page_Specie
   for line_num, line in enumerate(lines, start=0):
     _result = "" 
-    if re.search(r"^\s*.*\bdistribution\b", line) or ("." in line) or (":" in line):
+    .*\b" + legend1 + r"\b"
+    
+    if re.search(r"^\s*.*\b" + legend1 + r"\b", line) or ("." in line) or (":" in line):
+
       #print(f"Found '\"' and 'distribution' in: {line}")
       continue
 

@@ -1,8 +1,11 @@
-# Author: Spaska Forteva
-# Date: 18.12.2023
+# ============================================================
+# Script Author: [Spaska Forteva]
+# Created On: 2023-11-18
+# ============================================================
 # Description: This script contains functions for processing images, extracting information using Tesseract OCR,
 # and cropping specified regions from input images.
 
+# Required libraries
 import cv2
 import PIL
 from PIL import Image
@@ -17,7 +20,7 @@ import argparse
 import math
 import statistics
 import os
-
+import re
 
 def cropImage(source_image, outdir, x, y, w, h, i):
     
@@ -56,7 +59,7 @@ def cropImage(source_image, outdir, x, y, w, h, i):
 
 #crop_specie("D:/distribution_digitizer/data/input/pages/0060.tif")
 
-def crop_specie(working_dir, path_to_page, path_to_map, x, y, w, h):
+def crop_specie(working_dir, path_to_page, path_to_map, y, h):
   
   #path_to_page = "D:/distribution_digitizer_11_01_2024//data/input/pages/0050.tif"
   #outputdir = "D:/distribution_digitizer_11_01_2024/data/input_align/"  
@@ -65,12 +68,13 @@ def crop_specie(working_dir, path_to_page, path_to_map, x, y, w, h):
   image = cv2.imread(path_to_page)
   rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
   #cv2.imshow('img', rgb)
-  legend1='distribution'
-  legend2='locality'
+  legend1 = 'distribution'
+  legend2 = 'locality'
   d = pytesseract.image_to_data(rgb, output_type=Output.DICT)
   n_boxes = len(d['level'])
   specie = ''
   double_specie = ''
+  
   for i in range(n_boxes-2):
     (x1, y1, w1, h1, c1) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i], d['conf'][i])
     text=d['text'][i].lstrip()
@@ -95,26 +99,27 @@ def crop_specie(working_dir, path_to_page, path_to_map, x, y, w, h):
   
   output_png= working_dir + "/www/cropped_png/"
   os.makedirs(output_png, exist_ok=True)    
-  if( specie != ''):
-    # rename the align maps
-    # path_to_map = "D:/distribution_digitizer/data/output/maps/matching/27_0060map_1_0.tif"
-    # working_dir = "D:/distribution_digitizer/"
-    align_map = working_dir + "/data/output/maps/align/" + os.path.basename(path_to_map)
-    map_new_name = working_dir + "/data/output/maps/align/" + os.path.basename(path_to_map).rsplit('.', 1)[0]  + "_" + specie + ".tif"
-    if os.path.isfile(align_map):
-      os.rename(align_map, map_new_name)
-      print (align_map)
-    else:
-      print ("File not exist")
-     
-    # rename the orign maps
-    #if os.path.isfile(path_to_map):
-      #os.rename(path_to_map, map_new_name)
-     # map_new_name = path_to_map.rsplit('.', 1)[0]  + "_" + specie + ".tif"
-    #  os.rename(path_to_map, map_new_name)
-     # print(map_new_name)
-   # else:
-     # print ("File not exist")
-    return specie
+  if (specie == ''):
+        specie = 'notfounddistribution'
+  # rename the align maps
+  # path_to_map = "D:/distribution_digitizer/data/output/maps/matching/27_0060map_1_0.tif"
+  # working_dir = "D:/distribution_digitizer/"
+  align_map = working_dir + "/data/output/maps/align/" + os.path.basename(path_to_map)
+  map_new_name = working_dir + "/data/output/maps/align/" + os.path.basename(path_to_map).rsplit('.', 1)[0]  + "_" + specie + ".tif"
+  if os.path.isfile(align_map):
+    os.rename(align_map, map_new_name)
+    print (align_map)
+  else:
+    print ("File not exist")
+   
+  # rename the orign maps
+  #if os.path.isfile(path_to_map):
+    #os.rename(path_to_map, map_new_name)
+   # map_new_name = path_to_map.rsplit('.', 1)[0]  + "_" + specie + ".tif"
+  #  os.rename(path_to_map, map_new_name)
+   # print(map_new_name)
+ # else:
+   # print ("File not exist")
+  return specie
      
   #print("End")  

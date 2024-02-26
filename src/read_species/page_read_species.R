@@ -4,14 +4,11 @@
 # ============================================================
 # Description: R script for reading species data from CSV files, processing it, and saving the results to a new CSV file.
 
-# Import the 'os' module
+# Required libraries
+library(stringr)
+library(dplyr)
 os <- import("os") 
 
-# Load the 'stringr' package
-library(stringr)
-
-# Load the 'dplyr' package
-library(dplyr)
 
 # Set the working directory
 #workingDir="D:/distribution_digitizer_11_01_2024/"
