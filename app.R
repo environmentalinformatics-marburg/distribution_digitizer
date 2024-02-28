@@ -107,8 +107,8 @@ rescale= (100/scale)
 workingDir <- getwd()
 print("Working directory 1:")
 print(workingDir)
-
-
+outDir = paste0(workingDir,"/data/output/")
+inputDir = paste0(workingDir,"/data/input/")
 
 #read config fields from config.csv in .../distribution_digitizer/config directory
 fileFullPath = (paste0(workingDir,'/config/config.csv'))
@@ -118,6 +118,13 @@ if (file.exists(fileFullPath)){
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
 
+
+if (length(config$dataOutputDir) == 1 && nchar(config$dataOutputDir) > 3) {
+  outDir <- config$dataOutputDir 
+}
+if (length(config$dataInputDir) == 1 && nchar(config$dataInputDir) > 3) {
+  inputDir <- config$dataInputDir 
+}
 
 # read the config file
 
@@ -216,8 +223,10 @@ header <- dashboardHeader(
           .sidebar-menu{display:flex;align-items:baseline;}
           /* layout of the map images */
           .shiny-map-image{margin:7px;}
+          #message {color: red;}
           "))
   ),
+  
   
   tags$li(
     class = "dropdown",
@@ -240,123 +249,138 @@ body <- dashboardBody(
   # Top Information
   # Working directory
   titlePanel("Distribution Digitizer"),
+  
   p(paste0(config$workingDirInformation,": ",workingDir) , style = "color:black"),
   tabItems(
-  # Tab 0 Config Dialog --------------------------------------------------------------------------------------------------------------
+    # Tab 0 Config Dialog --------------------------------------------------------------------------------------------------------------
     tabItem(
       tabName = "tab0",
-        p("In this version 1.0 of ", strong("Distribution Digitizer"), ", when searching for species names, all lines containing special characters such as double",
-          strong("quotes\""), ",",strong(" point ."),", ", strong("colons :"),", or the word", strong(" \"distribution\"")," are skipped.",
-          br(),
-          "Additionally, it searches for a species name from the legend map and for a ", strong("regular expression matching the year"),", if you define one regular expression year hier.",
-          br(),
-          "If you defined an ",strong("additional keyword"),", please be sure to specify whether it is present before, after, or on the line containing the searched species name."
+      p("In ", strong("Distribution Digitizer"), " 1.0, certain lines are skipped during species name search. Lines containing special characters like",
+        strong("doublequotes\""), ",",strong(" point ."),", ", strong("colons :"),", or the word", strong(" \"distribution\"")," are excluded.",
+        br(),
+        "The tool also searches for species names in the legend map and uses a specified regular expression for matching the year.",
+        br(),
+        "If you've added an extra ",strong("additional keyword"),", indicate if it appears before, after,  the species name."
+      ),
+      fluidRow(
+        # Linke Spalte
+        column(
+          width = 6, # Zum Beispiel die Hälfte der Breite des Containers
+          wellPanel(
+            h3(strong("General configuration fields", style = "color:black")),
+            # Title: Provide the name of the book's author.
+            fluidRow(textInput("title", label = "Please write the title of the book.", value = config$title)),
+            # Author: Provide the name of the book's author.
+            fluidRow(textInput("author", label = "Please write the author of the book.", value = config$autor)),
+            # Publication Year: Specify the year the book was published.
+            fluidRow(textInput("pYear", label = "Publication Year", value = config$pYear)),
+            # Data input directory
+            fluidRow(textInput("dataInputDir", p("Please write the path to the inputs.",br(),
+                                                 "This input directory should contain two folders:",br(),
+                                                 "- 'pages', where the scanned images are stored,",br(),
+                                                 "- 'templates', which includes four additional folders.",br(),br(),
+                                                 "-- 'maps' ",br(),
+                                                 "--- 'map_1.tif' use the next Tab: Create Templates to create this",br(),
+                                                 "-- 'symbols' ",br(),
+                                                 "--- 'symbol_1.tif' 'symbol_2.tif' use the next Tab: Create Templates to create this",br(),
+                                                 "-- 'align_ref'  ",br(),
+                                                 "--- 'map_1_align.tif' make one template map properly aligned (Gimp) and save it here.",br(),
+                                                 "-- 'geopoints'",br(),
+                                                 "--- 'gcp_point_map1.points'  geopoints data for the georeferens. you can user the program QGIS to extract this",br(),br(),
+                                                 "To ensure proper functionality of the application,",
+                                                 "please ensure that the provided path adheres to the aforementioned structure."), 
+                               value = config$dataInputDir),   verbatimTextOutput("message"),),
+            # Data output directory
+            fluidRow(textInput("dataOutputDir", label = "Please write the path to the output environment of the distribution digitizer", value = config$dataOutputDir)),
+            # numberSitesPrint
+            # format
+            fluidRow(selectInput("pFormat", label = "Image Format of the Scanned Sites", c("tif" = 1, "png" = 2, "jpg" = 3), selected = config$pFormat)),
+            # Page color
+            fluidRow(selectInput("pColor", label = "Page Color", c("black white" = 1, "color" = 2), selected = config$pColor)),
+            
+            fluidRow(selectInput("numberSitesPrint", label = "Number of Book Sites per One Print", c("One site per scan" = 1, "Two sites per scan" = 2), selected = config$numberSitesPrint)),
+            
+          )
         ),
-        fluidRow(
-          # Linke Spalte
-          column(
-            width = 6, # Zum Beispiel die Hälfte der Breite des Containers
-            wellPanel(
-              h3(strong("General configuration fields", style = "color:black")),
-              # Title: Provide the name of the book's author.
-              fluidRow(textInput("title", label = "Please write the title of the book.", value = "Title")),
-              # Author: Provide the name of the book's author.
-              fluidRow(textInput("author", label = "Please write the author of the book.", value = "Autorname")),
-              # Publication Year: Specify the year the book was published.
-              fluidRow(textInput("pYear", label = "Publication Year", value = "2023")),
-              # Data input directory
-              fluidRow(textInput("dataInputDir", label = "Please write the path to the scanned images", value = paste0(workingDir, "/data/input"))),
-              # Data output directory
-              fluidRow(textInput("dataOutputDir", label = "Please write the path to the output environment of the distribution digitizer", value = paste0(workingDir, "/data/output"))),
-              # numberSitesPrint
-               # format
-              fluidRow(selectInput("pFormat", label = "Image Format of the Scanned Sites", c("tif" = 1, "png" = 2, "jpg" = 3), selected = 1)),
-              # Page color
-              fluidRow(selectInput("pColor", label = "Page Color", c("black white" = 1, "color" = 2), selected = 1)),
-              
-              fluidRow(selectInput("numberSitesPrint", label = "Number of Book Sites per One Print", c("One site per scan" = 1, "Two sites per scan" = 2))),
-
-            )
-          ),
-          # Rechte Spalte
-          column(
-            width = 6, # Zum Beispiel die Hälfte der Breite des Containers
-            wellPanel(
-              h3(strong(" Additional specific configuration input fields", style = "color:black")),
-              # allprintedPages
-              fluidRow(textInput("allPrintedPages", label = "Please provide the number of scanned images:", value = 100)),
-              
-              # site number position
-              fluidRow(selectInput("sNumberPosition", label = "Please indicate whether the page number is positioned at the top or bottom of the page.", c("top" = 1, "botom" = 2), selected = 1)),
-              
-              # Is the term "species name" inclusive of special patterns such as year, parentheses, or symbols?
-              fluidRow(selectInput("middle", label = "Is the term shifted to the right, indented?", c( "No" = 0, "Yes" = 1 ))),
-              
-              fluidRow(selectInput("regExYear", label = "Does the term contain a regular expression like a year?", c( "No" = 0, "Yes" = 1))),# keayword to read species data
-              
-              fluidRow(textInput("keywordReadSpecies", label = "If there is a keyword related to the term 'species', please write it here. Please note that the word should almost always appear a few lines before, after, or directly on the same line as the species term.", value = "Range")),
-              
-              fluidRow(selectInput("keywordBefore", label = "Is the keyword located a few lines before the species name? If so, how many lines?", c("0" = 0, "1" = 1, "2" = 2, "3" = 3), selected = 0)),
-              
-              fluidRow(selectInput("keywordThen", label = "Is the keyword located a few lines after the species name? If yes, please specify how many.", c("0" = 0, "1" = 1, "2" = 2, "3" = 3), selected = 0)),
-
-              #Is the keyword a few lines before the species name? If yes, how many? 
-              #Is the keyword exactly on the line with the species name? 
-              #Is the keyword a few lines after the species name? If yes, please specify how many."
-              # Save button
-              fluidRow(actionButton("saveConfig", label = "Save", style = "color:#FFFFFF;background:#999999"))
-            )
+        # Rechte Spalte
+        column(
+          width = 6, # Zum Beispiel die Hälfte der Breite des Containers
+          wellPanel(
+            h3(strong(" Additional specific configuration input fields", style = "color:black")),
+            # allprintedPages
+            fluidRow(textInput("allPrintedPages", label = "Please provide the number of scanned images:", value = config$allPrintedPages)),
+            
+            # site number position
+            fluidRow(selectInput("sNumberPosition", label = "Please indicate whether the page number is positioned at the top or bottom of the page.", c("top" = 1, "botom" = 2), selected = config$sNumberPosition)),
+            
+            # Is the term "species name" inclusive of special patterns such as year, parentheses, or symbols?
+            fluidRow(selectInput("middle", label = "Is the term shifted to the right, indented?", c( "No" = 0, "Yes" = 1 ), selected = config$middle)),
+            
+            fluidRow(selectInput("regExYear", label = "Does the term contain a regular expression like a year?", c( "No" = 0, "Yes" = 1), selected = config$regExYear)),# keayword to read species data
+            
+            fluidRow(textInput("keywordReadSpecies", label = "If there is a keyword related to the term 'species', please write it here. Please note that the word should almost always appear a few lines before, after, or directly on the same line as the species term.", value = config$keywordReadSpecies)),
+            
+            fluidRow(selectInput("keywordBefore", label = "Is the keyword located a few lines before the species name? If so, how many lines?", c("0" = 0, "1" = 1, "2" = 2, "3" = 3), selected = config$keywordBefore)),
+            
+            fluidRow(selectInput("keywordThen", label = "Is the keyword located a few lines after the species name? If yes, please specify how many.", c("0" = 0, "1" = 1, "2" = 2, "3" = 3), selected = config$keywordThen)),
+            
+            #Is the keyword a few lines before the species name? If yes, how many? 
+            #Is the keyword exactly on the line with the species name? 
+            #Is the keyword a few lines after the species name? If yes, please specify how many."
+            # Save button
+            fluidRow(actionButton("saveConfig", label = "Save", style = "color:#FFFFFF;background:#999999"))
           )
         )
-      ),
-  
-  
-  # Tab 1 Create Templates #---------------------------------------------------------------------
+      )
+    ),
+    
+    
+    # Tab 1 Create Templates #---------------------------------------------------------------------
     tabItem(
       tabName = "tab1",
       actionButton("listMTemplates",  label = "List saved map templates"),
       actionButton("listSTemplates",  label = "List saved symbol templates"),
       fluidRow(
         column(4,
-          wellPanel(
-            h3(strong(shinyfields1$head, style = "color:black")),
-            p(shinyfields1$inf4, style = "color:black"),
-            # Choose the file 
-            fileInput("image",  label = h5(shinyfields1$lab1), buttonLabel = "Browse...",
-                      placeholder = "No file selected"),
-            ),
-          wellPanel(
-            h4(strong(shinyfields1$save_template, style = "color:black")),
-            # Add number to the file name of the created template file
-            fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-            p(strong(paste0(shinyfields1$inf, workingDir, "/data/templates/maps/"), style = "color:black")),
-            p(shinyfields1$inf1, style = "color:black"),                
-            # Save the cropped template map image with the given index
-            downloadButton('saveTemplate', 'Save map template', style="color:#FFFFFF;background:#999999"))),
-           ),
-          wellPanel(
-            h4(strong(shinyfields1$save_symbol, style = "color:black")),
-            # Add number to the file name of the created template file
-            fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-            
-            p(strong(paste0(shinyfields1$inf2, workingDir, "/data/templates/symbols"), style = "color:black")),
-            p(shinyfields1$inf3, style = "color:black"),                
-            # Save the cropped template map image with the given index
-            downloadButton('saveSymbol', 'Save map symbol/Legende', style="color:#FFFFFF;background:#999999")))
-          )
+               wellPanel(
+                 h3(strong(shinyfields1$head, style = "color:black")),
+                 p(shinyfields1$inf4, style = "color:black"),
+                 # Choose the file 
+                 fileInput("image",  label = h5(shinyfields1$lab1), buttonLabel = "Browse...",
+                           placeholder = "No file selected"),
+               ),
+               wellPanel(
+                 h4(strong(shinyfields1$save_template, style = "color:black")),
+                 # Add number to the file name of the created template file
+                 fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
+                                 p(strong(paste0(shinyfields1$inf, workingDir, "/data/templates/maps/"), style = "color:black")),
+                                 p(shinyfields1$inf1, style = "color:black"),                
+                                 # Save the cropped template map image with the given index
+                                 downloadButton('saveTemplate', 'Save map template', style="color:#FFFFFF;background:#999999"))),
+               ),
+               wellPanel(
+                 h4(strong(shinyfields1$save_symbol, style = "color:black")),
+                 # Add number to the file name of the created template file
+                 fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
+                                 
+                                 p(strong(paste0(shinyfields1$inf2, workingDir, "/data/templates/symbols"), style = "color:black")),
+                                 p(shinyfields1$inf3, style = "color:black"),                
+                                 # Save the cropped template map image with the given index
+                                 downloadButton('saveSymbol', 'Save map symbol/Legende', style="color:#FFFFFF;background:#999999")))
+               )
         ), # col 4
         column(8,
                uiOutput('listMapTemplates', style="width:35%;float:left"),
                uiOutput('listSymbolTemplates', style="width:35%;float:left"),
                plotOutput("plot", click = "plot_click",  # Equiv, to click=clickOpts(id="plot_click")
-                               hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
-                               brush = brushOpts(id = "plot_brush")),
+                          hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
+                          brush = brushOpts(id = "plot_brush")),
         )
       ) # END fluid Row
     ),  # END tabItem 1
     
-  
-  # Tab 2 Maps Matching #----------------------------------------------------------------------
+    
+    # Tab 2 Maps Matching #----------------------------------------------------------------------
     tabItem(
       tabName = "tab2",
       # which site become overview
@@ -366,33 +390,33 @@ body <- dashboardBody(
       actionButton("listCropped",  label = "List cropped maps"),
       fluidRow(
         column(4,
-          wellPanel(
-            # submit action button
-            h3(strong(shinyfields2$head, style = "color:black")),
-            p(shinyfields2$inf1, style = "color:black"),
-            fluidRow(column(8, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.2, min = 0, max = 1, step = 0.05))),
-            p(shinyfields2$inf2, style = "color:black"), 
-            # Start map matching
-            fluidRow(column(3,actionButton("templateMatching",  label = shinyfields2$start1, style="color:#FFFFFF;background:#999999"))),
-          ),
-          wellPanel(
-            # maps align 
-            h3(shinyfields2$head_sub, style = "color:black"),
-            p(shinyfields2$inf3, style = "color:black"),
-            fluidRow(column(3, actionButton("alignMaps",  label = shinyfields2$start2, style="color:#FFFFFF;background:#999999"))),
-          ),
-          wellPanel(  
-            # maps species 
-            h3(shinyfields2$head_species, style = "color:black"),
-            p(shinyfields2$inf4, style = "color:black"),
-            fluidRow(column(3, actionButton("mapReadRpecies",  label = shinyfields2$start3, style="color:#FFFFFF;background:#999999"))),
-          ),
-          wellPanel(  
-            # page species
-            h3(shinyfields2$head_page_species, style = "color:black"),
-            p(shinyfields2$inf5, style = "color:black"),
-            fluidRow(column(3, actionButton("pageReadRpecies",  label = shinyfields2$start4, style="color:#FFFFFF;background:#999999"))),
-          )
+               wellPanel(
+                 # submit action button
+                 h3(strong(shinyfields2$head, style = "color:black")),
+                 p(shinyfields2$inf1, style = "color:black"),
+                 fluidRow(column(8, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.2, min = 0, max = 1, step = 0.05))),
+                 p(shinyfields2$inf2, style = "color:black"), 
+                 # Start map matching
+                 fluidRow(column(3,actionButton("templateMatching",  label = shinyfields2$start1, style="color:#FFFFFF;background:#999999"))),
+               ),
+               wellPanel(
+                 # maps align 
+                 h3(shinyfields2$head_sub, style = "color:black"),
+                 p(shinyfields2$inf3, style = "color:black"),
+                 fluidRow(column(3, actionButton("alignMaps",  label = shinyfields2$start2, style="color:#FFFFFF;background:#999999"))),
+               ),
+               wellPanel(  
+                 # maps species 
+                 h3(shinyfields2$head_species, style = "color:black"),
+                 p(shinyfields2$inf4, style = "color:black"),
+                 fluidRow(column(3, actionButton("mapReadRpecies",  label = shinyfields2$start3, style="color:#FFFFFF;background:#999999"))),
+               ),
+               wellPanel(  
+                 # page species
+                 h3(shinyfields2$head_page_species, style = "color:black"),
+                 p(shinyfields2$inf5, style = "color:black"),
+                 fluidRow(column(3, actionButton("pageReadRpecies",  label = shinyfields2$start4, style="color:#FFFFFF;background:#999999"))),
+               )
         ), # col 4
         column(8,
                uiOutput('listMaps', style="width:30%;float:left"),
@@ -401,9 +425,9 @@ body <- dashboardBody(
         )
       ) # END fluid Row
     ),  # END tabItem 2
-  
-  
-  # Tab 3 Points Matching  #----------------------------------------------------------------------
+    
+    
+    # Tab 3 Points Matching  #----------------------------------------------------------------------
     tabItem(
       tabName = "tab3",
       fluidRow(column(3,textInput("siteNumberPointsMatching", label=shinyfields6$input, value = ''))),
@@ -463,14 +487,14 @@ body <- dashboardBody(
         )
       ) # END fluid Row
     ),  # END tabItem 3
-   
-  # Tab 4 Masking #----------------------------------------------------------------------
-  tabItem(
+    
+    # Tab 4 Masking #----------------------------------------------------------------------
+    tabItem(
       tabName = "tab4",  
       fluidRow(column(3,textInput("siteNumberMasks", label=shinyfields6$input, value = ''))),
       actionButton("listMasks",  label = "List masks"),
       actionButton("listMasksB",  label = "List black masks"),
-     # actionButton("listMPointsF",  label = "List points filterng"),
+      # actionButton("listMPointsF",  label = "List points filterng"),
       fluidRow(
         column(4,
                wellPanel(
@@ -485,14 +509,14 @@ body <- dashboardBody(
                  fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
                  fluidRow(column(3, actionButton("masking",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
                ), 
-                wellPanel(
+               wellPanel(
                  # ----------------------------------------# Masking (black)#----------------------------------------------------------------------
                  h4("Or you can extract masks with black background", style = "color:black"),
                  p(shinyfields5$inf2, style = "color:black"),
                  fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
                  fluidRow(column(3, actionButton("maskingBlack",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
                ),
-                # ---------------------------------------- # 4.2 Masking centroids -----------------------------------------------------------------
+               # ---------------------------------------- # 4.2 Masking centroids -----------------------------------------------------------------
                wellPanel(
                  h3(shinyfields5.1$head_sub, style = "color:black"),
                  h4("You can mask the centroids of the points detected by Point Filtering and Circle Detection.", style = "color:black"),
@@ -507,25 +531,25 @@ body <- dashboardBody(
         )
       ) # END fluid Row
     ),  # END tabItem 4
-  
-  # Tab 5 Georeferencing  FILES=shinyfields_georeferensing & shinyfields_georef_coords_from_csv_file.csv #-------------------------------------------------
+    
+    # Tab 5 Georeferencing  FILES=shinyfields_georeferensing & shinyfields_georef_coords_from_csv_file.csv #-------------------------------------------------
     tabItem(
       tabName = "tab5",  
-        wellPanel(
-          h3(strong(shinyfields6$head, style = "color:black")),
-          p(shinyfields6$inf1, style = "color:black"),
-          p(shinyfields6$inf2, style = "color:black"),
-          # start georeferencing
-          actionButton("georeferencing",  label = shinyfields6$lab1, style="color:#FFFFFF;background:#999999")
-        ),
-        wellPanel(
-            # which site become overview
-          fluidRow(column(3,textInput("siteNumberGeoreferencing", label=shinyfields6$input, value = ''))),
-          # start overview 
-          actionButton("listGeoreferencing",  label = "List georeferenced files"),
-        ),
       wellPanel(
-          uiOutput('leaflet_outputs_GEO')
+        h3(strong(shinyfields6$head, style = "color:black")),
+        p(shinyfields6$inf1, style = "color:black"),
+        p(shinyfields6$inf2, style = "color:black"),
+        # start georeferencing
+        actionButton("georeferencing",  label = shinyfields6$lab1, style="color:#FFFFFF;background:#999999")
+      ),
+      wellPanel(
+        # which site become overview
+        fluidRow(column(3,textInput("siteNumberGeoreferencing", label=shinyfields6$input, value = ''))),
+        # start overview 
+        actionButton("listGeoreferencing",  label = "List georeferenced files"),
+      ),
+      wellPanel(
+        uiOutput('leaflet_outputs_GEO')
       ),
       wellPanel(
         h4(shinyfields8$head_sub, style = "color:black"),
@@ -535,9 +559,9 @@ body <- dashboardBody(
       )
       # END fluid Row
     ),# END tabItem 5
-   
-  # Tab 6 Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
-  tabItem(
+    
+    # Tab 6 Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
+    tabItem(
       tabName = "tab6", 
       wellPanel(
         h3(strong(shinyfields7$head, style = "color:black")),
@@ -554,42 +578,42 @@ body <- dashboardBody(
         uiOutput("leaflet_outputs_PL")
       )
     ),  # END tabItem 6
-  
-  # 7. Spatial data view #----------------------------------------------------------------------
-  tabItem(
-    tabName = "tab7", 
-   # wellPanel(
-    #  h3(strong("Save the outputs in csv file", style = "color:black")),
-    #  p("hier kommt noch mehr Text", style = "color:black"),
-    #  p("hier kommt noch mehr Text", style = "color:black"),
-    actionButton("startSpatialDataComputing",  label ="Spatial Data Computing", style="color:#FFFFFF;background:#999999"),
-    #),
-    wellPanel(
-      # which site become overview
-      #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
-      
-      actionButton("spatialViewCD",  label = "Start View circle detection",),
-      leafletOutput("mapSpatialViewCD"),
-      verbatimTextOutput("hoverInfo")
-    ),
-   wellPanel(
-     # which site become overview
-     #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
-     
-     actionButton("spatialViewPF",  label = "Start View point detection",),
-     leafletOutput("mapSpatialViewPF"),
-     verbatimTextOutput("hoverInfo3")
-   )
-  ),  # END tabItem 6
-  
-  tabItem(
-    tabName = "tab8",
-    actionButton("viewCSV",  label ="Overview spatial final data", style="color:#FFFFFF;background:#999999"),
-    downloadButton("downloadCSV", "CSV download"),
-    wellPanel( 
-      dataTableOutput("myTable")
-    ),
-   )
+    
+    # 7. Spatial data view #----------------------------------------------------------------------
+    tabItem(
+      tabName = "tab7", 
+      # wellPanel(
+      #  h3(strong("Save the outputs in csv file", style = "color:black")),
+      #  p("hier kommt noch mehr Text", style = "color:black"),
+      #  p("hier kommt noch mehr Text", style = "color:black"),
+      actionButton("startSpatialDataComputing",  label ="Spatial Data Computing", style="color:#FFFFFF;background:#999999"),
+      #),
+      wellPanel(
+        # which site become overview
+        #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
+        
+        actionButton("spatialViewCD",  label = "Start View circle detection",),
+        leafletOutput("mapSpatialViewCD"),
+        verbatimTextOutput("hoverInfo")
+      ),
+      wellPanel(
+        # which site become overview
+        #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
+        
+        actionButton("spatialViewPF",  label = "Start View point detection",),
+        leafletOutput("mapSpatialViewPF"),
+        verbatimTextOutput("hoverInfo3")
+      )
+    ),  # END tabItem 6
+    
+    tabItem(
+      tabName = "tab8",
+      actionButton("viewCSV",  label ="Overview spatial final data", style="color:#FFFFFF;background:#999999"),
+      downloadButton("downloadCSV", "CSV download"),
+      wellPanel( 
+        dataTableOutput("myTable")
+      ),
+    )
   ) # END tabItems
 ) # END BODY
 
@@ -612,40 +636,98 @@ sidebar <-
 
 server <- shinyServer(function(input, output, session) {
   
+  
   # Update the clock every second using a reactiveTimer
   current_time <- reactiveTimer(1000)
   
-# SAVE the last working directory
+  # SAVE the config
   observeEvent(input$saveConfig, {
     
-    # text<-paste0(input$workingDir,";", input$dataInputDir)
-    #, input$dataOutputDir, input$numberSitesPrint, input$allprintedPages,
-    #           input$pFormat, input$pColor )
-    
-    x <- data.frame(workingDir= workingDir, 
-                    workingDirInformation = "Your working directory is the local digitizer repository!",
-                    title = input$title,
-                    autor = input$author,
-                    pYear = input$pYear,
-                    dataInputDir = input$dataInputDir,
-                    dataOutputDir = input$dataOutputDir,
-                    numberSitesPrint = input$numberSitesPrint,
-                    allPrintedPages = input$allPrintedPages,
-                    sNumberPosition = input$sNumberPosition,
-                    middle = input$middle,
-                    regExYear = input$regExYear,
-                    keywordReadSpecies = input$keywordReadSpecies,
-                    keywordBefore = input$keywordBefore,
-                    keywordThen = input$keywordThen,
-                    pFormat = input$pFormat,
-                    pColor = input$pColor)
-    tf <- tempfile(fileext = ".csv")
-    
-    ## To write a CSV file for input to Excel one might use
-    write.table(x, file = paste0(workingDir,"/config/config.csv"), sep = ";", row.names = FALSE,
-                quote=FALSE)
+    tryCatch({
+      dataInputDir = input$dataInputDir
+      
+      dataOutputDir = ""
+      prepare_directory( paste0(input$dataOutputDir,"/dd_data_output/"))
+      prepare_directory( paste0(workingDir,"/www/data/"))
+      
+      # Check if the directory exists
+      if (file.exists(dataInputDir) && file.info(dataInputDir)$isdir) {
+        output$message <- NULL
+        # List of subdirectories in the "input" directory
+        subdirectories <- list.dirs(dataInputDir, full.names = FALSE, recursive = FALSE)
+        
+        # Required subdirectories
+        required_subdirectories <- c("pages", "templates")
+        #required_subdirectories <- c("maps", "symbols", "align", "points")
+        
+        # Check if all required subdirectories are present
+        if (all(required_subdirectories %in% subdirectories)) {
+          print("All required subdirectories of input are present.")      
+          
+          templates <- paste0(dataInputDir,"/templates/")
+          # List of subdirectories in the "input" directory
+          subdirectories <- list.dirs(templates, full.names = FALSE, recursive = FALSE)
+          
+          # Required subdirectories
+          required_subdirectories <- c("align_ref", "maps","symbols", "geopoints")
+          
+          #required_subdirectories <- c("maps", "symbols", "align", "points")
+          if (all(required_subdirectories %in% subdirectories)) {
+            print("All required subdirectories of templates are present.")
+          } else {
+            missing_subdirectories <- required_subdirectories[!required_subdirectories %in% subdirectories]
+            output$message <- renderPrint(paste("The following subdirectories in templates are missing:", paste(missing_subdirectories, collapse = ", ")))
+            break
+          }
+          
+        } else {
+          missing_subdirectories <- required_subdirectories[!required_subdirectories %in% subdirectories]
+          output$message <- renderPrint(paste("The following subdirectories are missing:", paste(missing_subdirectories, collapse = ", ")))
+          break
+        }
+        
+        
+      } else {
+        #rv$message <- "The 'templates' directory does not exist."
+        output$message <- renderPrint("The 'templates' directory does not exist.")
+        break
+      }
+      
+      
+      x <- data.frame(workingDir= workingDir, 
+                      workingDirInformation = "Your working directory is the local digitizer repository!",
+                      title = input$title,
+                      autor = input$author,
+                      pYear = input$pYear,
+                      dataInputDir= input$dataInputDir,
+                      dataOutputDir = input$dataOutputDir,
+                      numberSitesPrint = input$numberSitesPrint,
+                      allPrintedPages = input$allPrintedPages,
+                      sNumberPosition = input$sNumberPosition,
+                      middle = input$middle,
+                      regExYear = input$regExYear,
+                      keywordReadSpecies = input$keywordReadSpecies,
+                      keywordBefore = input$keywordBefore,
+                      keywordThen = input$keywordThen,
+                      pFormat = input$pFormat,
+                      pColor = input$pColor)
+      
+      tf <- tempfile(fileext = ".csv")
+      
+      ## To write a CSV file for input to Excel one might use
+      write.table(x, file = paste0(workingDir,"/config/config.csv"), sep = ";", row.names = FALSE,
+                  quote=FALSE)
+      
+      shinyalert::shinyalert(title = "Success", text = "Configuration successfully saved!", type = "success")
+    }, error = function(e) {
+      # If an error occurs, show an error message
+      shinyalert::shinyalert(title = "Error", text = "An error occurred!", type = "error")
+    })
     
   })
+  
+  
+  
   # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------
   #Function to show the ccrop process in the app 
   plot_png <- function(path, plot_brush, index, add=FALSE)
@@ -685,6 +767,8 @@ server <- shinyServer(function(input, output, session) {
     image_write(temp_scale, path = fname, format = "png", )
     req(file)
     list(src = fname, alt="alternative text")
+    
+    shinyalert::shinyalert(title = "Success", text = "Configuration successfully saved!", type = "success")
   }, deleteFile = FALSE)
   
   
@@ -723,16 +807,18 @@ server <- shinyServer(function(input, output, session) {
       # unlink(paste0(workingDir,"/", tempImage))
       i = input$imgIndexTemplate +1
       updateNumericInput(session, "imgIndexTemplate", value = i)
+      
+      
     }) 
   
   observeEvent(input$listMTemplates, {
     #output$plot <- renderImage({
     ##    NULL
-      
+    
     #})
     output$listMapTemplates = renderUI({
       # Define the directory path
-      new_directory <- paste0(workingDir, "/www/map_templates_png/")
+      new_directory <- paste0(workingDir, "/www/data/map_templates_png/")
       #print(new_directory)
       # Check if the directory already exists
       if (!dir.exists(new_directory)) {
@@ -740,12 +826,12 @@ server <- shinyServer(function(input, output, session) {
         dir.create(new_directory)
         
         findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")
-        converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/map_templates_png/"))
+        converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/map_templates_png/"))
         #cat("New directory created:", new_directory, "\n")
       } else {
         cat("Directory already exists:", new_directory, "\n")
         findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")
-        converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/map_templates_png/"))
+        converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/map_templates_png/"))
       }
       prepareImageView("/map_templates_png/", '.png')
     })
@@ -775,14 +861,14 @@ server <- shinyServer(function(input, output, session) {
       # unlink(paste0(workingDir,"/", tempImage))
       i = input$imgIndexSymbol +1
       updateNumericInput(session, "imgIndexSymbol", value = i)
-
+      
     }) 
   
   observeEvent(input$listSTemplates, {
     output$listSymbolTemplates = renderUI({
       
       # Define the directory path
-      new_directory <- paste0(workingDir, "/www/symbol_templates_png/")
+      new_directory <- paste0(workingDir, "/www/data/symbol_templates_png/")
       
       # Check if the directory already exists
       if (!dir.exists(new_directory)) {
@@ -794,35 +880,26 @@ server <- shinyServer(function(input, output, session) {
       }
       
       findTemplateResult = paste0(workingDir, "/data/input/templates/symbols/")
-      converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/symbol_templates_png/"))
+      converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/symbol_templates_png/"))
       
       prepareImageView("/symbol_templates_png/", '.png')
     })
   })
   
-  # ----------------------------------------# 2. Maps matching #----------------------------------------------------------------------
-  # Template matching start
+  ####################
+  # 2. Maps matching #----------------------------------------------------------------------#
+  ####################
+  
+  # START th template matching 
+  
   observeEvent(input$templateMatching, {
-    
-    # Define the directory path
-    new_directory <- paste0(workingDir, "/www/matching_png/")
-    
-    # Check if the directory already exists
-    if (!dir.exists(new_directory)) {
-      # Create the directory if it doesn't exist
-      dir.create(new_directory)
-      cat("New directory created:", new_directory, "\n")
-    } else {
-      cat("Directory already exists:", new_directory, "\n")
-    }
     
     # call the function for map matching 
     manageProcessFlow("mapMatching", "map matching", "matching")
-
+    
     # convert the tif images to png and show this on the plot
-    findTemplateResult = paste0(workingDir, "/data/output/maps/matching/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/matching_png/"))
-
+    converTifToPngSave(paste0(outDir, "/maps/matching/"), paste0(workingDir, "/www/data/matching_png/"))
+    
   })
   
   observeEvent(input$listMapsMatching, {
@@ -838,7 +915,7 @@ server <- shinyServer(function(input, output, session) {
       })
     }
   })
-
+  
   # ----------------------------------------# 2.1 Maps align #----------------------------------------------------------------------
   # Align maps start
   observeEvent(input$alignMaps, {
@@ -847,11 +924,9 @@ server <- shinyServer(function(input, output, session) {
     manageProcessFlow("alignMaps", "align maps", "allign")
     
     # convert the tif images to png and show this on the plot
-    findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/align_png/"))
-
+    converTifToPngSave(paste0(outDir, "/maps/align/"), paste0(workingDir, "/www/data/align_png/"))
   })
-
+  
   observeEvent(input$listAlign, {
     if(input$siteNumberMapsMatching != ''){
       #print(input$siteNumberMapsMatching)
@@ -875,11 +950,9 @@ server <- shinyServer(function(input, output, session) {
     manageProcessFlow("mapReadRpecies", "cropping map species", "align")
     
     # convert the tif images to png and show this on the plot
-    findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/cropped_png/"))
-
+    converTifToPngSave(paste0(outDir, "/maps/align/"), paste0(workingDir, "/www/data/cropped_png/"))
   })
-
+  
   observeEvent(input$listCropped, {
     if(input$siteNumberMapsMatching != ''){
       #print(input$siteNumberMapsMatching)
@@ -910,7 +983,7 @@ server <- shinyServer(function(input, output, session) {
     manageProcessFlow("pointMatching", "points matching", "pointMatching")
     # convert the tif images to png and show this on the plot
     findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/pointMatching_png/"))
+    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointMatching_png/"))
   })
   
   observeEvent(input$listPointsM, {
@@ -934,7 +1007,7 @@ server <- shinyServer(function(input, output, session) {
     
     # convert the tif images to png and show this on the plot
     findTemplateResult = paste0(workingDir, "/data/output/maps/pointFiltering/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/pointFiltering_png/"))
+    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointFiltering_png/"))
   })
   
   observeEvent(input$listPointsF, {
@@ -972,7 +1045,7 @@ server <- shinyServer(function(input, output, session) {
     
     # convert the tif images to png and show this on the plot
     findTemplateResult = paste0(workingDir, "/data/output/maps/circleDetection/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/CircleDetection_png/"))
+    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/CircleDetection_png/"))
   })
   
   observeEvent(input$listPointsCD, {
@@ -986,7 +1059,7 @@ server <- shinyServer(function(input, output, session) {
         prepareImageView("/CircleDetection_png/", '.png')
       })
     }
-
+    
   })
   
   # ----------------------------------------# Masking #----------------------------------------------------------------------
@@ -995,7 +1068,7 @@ server <- shinyServer(function(input, output, session) {
     manageProcessFlow("masking", "masking white background", "masking")
     
     findTemplateResult = paste0(workingDir, "/data/output/masking/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/masking_png/"))
+    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_png/"))
   })
   
   observeEvent(input$maskingBlack, {
@@ -1003,7 +1076,7 @@ server <- shinyServer(function(input, output, session) {
     manageProcessFlow("maskingB", "masking black background", "masking")
     
     findTemplateResult = paste0(workingDir, "/data/output/masking_black/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/masking_black_png/"))
+    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_black_png/"))
   })
   # ---- # Masking centroids --------
   observeEvent(input$maskingCentroids, {
@@ -1036,7 +1109,7 @@ server <- shinyServer(function(input, output, session) {
       })
     }
   })
-
+  
   
   # ----------------------------------------# Georeferencing #----------------------------------------------------------------------
   # Georeferencing start
@@ -1055,12 +1128,12 @@ server <- shinyServer(function(input, output, session) {
     manageProcessFlow("georeferencing", "georeferencing", "georeferencing")
     
     # Verzeichnis erstellen
-    new_directory <- paste0(workingDir, "/www/georeferencing_png/")
+    new_directory <- paste0(workingDir, "/www/data/georeferencing_png/")
     dir.create(new_directory)
     
     # convert the tif images to png and save this in /www directory
     findTemplateResult = paste0(workingDir, "/data/output/georeferencing/masks/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/georeferencing_png/"))
+    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/georeferencing_png/"))
     
   })
   
@@ -1075,12 +1148,12 @@ server <- shinyServer(function(input, output, session) {
     
     listgeoTiffiles = list.files(paste0(workingDir, "/data/output/rectifying/"), full.names = T, pattern = paste0('georeferenced',input$siteNumberGeoreferencing))
     if( length(listgeoTiffiles) == 0) {
-        listgeoTiffiles = list.files(paste0(workingDir, "/data/output/rectifying/"), full.names = T, pattern = '.tif')
+      listgeoTiffiles = list.files(paste0(workingDir, "/data/output/rectifying/"), full.names = T, pattern = '.tif')
     }
     num_leaflet_outputs_GEO <- length(listgeoTiffiles)
     
     # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
-    listPng = list.files(paste0(workingDir, "/www/georeferencing_png/"), full.names = F, pattern = paste0('georeferenced', input$siteNumberGeoreferencing))  #print(listPng)
+    listPng = list.files(paste0(workingDir, "/www/data/georeferencing_png/"), full.names = F, pattern = paste0('georeferenced', input$siteNumberGeoreferencing))  #print(listPng)
     
     output$leaflet_outputs_GEO <- renderUI({
       #print( paste('00',input$siteNumberGeoreferencing,'map'))
@@ -1123,7 +1196,7 @@ server <- shinyServer(function(input, output, session) {
     
     cat("\nSuccessfully executed")
     # show end action message
-
+    
     closeAlert(num = 0, id = NULL)
     shinyalert(text = paste("Georeferencing successfully executed!", format(current_time(), "%H:%M:%S")), 
                type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
@@ -1135,7 +1208,7 @@ server <- shinyServer(function(input, output, session) {
     manageProcessFlow("georef_coords_from_csv", "georeferencing", "georef_coords_from_csv")
   })
   
- 
+  
   
   # ----------------------------------------# Polygonize #----------------------------------------------------------------------
   # Polygonize start
@@ -1144,7 +1217,7 @@ server <- shinyServer(function(input, output, session) {
     manageProcessFlow("polygonize", "polygonize", "polygonize")
     
     # Write new directory
-    new_directory <- paste0(workingDir, "/www/polygonize/")
+    new_directory <- paste0(workingDir, "/www/data/polygonize/")
     dir.create(new_directory)
     
     findTemplateResult = paste0(workingDir, "/data/output/polygonize/")
@@ -1154,7 +1227,7 @@ server <- shinyServer(function(input, output, session) {
     for (f in shFiles) {
       # Source and destination file paths
       baseName = basename(f)
-      destination_file <- paste0(workingDir, "/www/polygonize/", baseName)
+      destination_file <- paste0(workingDir, "/www/data/polygonize/", baseName)
       #print(destination_file)
       # Copy the file
       file.copy(from = f, to = destination_file, overwrite = TRUE)
@@ -1171,7 +1244,7 @@ server <- shinyServer(function(input, output, session) {
   # Polygonize list maps  
   observeEvent(input$listPolygonize, {
     # Load the shapefile data
-    listShapefiles = list.files(paste0(workingDir, "/www/polygonize/"), full.names = T, pattern = '.shp')
+    listShapefiles = list.files(paste0(workingDir, "/www/data/polygonize/"), full.names = T, pattern = '.shp')
     #input$siteNumberPolygonize='69'
     listShapefiles = grep(input$siteNumberPolygonize, listShapefiles, value= TRUE)
     
@@ -1184,7 +1257,7 @@ server <- shinyServer(function(input, output, session) {
     #print(listShapefiles)
     
     # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
-    listPng = list.files(paste0(workingDir, "/www/cropped_png/"), full.names = F, pattern = input$siteNumberPolygonize)
+    listPng = list.files(paste0(workingDir, "/www/data/cropped_png/"), full.names = F, pattern = input$siteNumberPolygonize)
     #print(listPng)
     
     output$leaflet_outputs_PL <- renderUI({
@@ -1197,7 +1270,7 @@ server <- shinyServer(function(input, output, session) {
       do.call(tagList, leaflet_outputs_list)
     })
     
-  
+    
     
     # Liste von Leaflet-Objektenlapply(seq_along(my_list), function(i) {
     leaflet_list_PL <- lapply(seq_along(listShapefiles), function(i) {
@@ -1215,17 +1288,17 @@ server <- shinyServer(function(input, output, session) {
           htmltools::div(
             p(listShapefiles[i]),
           ),
-        position = "bottomright"
+          position = "bottomright"
         ) %>%
         addControl(
-        htmltools::div(
-          img(src = paste0("/cropped_png/",listPng[i]), width = 200, height = 200),
-          #p(listPng[i])
-          tags$a(href = paste0("/cropped_png/",listPng[i]), listPng[i], target="_blank"),
-        ),
-        
-        position = "bottomleft"
-      )
+          htmltools::div(
+            img(src = paste0("/cropped_png/",listPng[i]), width = 200, height = 200),
+            #p(listPng[i])
+            tags$a(href = paste0("/cropped_png/",listPng[i]), listPng[i], target="_blank"),
+          ),
+          
+          position = "bottomleft"
+        )
     })
     
     # Ergebnisse in den Output-Variablen speichern
@@ -1234,22 +1307,22 @@ server <- shinyServer(function(input, output, session) {
       output[[paste0('listPL', i)]] <- renderLeaflet({ leaflet_list_PL[[i]] })
     })
     # Render the HTML shape name 1
-   # output$shape_name1 <- renderUI({
+    # output$shape_name1 <- renderUI({
     #  HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[1]), "</p>"))
-   # })
+    # })
     # Render the HTML align map1
-   # output$align_map1 <- renderUI({
-   #   HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[1]), ">"))
-   # })
+    # output$align_map1 <- renderUI({
+    #   HTML(paste("<img src=", workingDir, "/www/data/align_png/",basename(listShapefile[1]), ">"))
+    # })
   })
   
   # Render the HTML align map3
   # output$align_map3 <- renderUI({
-  #    HTML(paste("<img src=", workingDir, "/www/align_png/",basename(listShapefile[3]), ">"))
+  #    HTML(paste("<img src=", workingDir, "/www/data/align_png/",basename(listShapefile[3]), ">"))
   #  })
   
- 
-
+  
+  
   # ----------------------------------------# Save the outputs #----------------------------------------------------------------------
   
   observeEvent(input$startSpatialDataComputing, {
@@ -1262,18 +1335,19 @@ server <- shinyServer(function(input, output, session) {
     tryCatch(
       # Processing spatial data computing
       expr = {
+        prepare_directory("/www/data/pages/")
         fname=paste0(workingDir, "/", "src/extract_coordinates/poly_to_point.py")
         source_python(fname)
         main_circle_detection(workingDir)
         main_point_filtering(workingDir)
-    
+        
         fname=paste0(workingDir, "/", "src/extract_coordinates/extract_coords.py")
         source_python(fname)
         main_circle_detection(workingDir)
         main_point_filtering(workingDir)
         
         # prepare pages as png for the spatia view
-        converTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/pages/"))
+        converTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/data/pages/"))
         source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
         mergeFinalData(workingDir)
       },
@@ -1295,7 +1369,7 @@ server <- shinyServer(function(input, output, session) {
         closeAlert(num = 0, id = NULL)
         if(messageOnClose == "") {messageOnClose = "Spatial final data computing" }
         shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"), 
-                    "The Spatial final data is saved in spatial_final_data.csv in directory /data/output/" ),
+                                "The Spatial final data is saved in spatial_final_data.csv in directory /data/output/" ),
                    type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
                    closeOnClickOutside = TRUE, animation = TRUE)
       }
@@ -1343,13 +1417,13 @@ server <- shinyServer(function(input, output, session) {
         )
     })
     
-   
+    
     cat("\nSuccessfully executed")
     
   })
   
   observeEvent(input$spatialViewCD, {
-   
+    
     customMouseover <- JS(
       "function(event) {
     var layer = event.target;
@@ -1386,37 +1460,37 @@ server <- shinyServer(function(input, output, session) {
                           "<a href='/pages/", page, "' target='_blank'>",
                           "<img src='/pages/", page, "' width='100' height='100'></a>")
         )
-     # addLegend(position = "bottomright", colors = "red", labels = "Your Legend Text") %>%
-     # addControl(position = "bottomright", title = "Legend", html = "<div style='background-color: #ffffff; padding: 10px;'>Your Legend Text</div>")
+      # addLegend(position = "bottomright", colors = "red", labels = "Your Legend Text") %>%
+      # addControl(position = "bottomright", title = "Legend", html = "<div style='background-color: #ffffff; padding: 10px;'>Your Legend Text</div>")
       
     })
     
     
-   
+    
     cat("\nSuccessfully executed")
- 
+    
   })
-    # Daten aus der hochgeladenen CSV-Datei lesen
-    #data2 <- reactive({
-      #req(input$file)
-    #  df <- read.csv(input$file$datapath)
-    #  df
-   # })
-    
-    # OpenStreetMap show
-   # output$mapShowCsv <- renderLeaflet({
-     # leaflet(data = data2()) %>%
-      #  addTiles() %>%
-      #  addMarkers(lng = ~Longitude, lat = ~Latitude,
-     #   label = ~Name,
-     #   labelOptions = labelOptions(
-     #   direction = "auto",
-      #  noHide = TRUE
-     #   ),
-     #   popup = ~paste0("<a href='/matching_png/", Name, "' target='_blank'>", ~Link, "</a>")
-      #  )
-    #})
-    
+  # Daten aus der hochgeladenen CSV-Datei lesen
+  #data2 <- reactive({
+  #req(input$file)
+  #  df <- read.csv(input$file$datapath)
+  #  df
+  # })
+  
+  # OpenStreetMap show
+  # output$mapShowCsv <- renderLeaflet({
+  # leaflet(data = data2()) %>%
+  #  addTiles() %>%
+  #  addMarkers(lng = ~Longitude, lat = ~Latitude,
+  #   label = ~Name,
+  #   labelOptions = labelOptions(
+  #   direction = "auto",
+  #  noHide = TRUE
+  #   ),
+  #   popup = ~paste0("<a href='/matching_png/", Name, "' target='_blank'>", ~Link, "</a>")
+  #  )
+  #})
+  
   output$downloadCSV <- downloadHandler(
     # Hier können Sie den Pfad zu Ihrer CSV-Datei angeben
     
@@ -1440,7 +1514,7 @@ server <- shinyServer(function(input, output, session) {
     
     # Hier können Sie Daten für Ihre Tabelle oder Visualisierung laden
     # In diesem Beispiel lesen wir die CSV-Datei
-
+    
     data <- reactive({
       my_data <- read.table(csv_path, sep = ";", header = TRUE, check.names = FALSE)
       
@@ -1451,177 +1525,209 @@ server <- shinyServer(function(input, output, session) {
     output$myTable <- renderDataTable({
       data()
     })
-   
+    
   })
   
   manageProcessFlow <- function(processing, allertText1, allertText2){
-   
-      # show start action message
-      message=paste0("Process ", allertText1, " is started on: ")
-      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
-                 closeOnClickOutside = FALSE, animation = TRUE)
-      if(processing == "mapMatching"){
-        
-        # processing template matching
-        fname=paste0(workingDir, "/", "src/matching/map_matching.py")
-        print("Processing template matching python script:")
-        print(fname)
-        source_python(fname)
-        #print("Threshold:")
-        #print(input$threshold_for_TM)
-        main_template_matching(workingDir, input$threshold_for_TM, config$sNumberPosition)
-        findTemplateResult = paste0(workingDir, "/data/output/maps/matching/")
-        files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-        countFiles = paste0(length(files),"")
-        message=paste0("Process template matching maps is ended on: ", format(current_time(), "%H:%M:%S \n ."), " The number extracted outputs with threshold=",input$threshold_for_TM , " are ", countFiles ,"! \n High threshold values lead to few matchings, low values to many matchings.")
-
-      }
-     
-      if(processing == "alignMaps" ){
-        # align
-        fname=paste0(workingDir, "/", "src/matching/map_align.py")
-        print("Processing align python script:")
-        print(fname)
-        source_python(fname)
-        align_images_directory(workingDir)
-        #print(fname)
-        cat("\nSuccessfully executed")
-        findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
-        files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-        countFiles = paste0(length(files),"")
-       # print(countFiles)
-      }
+    
+    # show start action message
+    message=paste0("The process ", allertText1, " is started on: ")
+    shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
+               closeOnClickOutside = FALSE, animation = TRUE)
+    
+    
+    if(processing == "mapMatching"){
       
-      if(processing == "mapReadRpecies" ){
-        # Croping
-        fname=paste0(workingDir, "/", "src/read_species/map_read_species.R")
-        print("Croping the species names from the map botton R script:")
-        print(fname)
-        source(fname)
-        species = read_species2(workingDir)
-      }
-     
-      if(processing == "pageReadRpecies" ){
-        # read page species
-        fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
-        print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ",workingDir,"/data/output directory"))
-        #print(fname)
-        source(fname)
-        #print(config$middle)
-        #print(config$regExYear)
-        #print(config$keywordReadSpecies)
-        #print(config$keywordBefore)
-        #print(config$keywordThen)
-        #print(config$keywordReadSpecies, config$)
-        #'D:/distribution_digitizer_11_01_2024/data/input/pages/0058.tif', "_cinnara", "Range", keyword_top = 2, middle=True)
-        #'(workingDir, keyword, keyword_top, keaword_bottom, middle=TRUE) 
-        #print(length(config$keywordReadSpecies))
-        if(length(config$keywordReadSpecies) > 0) {
-          species = readPageSpecies(workingDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
-        }
-        else{
-          species = readPageSpecies(workingDir,'None', config$keywordBefore, config$keywordThen, config$middle)
-        }
-      }
+      prepare_directory(paste0(outDir, "/maps/matching/"))
+      prepare_directory(paste0(workingDir, "/www/data/matching_png/"))
+      # processing template matching
+      fname=paste0(workingDir, "/", "src/matching/map_matching.py")
       
+      print("The processing template matching python script:")
+      print(fname)
+      source_python(fname)
+      #print("Threshold:")
+      #print(input$threshold_for_TM)
+      main_template_matching(workingDir, outDir, input$threshold_for_TM, config$sNumberPosition)
+      findTemplateResult = paste0(outDir, "/maps/matching/")
+      files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+      countFiles = paste0(length(files),"")
+      message=paste0("Ended on: ", 
+                     format(current_time(), "%H:%M:%S \n"), " The number extracted outputs with threshold = ",
+                     input$threshold_for_TM , " are \n", countFiles ," and saved in directory \n",findTemplateResult, 
+                     "! \n High threshold values lead to few matchings, low values to many matchings.")
+    }
+    
+    if(processing == "alignMaps" ){
+      prepare_directory(paste0(outDir, "/maps/align/"))
+      prepare_directory(paste0(workingDir, "/www/data/align_png/"))
       
-      if(processing == "pointMatching") {
-        # Processing points matching
-        fname=paste0(workingDir, "/", "src/matching/point_matching.py")
-        print(" Processing point python script:")
-        print(fname)
-        source_python(fname)
-        mainPointMatching(workingDir, input$threshold_for_PM)
-      }
-      
-      if(processing == "pointFiltering") {
-        fname=paste0(workingDir, "/", "src/matching/point_filtering.py")
-        fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
-        print(" Process pixel filtering  python script:")
-        print(fname)
-        source_python(fname)
-        source_python(fname2)
-        mainPointFiltering(workingDir, input$filterK, input$filterG)
-      }
-      
-      if(processing == "pointCircleDetection") {
-        fname=paste0(workingDir, "/", "src/matching/circle_detection.py")
-        fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
-        print("Processing circle detection python script:")
-        print(fname)
-        source_python(fname)
-        source_python(fname2)
-        mainCircleDetection(workingDir, input$Gaussian, input$minDist, input$thresholdEdge, input$thresholdCircles, input$minRadius, input$maxRadius)
-      }
-      
-      if(processing == "masking"){
-        fname=paste0(workingDir, "/", "src/masking/masking.py")
-        print(" Process masking python script:")
-        print(fname)
-        source_python(fname)
-        mainGeomask(workingDir, input$morph_ellipse)
-        fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
-        source_python(fname)
-        mainGeomaskB(workingDir, input$morph_ellipse)
-      }
-      
-      if(processing == "maskingCentroids"){
-        fname=paste0(workingDir, "/", "src/masking/mask_centroids.py")
-        print(" Process masking python script:")
-        print(fname)
-        source_python(fname)
-        MainMaskCentroids(workingDir)
-      }
-      
-      if(processing == "georeferencing"){
-        # processing georeferencing
-        fname=paste0(workingDir, "/", "src/georeferencing/mask_georeferencing.py")
-        print(" Process georeferencing python script:")
-        print(fname)
-        source_python(fname)
-        mainmaskgeoreferencingMaps(workingDir)
-        mainmaskgeoreferencingMaps_CD(workingDir)
-        mainmaskgeoreferencingMasks(workingDir)
-        mainmaskgeoreferencingMasks_CD(workingDir)
-        mainmaskgeoreferencingMasks_PF(workingDir)
-        # processing rectifying
-        fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
-        print(" Process rectifying python script:")
-        print(fname)
-        source_python(fname)
-        mainRectifying(workingDir)
-        mainRectifying_CD(workingDir)
-        mainRectifying_PF(workingDir)
-      }
-      
-      if(processing == "georef_coords_from_csv"){
-        # processing mathematical georeferencing of extracted coordinates stored in csv file
-        fname=paste0(workingDir, "/", "src/georeferencing/centroid_georeferencing.py")
-        print(" Process georeferencing python script:")
-        print(fname)
-        source_python(fname)
-        mainCentroidGeoref(workingDir)
-      }
-      
-      if(processing=="polygonize"){
-        # processing polygonize
-        fname=paste0(workingDir, "/", "src/polygonize/polygonize.py")
-        print(" Process polygonizing python script:")
-        print(fname)
-        source_python(fname)
-        mainPolygonize(workingDir)
-        mainPolygonize_CD(workingDir)
-        mainPolygonize_PF(workingDir)
-      }
-      
+      # align
+      fname=paste0(workingDir, "/", "src/matching/map_align.py")
+      print("Processing align python script:")
+      print(fname)
+      source_python(fname)
+      align_images_directory(workingDir, outDir)
+      #print(fname)
       cat("\nSuccessfully executed")
-      # show end action message
-      if(processing != "mapMatching"){
-        message=paste0("Process ", allertText1, " is ended on: ")
+      findTemplateResult = paste0(outDir, "/maps/align/")
+      files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+      countFiles = paste0(length(files),"")
+      message=paste0("Ended on: ", 
+                     format(current_time(), "%H:%M:%S \n"), " The number extracted outputs ", " are \n", 
+                     countFiles ," and saved in directory \n",findTemplateResult)
+    }
+    
+    if(processing == "mapReadRpecies" ){
+      # Croping
+      fname=paste0(workingDir, "/", "src/read_species/map_read_species.R")
+      print("Croping the species names from the map botton R script:")
+      print(fname)
+      source(fname)
+      species = read_legends(workingDir)
+    }
+    
+    if(processing == "pageReadRpecies" ){
+      # read page species
+      fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
+      print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ",workingDir,"/data/output directory"))
+      #print(fname)
+      source(fname)
+      #print(config$middle)
+      #print(config$regExYear)
+      #print(config$keywordReadSpecies)
+      #print(config$keywordBefore)
+      #print(config$keywordThen)
+      #print(config$keywordReadSpecies, config$)
+      #'D:/distribution_digitizer_11_01_2024/data/input/pages/0058.tif', "_cinnara", "Range", keyword_top = 2, middle=True)
+      #'(workingDir, keyword, keyword_top, keaword_bottom, middle=TRUE) 
+      #print(length(config$keywordReadSpecies))
+      if(length(config$keywordReadSpecies) > 0) {
+        species = readPageSpecies(workingDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
       }
-      closeAlert(num = 0, id = NULL)
-      shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"), "!\n The ones found are appended to the file names of the corresponding file in directory /data/output/maps/" , allertText2 ), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
-                 closeOnClickOutside = TRUE, animation = TRUE)
+      else{
+        species = readPageSpecies(workingDir,'None', config$keywordBefore, config$keywordThen, config$middle)
+      }
+    }
+    
+    
+    if(processing == "pointMatching") {
+      prepare_directory("/www/data/pointMatching_png/")
+      # Processing points matching
+      fname=paste0(workingDir, "/", "src/matching/point_matching.py")
+      print(" Processing point python script:")
+      print(fname)
+      source_python(fname)
+      mainPointMatching(workingDir, input$threshold_for_PM)
+    }
+    
+    if(processing == "pointFiltering") {
+      prepare_directory("/data/output/maps/pointFiltering/")
+      prepare_directory("/www/data/pointFiltering_png")
+      
+      fname=paste0(workingDir, "/", "src/matching/point_filtering.py")
+      fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
+      print(" Process pixel filtering  python script:")
+      print(fname)
+      source_python(fname)
+      source_python(fname2)
+      mainPointFiltering(workingDir, input$filterK, input$filterG)
+    }
+    
+    if(processing == "pointCircleDetection") {
+      prepare_directory("/data/output/maps/circleDetection/")
+      prepare_directory("/www/data/CircleDetection_png/")
+      
+      fname=paste0(workingDir, "/", "src/matching/circle_detection.py")
+      fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
+      print("Processing circle detection python script:")
+      print(fname)
+      source_python(fname)
+      source_python(fname2)
+      mainCircleDetection(workingDir, input$Gaussian, input$minDist, input$thresholdEdge, input$thresholdCircles, input$minRadius, input$maxRadius)
+    }
+    
+    if(processing == "masking"){
+      prepare_directory("/data/output/masking/")
+      prepare_directory("/www/masking_png/")
+      
+      fname=paste0(workingDir, "/", "src/masking/masking.py")
+      print(" Process masking python script:")
+      print(fname)
+      source_python(fname)
+      mainGeomask(workingDir, input$morph_ellipse)
+      fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
+      source_python(fname)
+      mainGeomaskB(workingDir, input$morph_ellipse)
+    }
+    
+    if(processing == "maskingCentroids"){
+      prepare_directory("/data/output/masking_black/circleDetection/")
+      prepare_directory("/data/output/masking_black/pointFiltering/")
+      
+      fname=paste0(workingDir, "/", "src/masking/mask_centroids.py")
+      print(" Process masking python script:")
+      print(fname)
+      source_python(fname)
+      MainMaskCentroids(workingDir)
+    }
+    
+    if(processing == "georeferencing"){
+      prepare_directory("/data/output/geor/maps/pointFiltering/")
+      prepare_directory("/data/output/geor/maps/circleDetection/")
+      prepare_directory("/data/output/geor/masks/")
+      prepare_directory("/data/output/geor/masks/circleDetection/")
+      prepare_directory("/data/output/geor/masks/pointFiltering/")
+      # processing georeferencing
+      fname=paste0(workingDir, "/", "src/georeferencing/mask_georeferencing.py")
+      print(" Process georeferencing python script:")
+      print(fname)
+      source_python(fname)
+      mainmaskgeoreferencingMaps(workingDir)
+      mainmaskgeoreferencingMaps_CD(workingDir)
+      mainmaskgeoreferencingMasks(workingDir)
+      mainmaskgeoreferencingMasks_CD(workingDir)
+      mainmaskgeoreferencingMasks_PF(workingDir)
+      # processing rectifying
+      fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
+      print(" Process rectifying python script:")
+      print(fname)
+      source_python(fname)
+      mainRectifying(workingDir)
+      mainRectifying_CD(workingDir)
+      mainRectifying_PF(workingDir)
+    }
+    
+    if(processing == "georef_coords_from_csv"){
+      # processing mathematical georeferencing of extracted coordinates stored in csv file
+      fname=paste0(workingDir, "/", "src/georeferencing/centroid_georeferencing.py")
+      print(" Process georeferencing python script:")
+      print(fname)
+      source_python(fname)
+      mainCentroidGeoref(workingDir)
+    }
+    
+    if(processing=="polygonize"){
+      prepare_directory( "/data/output/polygonize/")
+      prepare_directory( "/data/output/polygonize/circleDetection/")
+      
+      # processing polygonize
+      fname=paste0(workingDir, "/", "src/polygonize/polygonize.py")
+      print(" Process polygonizing python script:")
+      print(fname)
+      source_python(fname)
+      mainPolygonize(workingDir)
+      mainPolygonize_CD(workingDir)
+      mainPolygonize_PF(workingDir)
+    }
+    
+    cat("\nSuccessfully executed")
+    # show end action message
+    
+    closeAlert(num = 0, id = NULL)
+    shinyalert(text = message, type = "info", 
+               showConfirmButton = TRUE, closeOnEsc = TRUE,
+               closeOnClickOutside = TRUE, animation = TRUE)
     
   }
   # ----------------------------------------# Function to list the result images #---------------------------------------------------------------------- #
@@ -1636,7 +1742,7 @@ server <- shinyServer(function(input, output, session) {
     lapply(1:length(listPngImages), display_image)
   }
   
-
+  
   # ----------------------------------------
   # Function to list CSV files as links
   # ----------------------------------------
@@ -1658,7 +1764,7 @@ server <- shinyServer(function(input, output, session) {
   prepareCSVLinks(dirName, index)
   
   
-  # convert tif images to png and save in /www directory
+  # CONVERT tif images to png and save in /www directory
   converTifToPngSave <- function(pathToTiffImages, patjhToPngImages){
     tifFiles <- list.files(pathToTiffImages, pattern = ".tif", recursive = FALSE)
     # convert tif to png and save this into the given path
@@ -1727,12 +1833,32 @@ server <- shinyServer(function(input, output, session) {
       NULL
     }
     #only if input$image is given
-  
+    
     
   }, deleteFile = FALSE)
   
-
- 
+  
+  prepare_directory <- function(directory) {
+    # Überprüfe, ob der eingegebene Verzeichnispfad für die Eingabedaten gültig ist
+    if (nchar(directory) > 0) {
+      if (dir.exists(directory)) {
+        # Lösche den Inhalt des Verzeichnisses rekursiv, falls es existiert
+        unlink(directory, recursive = TRUE)
+      } else {
+        # Erstelle das Verzeichnis, falls es nicht existiert
+        dir.create(directory, recursive = TRUE)
+      }
+      # Speichere den Verzeichnispfad für die Eingabedaten
+      
+    } else {
+      # Zeige eine Fehlermeldung an, wenn der Verzeichnispfad ungültig ist
+      showModal(modalDialog(
+        title = "Error",
+        "Please provide a valid input directory path."
+      ))
+      return()  # Stoppe die Funktion, falls der Verzeichnispfad ungültig ist
+    }
+  }
   
 })
 
