@@ -91,21 +91,42 @@ def circle_detection(tiffile, outdir, blur, min_dist, threshold_edge, threshold_
 
 
 # function for calling circle_detection
-def mainCircleDetection(workingDir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius):
-    inputDir = workingDir + "/data/output/maps/align/"
-    outputTifDir = workingDir + "/data/output/maps/circleDetection/"
-    os.makedirs(outputTifDir, exist_ok=True)
+def mainCircleDetection(workingDir, outDir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius):
+    outputTifDir = ""
+    inputDir = ""
+    
+    if(os.path.exists(outDir)):
+      if outDir.endswith("/"):
+        inputDir = outDir + "maps/align/"
+        outputTifDir = outDir + "maps/circleDetection/"
+        outputCsvDir = outDir + "maps/csv_files/"
+      else:
+        inputDir = outDir + "/maps/align/"
+        outputTifDir = outDir + "maps/circleDetection/"
+        outputCsvDir = outDir + "/maps/csv_files/"
+    else:
+      if working_dir.endswith("/"):
+        inputDir = working_dir + "data/output/maps/align/"
+        outputTifDir = workingDir + "data/output/maps/circleDetection/"
+        outputCsvDir = workingDir + "data/output/maps/csv_files/"
+      else: 
+        inputDir = working_dir + "/data/output/maps/align/"
+        outputTifDir = workingDir + "/data/output/maps/circleDetection/"
+        outputCsvDir = workingDir + "/data/output/maps/csv_files/"
+    
+   
+    #os.makedirs(outputTifDir, exist_ok=True)
 
-    outputCsvDir = workingDir + "/data/output/maps/csv_files/"
-    os.makedirs(outputCsvDir, exist_ok=True)
+    
+    #os.makedirs(outputCsvDir, exist_ok=True)
     # initialize csv file for storing the cooridnates (if the file does not exist already)
     csv_file_path = initialize_csv_file(outputCsvDir, "X", "Y")
 
     ouputPngDir = workingDir + "/www/CircleDetection_png/"
-    os.makedirs(ouputPngDir, exist_ok=True)
+    #os.makedirs(ouputPngDir, exist_ok=True)
 
     for file in glob.glob(inputDir + '*.tif'):
-        print(file)
+        #print(file)
         # call the function and store the centroid list
         centroids, output_file = circle_detection(file, outputTifDir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius)
         # add centroids to the csv file that has been initialized previously

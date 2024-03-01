@@ -44,16 +44,30 @@ def pointmatch(tiffile, file, outputpcdir, point_threshold):
 # only for tests
 # workingDir = "D:/distribution_digitizer"
 
-def mainPointMatching(workingDir, point_threshold):
-  outputTiffDir = workingDir + "/data/output/maps/align/"
-  os.makedirs(outputTiffDir, exist_ok=True)
+def mainPointMatching(workingDir, outDir, point_threshold):
+  print("Points matching:")
+  #print(working_dir)
+  outputTiffDir = ""
+  if(os.path.exists(outDir)):
+    if outDir.endswith("/"):
+      outputTiffDir = outDir + "maps/align/"
+    else:
+      outputTiffDir = outDir + "/maps/align/"
+  else:
+    if working_dir.endswith("/"):
+      outputTiffDir = workingDir + "/data/output/maps/align/"
+    else: 
+      outputTiffDir = workingDir + "/data/output/maps/align/"
+  
+
+  #os.makedirs(outputTiffDir, exist_ok=True)
   pointTemplates = workingDir+"/data/input/templates/symbols/"
   
   # create out directory for the result images as png
   ouputPngDir = workingDir+"/www/data/pointMatching_png/"
-  os.makedirs(ouputPngDir, exist_ok=True)
-  print(outputTiffDir)
-  print(ouputPngDir)
+  #os.makedirs(ouputPngDir, exist_ok=True)
+  #print(outputTiffDir)
+  #print(ouputPngDir)
   
   for tiffile in glob.glob(outputTiffDir + '*.tif'):
     for file in glob.glob(pointTemplates + '*.tif'): 

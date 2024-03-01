@@ -80,7 +80,7 @@ def find_page_number(image, page_position):
         result = int(element)
         break
 
-  print(result)    
+  #print(result)    
   # Return 0 if no suitable number is found
   return result
   #while True:
@@ -205,21 +205,22 @@ def match_template_tiff(previous_page_path, next_page_path, current_page_path,
     else:
       continue
   
-  print(template_map_file)
-  print(current_page_path)
-  print("--- %s seconds ---" % (time.time() - start_time))
+  #print(template_map_file)
+  #print(current_page_path)
+  #print("--- %s seconds ---" % (time.time() - start_time))
   PIL.Image.fromarray(img, 'RGB').save(os.path.join(current_page_path))
 
 
 
-working_dir="D:/distribution_digitizer"
+#working_dir="D:/distribution_digitizer"
 # Function to perform the main template matching in a loop
-def main_template_matching(working_dir, threshold, page_position):
+def main_template_matching(working_dir, outDir, threshold, page_position):
   """
   Perform the main template matching process.
 
   Args:
   - working_dir (str): Working directory.
+  - outDir (str) : Output directory
   - threshold (float): Threshold value for template matching.
   - page_position (int): The position of the page number. 1 for the top, 2 for the bottom.
   """
@@ -227,8 +228,28 @@ def main_template_matching(working_dir, threshold, page_position):
   # OUTPUT
   print("Working directory matching:")
   print(working_dir)
+  output_dir = ""
+  output_page_records = ""
+  records = ""
+  if(os.path.exists(outDir)):
+    if outDir.endswith("/"):
+      output_dir = outDir + "maps/matching/"
+      output_page_records = outDir + "pagerecords/"
+      records = outDir + "records.csv"
+    else:
+      output_dir = outDir + "/maps/matching/"
+      output_page_records = outDir + "/pagerecords/"
+      records = outDir + "/records.csv"
+  else:
+    if working_dir.endswith("/"):
+      output_dir = working_dir + "data/output/maps/matching/"
+      output_page_records = working_dir + "pagerecords/"
+      records = working_dir + "data/output/records.csv"
+    else: 
+      output_dir = working_dir+ "/data/output/maps/matching/"
+      output_page_records = working_dir + "/pagerecords/"
+      records = working_dir + "/data/output/records.csv"
   
-  output_dir = working_dir + "/data/output/maps/matching/"
   print("Out directory:")
   print(output_dir)
   os.makedirs(output_dir, exist_ok=True)
@@ -239,19 +260,26 @@ def main_template_matching(working_dir, threshold, page_position):
   #threshold=0.2
   # prepare the png directory
   # for the converted png images after the matching process 
-  output_png_dir = working_dir + "/www/data/matching_png/"
+  if working_dir.endswith("/"):
+    output_png_dir = working_dir + "www/data/matching_png/"
+    templates = working_dir+"data/input/templates/maps/"
+    input_dir = working_dir + "data/input/pages/"
+  else: 
+    output_png_dir = working_dir + "/www/data/matching_png/"
+    templates = working_dir+"/data/input/templates/maps/"
+    input_dir = working_dir + "/data/input/pages/"
+  
   os.makedirs(output_png_dir, exist_ok=True)
 
   # page_records csv file with the map coordinats
-  output_page_records = working_dir + "/data/output/pagerecords/"
   os.makedirs(output_page_records, exist_ok=True)
+
   # files = glob.glob(output_page_records)
   #for f in files:
-    #os.remove(f)
-  records = working_dir + "/data/output/records.csv"
+  #os.remove(f)
+
   # input dirs
-  templates = working_dir+"/data/input/templates/maps/"
-  input_dir = working_dir + "/data/input/pages/"
+
   tif_files = sorted(glob.glob(input_dir + '*.tif'))
   
   

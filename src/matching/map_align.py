@@ -8,7 +8,7 @@ from PIL import Image
 
 __author__ = "Spaska Forteva"
 __date__ = "2022-12-14"
-__change_date__ = "2023-12-15"
+__change_date__ = "2024-03-01"
 
 def align_images(image_path, template_path, output_dir, max_features=500, keep_percent=0.2, debug=False):
     """
@@ -70,7 +70,7 @@ def align_images(image_path, template_path, output_dir, max_features=500, keep_p
         return False  # Error
 
 
-def align_images_directory(working_dir):
+def align_images_directory(working_dir, outDir):
     """
     Aligns images in the specified working directory.
 
@@ -80,19 +80,40 @@ def align_images_directory(working_dir):
     Returns:
     - None
     """
+    
+    # OUTPUT
+    #print("Working directory align:")
+    #print(working_dir)
+    output_dir = ""
+    input_dir = ""
+    
+    if(os.path.exists(outDir)):
+      if outDir.endswith("/"):
+        output_dir = outDir + "maps/align/"
+        input_dir = outDir + "maps/matching/"
+      else:
+        output_dir = outDir + "/maps/align/"
+        input_dir = outDir + "/maps/matching/"
+    else:
+      if working_dir.endswith("/"):
+        output_dir = working_dir+ "data/output/maps/align/"
+        input_dir = working_dir + "data/output/maps/matching/"
+      else: 
+        output_dir = working_dir+ "/data/output/maps/align/"
+        input_dir = working_dir + "/data/output/maps/matching/"
+      
     # Output directory for aligned images
-    output_dir = working_dir + "/data/output/maps/align/"
-    os.makedirs(output_dir, exist_ok=True)
+    #os.makedirs(output_dir, exist_ok=True)
 
     # Directory for template images
     template_dir = working_dir + "/data/input/templates/align_ref/"
 
     # Directory for input images
-    input_dir = working_dir + "/data/output/maps/matching/"
+
 
     # Directory for converted PNG images after the matching process
     output_png_dir = working_dir + "/www/data/align_png/"
-    os.makedirs(output_png_dir, exist_ok=True)
+    #os.makedirs(output_png_dir, exist_ok=True)
 
     for template_path in glob.glob(template_dir + '*.tif'):
         for image_path in glob.glob(input_dir + '*.tif'):
