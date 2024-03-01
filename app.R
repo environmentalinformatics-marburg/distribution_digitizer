@@ -119,11 +119,8 @@ if (file.exists(fileFullPath)){
 }
 
 
-if (length(config$dataOutputDir) == 1 && nchar(config$dataOutputDir) > 3) {
-  outDir <- config$dataOutputDir 
-}
-if (length(config$dataInputDir) == 1 && nchar(config$dataInputDir) > 3) {
-  inputDir <- config$dataInputDir 
+if (file.exists(config$dataOutputDir)) {
+  outDir <-  config$dataOutputDir
 }
 
 # read the config file
@@ -294,7 +291,7 @@ body <- dashboardBody(
             fluidRow(textInput("dataOutputDir", label = "Please write the path to the output environment of the distribution digitizer", value = config$dataOutputDir)),
             # numberSitesPrint
             # format
-            fluidRow(selectInput("pFormat", label = "Image Format of the Scanned Sites", c("tif" = 1, "png" = 2, "jpg" = 3), selected = config$pFormat)),
+            fluidRow(selectInput("pFormat", label = "Image iiFormat of the Scanned Sites", c("tif" = 1, "png" = 2, "jpg" = 3), selected = config$pFormat)),
             # Page color
             fluidRow(selectInput("pColor", label = "Page Color", c("black white" = 1, "color" = 2), selected = config$pColor)),
             
@@ -636,22 +633,23 @@ sidebar <-
 
 server <- shinyServer(function(input, output, session) {
   
-  
+  dataInputDir = ""
   # Update the clock every second using a reactiveTimer
   current_time <- reactiveTimer(1000)
   
   # SAVE the config
   observeEvent(input$saveConfig, {
-    
+    dataInputDir = input$dataInputDir
     tryCatch({
-      dataInputDir = input$dataInputDir
-      
-      dataOutputDir = ""
-      prepare_directory( paste0(input$dataOutputDir,"/dd_data_output/"))
-      prepare_directory( paste0(workingDir,"/www/data/"))
-      
+      prepare_directory(outDir)
+       
+      webViewMap = paste0(workingDir,"/www/data/")
+      if (file.exists(webViewMap) && file.info(webViewMap)$isdir) {
+        prepare_directory(webViewMap)
+      } 
+       
       # Check if the directory exists
-      if (file.exists(dataInputDir) && file.info(dataInputDir)$isdir) {
+      if (file.exists(dataInputDir) ){#&& file.info(dataInputDir)$isdir) {
         output$message <- NULL
         # List of subdirectories in the "input" directory
         subdirectories <- list.dirs(dataInputDir, full.names = FALSE, recursive = FALSE)
@@ -719,9 +717,12 @@ server <- shinyServer(function(input, output, session) {
                   quote=FALSE)
       
       shinyalert::shinyalert(title = "Success", text = "Configuration successfully saved!", type = "success")
-    }, error = function(e) {
-      # If an error occurs, show an error message
-      shinyalert::shinyalert(title = "Error", text = "An error occurred!", type = "error")
+    },  
+    error = function(e) {
+      errorMessage <- paste("Ein Fehler ist aufgetreten:", e$message)
+      stackTrace <- paste("Stapelrückverfolgung:", traceback())
+      shinyalert::shinyalert(title = "Fehler", text = c(errorMessage, stackTrace), type = "error")
+    
     })
     
   })
@@ -982,7 +983,7 @@ server <- shinyServer(function(input, output, session) {
     # call the function for cropping
     manageProcessFlow("pointMatching", "points matching", "pointMatching")
     # convert the tif images to png and show this on the plot
-    findTemplateResult = paste0(workingDir, "/data/output/maps/align/")
+    findTemplateResult = paste0(outDir, "/maps/align/")
     converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointMatching_png/"))
   })
   
@@ -1612,13 +1613,14 @@ server <- shinyServer(function(input, output, session) {
     
     
     if(processing == "pointMatching") {
-      prepare_directory("/www/data/pointMatching_png/")
+
+      prepare_directory(paste0(workingDir, "/www/data/matching_png/"))
       # Processing points matching
       fname=paste0(workingDir, "/", "src/matching/point_matching.py")
       print(" Processing point python script:")
       print(fname)
       source_python(fname)
-      mainPointMatching(workingDir, input$threshold_for_PM)
+      mainPointMatching(workingDir, outDir, input$threshold_for_PM)
     }
     
     if(processing == "pointFiltering") {
@@ -1635,8 +1637,8 @@ server <- shinyServer(function(input, output, session) {
     }
     
     if(processing == "pointCircleDetection") {
-      prepare_directory("/data/output/maps/circleDetection/")
-      prepare_directory("/www/data/CircleDetection_png/")
+      prepare_directory(paste0(outDir, "/maps/circleDetection/"))
+      prepare_directory(paste0(workingDir, "/www/data/CircleDetection_png/"))
       
       fname=paste0(workingDir, "/", "src/matching/circle_detection.py")
       fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
@@ -1644,7 +1646,7 @@ server <- shinyServer(function(input, output, session) {
       print(fname)
       source_python(fname)
       source_python(fname2)
-      mainCircleDetection(workingDir, input$Gaussian, input$minDist, input$thresholdEdge, input$thresholdCircles, input$minRadius, input$maxRadius)
+      mainCircleDetection(workingDir, outDir, input$Gaussian, input$minDist, input$thresholdEdge, input$thresholdCircles, input$minRadius, input$maxRadius)
     }
     
     if(processing == "masking"){
@@ -1837,16 +1839,37 @@ server <- shinyServer(function(input, output, session) {
     
   }, deleteFile = FALSE)
   
-  
-  prepare_directory <- function(directory) {
+  # Function to create a new folder and move data
+  prepare_directory <- function(data_directory) {
     # Überprüfe, ob der eingegebene Verzeichnispfad für die Eingabedaten gültig ist
-    if (nchar(directory) > 0) {
-      if (dir.exists(directory)) {
-        # Lösche den Inhalt des Verzeichnisses rekursiv, falls es existiert
-        unlink(directory, recursive = TRUE)
+    if (nchar(data_directory) > 0) {
+      if (dir.exists(data_directory)) {
+        new_folder_path = paste(data_directory, "backupdata")
+        shinyalert(
+          title = "Confirmation",
+          text = paste0("Would you like to move the data from folder - ", data_directory," to folder - ", new_folder_path),
+          showCancelButton = FALSE,
+          callbackR = function(ok) {
+            if (ok) {
+              # Check if destination folder exists, if not, create it
+              if (!file.exists(new_folder_path)) {
+                dir.create(new_folder_path, recursive = TRUE)
+              }
+              
+              # Get list of files in source folder
+              files_to_move <- list.files(data_directory, full.names = TRUE)
+              
+              # Move each file to destination folder
+              for (file_path in files_to_move) {
+                file.rename(file_path, file.path(new_folder_path, basename(file_path)))
+              }
+            }
+          }
+        )
+        
       } else {
         # Erstelle das Verzeichnis, falls es nicht existiert
-        dir.create(directory, recursive = TRUE)
+        dir.create(data_directory, recursive = TRUE)
       }
       # Speichere den Verzeichnispfad für die Eingabedaten
       
