@@ -114,101 +114,105 @@ def match_template_tiff(previous_page_path, next_page_path, current_page_path,
   - records (str): Path to the main records CSV file.
   - threshold (float): Threshold value for template matching.
   - page_position (int): The position of the page number. 1 for the top, 2 for the bottom.
-  """
-  #current_page_path = "D:/distribution_digitizer/data/input/pages/0064.tif"
-  #template_map_file = "D:/distribution_digitizer/data/input/templates/maps/map_1.tif"
-  print(current_page_path)
-  print(template_map_file)
-  
-  # user the PIL library to open the tiffile
-  img = np.array(PIL.Image.open(current_page_path))
-  imgc = img.copy()
-  
-  # user the PIL library to open the template map
-  tmp = np.array(PIL.Image.open(template_map_file))
-  # read the width and heigth from template maps
-  h, w, c = tmp.shape 
-
-  # Template Matching Function from package cv2
-  res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
-  # Adjust this threshold value to suit you, you may need some trial runs (critical!)
-  loc = np.where(res >= threshold)
-  
-  # define an empty lists to store a range from X and Y coordinates
-  lspointY = []
-  lspointX = []
-  
-  count = 0
-  font = cv2.FONT_HERSHEY_SIMPLEX
-  page_number = find_page_number(current_page_path, page_position)
-  #print(page_number)
-
-  for pt in zip(*loc[::-1]):
-    # check that the coords are not already in the list, if they are then skip the match
-    if pt[0] not in lspointY and pt[1] not in lspointX:
+      """
+  try:
+      #current_page_path = "D:/distribution_digitizer/data/input/pages/0064.tif"
+      #template_map_file = "D:/distribution_digitizer/data/input/templates/maps/map_1.tif"
+      print(current_page_path)
+      print(template_map_file)
       
-      # draw a yellow boundary around a match- USE this just for tests!
-      #rect = cv2.rectangle(img, pt, (pt[0] + h, pt[1] + w), (0, 0, 0), 3)
-      size = w * h * (2.54/400 ) *( 2.54/400 )
+      # user the PIL library to open the tiffile
+      img = np.array(PIL.Image.open(current_page_path))
+      imgc = img.copy()
       
-      # put text with the information values - USE this just for tests!
-      #cv2.putText(rect, "{:.1f}cm^2".format(size), (pt[0] + h, pt[1] + w), font, 4,0, 0, 255), 3)
-      #cv2.imwrite('rect.png',rect)
+      # user the PIL library to open the template map
+      tmp = np.array(PIL.Image.open(template_map_file))
+      # read the width and heigth from template maps
+      h, w, c = tmp.shape 
+    
+      # Template Matching Function from package cv2
+      res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
+      # Adjust this threshold value to suit you, you may need some trial runs (critical!)
+      loc = np.where(res >= threshold)
       
-      # data rows of csv file   
-      rows_records = 0
-      # WRITE the fields and rows values into the main records csv file
-      rows_records = [[str(page_number),previous_page_path, next_page_path ,current_page_path, pt[0], pt[1], w, h ,size, threshold, (time.time() - start_time)]]   
+      # define an empty lists to store a range from X and Y coordinates
+      lspointY = []
+      lspointX = []
       
-      # Überprüfe, ob die Datei leer ist
-      is_empty = os.stat(records).st_size == 0
-
-      with open(records, 'a', newline='') as csv_file:  
-        # creating a csv writer object   
-        csvwriter = csv.writer(csv_file) 
-        if is_empty:
-          csvwriter.writerow(fields)
-        ## writing the rows
-        csvwriter.writerows(rows_records)
-        
-      # print(output_dir) 
-      threshold_last=str(threshold).split(".")
-      #print(threshold_last[1])
-      
-      img_map_path = (str(page_number) + '-' + str(threshold_last[1]) + '_' +
-      os.path.basename(current_page_path).rsplit('.', 1)[0] + 
-      os.path.basename(template_map_file).rsplit('.', 1)[0] + '_' + str(count))
-      
-      cv2.imwrite(output_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
-      #print(output_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
-     
-      
-      # WRITE the fields and rows values into the page record csv file
-      row = 0
-      rows = [[str(page_number), previous_page_path, next_page_path, current_page_path, output_dir + img_map_path + '.tif', pt[0], pt[1], 
-        w, h ,size, threshold, (time.time() - start_time)]]  
-      csv_path = output_page_records + img_map_path + '.csv'
-      with open(csv_path, 'w', newline='') as page_record:  
-        ## creating a csv writer object   
-        pageCsvwriter = csv.writer(page_record)  
-        pageCsvwriter.writerow(fields_page_record)
-        ## writing the rows
-        pageCsvwriter.writerows(rows)
+      count = 0
+      font = cv2.FONT_HERSHEY_SIMPLEX
+      page_number = find_page_number(current_page_path, page_position)
+      #print(page_number)
+    
+      for pt in zip(*loc[::-1]):
+        # check that the coords are not already in the list, if they are then skip the match
+        if pt[0] not in lspointY and pt[1] not in lspointX:
+          
+          # draw a yellow boundary around a match- USE this just for tests!
+          #rect = cv2.rectangle(img, pt, (pt[0] + h, pt[1] + w), (0, 0, 0), 3)
+          size = w * h * (2.54/400 ) *( 2.54/400 )
+          
+          # put text with the information values - USE this just for tests!
+          #cv2.putText(rect, "{:.1f}cm^2".format(size), (pt[0] + h, pt[1] + w), font, 4,0, 0, 255), 3)
+          #cv2.imwrite('rect.png',rect)
+          
+          # data rows of csv file   
+          rows_records = 0
+          # WRITE the fields and rows values into the main records csv file
+          rows_records = [[str(page_number),previous_page_path, next_page_path ,current_page_path, pt[0], pt[1], w, h ,size, threshold, (time.time() - start_time)]]   
+          
+          # Überprüfe, ob die Datei leer ist
+          is_empty = os.stat(records).st_size == 0
+    
+          with open(records, 'a', newline='') as csv_file:  
+            # creating a csv writer object   
+            csvwriter = csv.writer(csv_file) 
+            if is_empty:
+              csvwriter.writerow(fields)
+            ## writing the rows
+            csvwriter.writerows(rows_records)
             
-      ## append a range from first y coord to x + width
-      for k in range((pt[1]), ((pt[1])+h), 1):
-        lspointX.append(k)
-      ## append a range from first y coord to y + high
-      for i in range((pt[0]), ((pt[0])+w), 1):
-        lspointY.append(i)
-      count += 1
-    else:
-      continue
+          # print(output_dir) 
+          threshold_last=str(threshold).split(".")
+          #print(threshold_last[1])
+          
+          img_map_path = (str(page_number) + '-' + str(threshold_last[1]) + '_' +
+          os.path.basename(current_page_path).rsplit('.', 1)[0] + 
+          os.path.basename(template_map_file).rsplit('.', 1)[0] + '_' + str(count))
+          
+          cv2.imwrite(output_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
+          #print(output_dir + img_map_path + '.tif', imgc[ pt[1]:(pt[1] + h), pt[0]:(pt[0] + w),:])
+         
+          
+          # WRITE the fields and rows values into the page record csv file
+          row = 0
+          rows = [[str(page_number), previous_page_path, next_page_path, current_page_path, output_dir + img_map_path + '.tif', pt[0], pt[1], 
+            w, h ,size, threshold, (time.time() - start_time)]]  
+          csv_path = output_page_records + img_map_path + '.csv'
+          with open(csv_path, 'w', newline='') as page_record:  
+            ## creating a csv writer object   
+            pageCsvwriter = csv.writer(page_record)  
+            pageCsvwriter.writerow(fields_page_record)
+            ## writing the rows
+            pageCsvwriter.writerows(rows)
+                
+          ## append a range from first y coord to x + width
+          for k in range((pt[1]), ((pt[1])+h), 1):
+            lspointX.append(k)
+          ## append a range from first y coord to y + high
+          for i in range((pt[0]), ((pt[0])+w), 1):
+            lspointY.append(i)
+          count += 1
+        else:
+          continue
+      
+      #print(template_map_file)
+      #print(current_page_path)
+      #print("--- %s seconds ---" % (time.time() - start_time))
+      PIL.Image.fromarray(img, 'RGB').save(os.path.join(current_page_path))
   
-  #print(template_map_file)
-  #print(current_page_path)
-  #print("--- %s seconds ---" % (time.time() - start_time))
-  PIL.Image.fromarray(img, 'RGB').save(os.path.join(current_page_path))
+  except Exception as e:
+      print("An error occurred in match_template_tiff:", e)
 
 
 
@@ -224,104 +228,78 @@ def main_template_matching(working_dir, outDir, threshold, page_position):
   - threshold (float): Threshold value for template matching.
   - page_position (int): The position of the page number. 1 for the top, 2 for the bottom.
   """
-  # ...
-  # OUTPUT
-  print("Working directory matching:")
-  print(working_dir)
-  output_dir = ""
-  output_page_records = ""
-  records = ""
-  if(os.path.exists(outDir)):
-    if outDir.endswith("/"):
-      output_dir = outDir + "maps/matching/"
-      output_page_records = outDir + "pagerecords/"
-      records = outDir + "records.csv"
-    else:
-      output_dir = outDir + "/maps/matching/"
-      output_page_records = outDir + "/pagerecords/"
-      records = outDir + "/records.csv"
-  else:
+  try:
+    # OUTPUT
+    print("Working directory matching:")
+    print(working_dir)
+    output_dir = ""
+    output_page_records = ""
+    records = ""
+    if(os.path.exists(outDir)):
+      if outDir.endswith("/"):
+        output_dir = outDir + "maps/matching/"
+        output_page_records = outDir + "pagerecords/"
+        records = outDir + "records.csv"
+      else:
+        output_dir = outDir + "/maps/matching/"
+        output_page_records = outDir + "/pagerecords/"
+        records = outDir + "/records.csv"
+   
+    print("Output directory matching:")
+    print(output_dir)
+
+    #page_position = 1
+    print("Site number position:")
+    print(page_position)
+    #threshold=0.2
+    # prepare the png directory
+    # for the converted png images after the matching process 
     if working_dir.endswith("/"):
-      output_dir = working_dir + "data/output/maps/matching/"
-      output_page_records = working_dir + "pagerecords/"
-      records = working_dir + "data/output/records.csv"
+      output_png_dir = working_dir + "www/data/matching_png/"
+      templates = working_dir+"data/input/templates/maps/"
+      input_dir = working_dir + "data/input/pages/"
     else: 
-      output_dir = working_dir+ "/data/output/maps/matching/"
-      output_page_records = working_dir + "/pagerecords/"
-      records = working_dir + "/data/output/records.csv"
-  
-  print("Out directory:")
-  print(output_dir)
-  os.makedirs(output_dir, exist_ok=True)
-  
-  #page_position = 1
-  print("Site number position:")
-  print(page_position)
-  #threshold=0.2
-  # prepare the png directory
-  # for the converted png images after the matching process 
-  if working_dir.endswith("/"):
-    output_png_dir = working_dir + "www/data/matching_png/"
-    templates = working_dir+"data/input/templates/maps/"
-    input_dir = working_dir + "data/input/pages/"
-  else: 
-    output_png_dir = working_dir + "/www/data/matching_png/"
-    templates = working_dir+"/data/input/templates/maps/"
-    input_dir = working_dir + "/data/input/pages/"
-  
-  os.makedirs(output_png_dir, exist_ok=True)
-
-  # page_records csv file with the map coordinats
-  os.makedirs(output_page_records, exist_ok=True)
-
-  # files = glob.glob(output_page_records)
-  #for f in files:
-  #os.remove(f)
-
-  # input dirs
-
-  tif_files = sorted(glob.glob(input_dir + '*.tif'))
-  
+      output_png_dir = working_dir + "/www/data/matching_png/"
+      templates = working_dir+"/data/input/templates/maps/"
+      input_dir = working_dir + "/data/input/pages/"
   
 
-  # Start the matching in loop input templates and input pages 
-  with open(records, 'w', newline='') as csv_file:  
+    tif_files = sorted(glob.glob(input_dir + '*.tif'))
     
-    # Creating a csv writer object to write the map coordinats     
-    csvwriter = csv.writer(csv_file)   
+    # Start the matching in loop input templates and input pages 
+    with open(records, 'w', newline='') as csv_file:  
       
-    #for template_map_file in glob.glob(templates + '*.tif'): 
-     # for tif_ffile in glob.glob(input_dir +'*.tif'): 
-      #  match_template_tiff(tif_ffile, template_map_file, output_dir, 
-       #   output_page_records, records, threshold, page_position)
+      # Creating a csv writer object to write the map coordinats     
+      csvwriter = csv.writer(csv_file)   
 
-    # Iteriere über die Template-Dateien
-    for template_map_file in glob.glob(templates + '*.tif'):
-    # Iteriere über die TIFF-Dateien im input_dir
-      for index, current_page_path in enumerate(sorted(glob.glob(input_dir + '*.tif'))):
-  
-        # Bestimme den Pfad der vorherigen Seite (falls vorhanden)
-        previous_page_path = tif_files[index - 1] if index > 0 else 'None'
-        print("prev",previous_page_path)
-        print("current",current_page_path)
-        # Bestimme den Pfad der nächsten Seite (falls vorhanden)
-        next_page_path = tif_files[index + 1] if index < len(tif_files) - 1 else 'None'
-        print("next", next_page_path)
-        # Hier kannst du die Pfade an deine Funktion übergeben
-        params = {
-          "previous_page_path": previous_page_path,
-          "next_page_path": next_page_path,
-          "current_page_path": current_page_path,
-          "template_map_file": template_map_file,
-          "output_dir": output_dir,
-          "output_page_records": output_page_records,
-          "records": records,
-          "threshold": threshold,
-          "page_position": page_position
-        }
-        match_template_tiff(**params)
+      # Iteriere über die Template-Dateien
+      for template_map_file in glob.glob(templates + '*.tif'):
+      # Iteriere über die TIFF-Dateien im input_dir
+        for index, current_page_path in enumerate(sorted(glob.glob(input_dir + '*.tif'))):
+    
+          # Bestimme den Pfad der vorherigen Seite (falls vorhanden)
+          previous_page_path = tif_files[index - 1] if index > 0 else 'None'
+          print("prev",previous_page_path)
+          print("current",current_page_path)
+          # Bestimme den Pfad der nächsten Seite (falls vorhanden)
+          next_page_path = tif_files[index + 1] if index < len(tif_files) - 1 else 'None'
+          print("next", next_page_path)
+          # Hier kannst du die Pfade an deine Funktion übergeben
+          params = {
+            "previous_page_path": previous_page_path,
+            "next_page_path": next_page_path,
+            "current_page_path": current_page_path,
+            "template_map_file": template_map_file,
+            "output_dir": output_dir,
+            "output_page_records": output_page_records,
+            "records": records,
+            "threshold": threshold,
+            "page_position": page_position
+          }
+          match_template_tiff(**params)
         
-        
+  except Exception as e:
+        print("An error occurred in main_template_matching:", e)
 #img = "D:/distribution_digitizer_11_01_2024//data/input/pages/0059.tif"      
 #test = find_page_number(img,1)
 #print(test)

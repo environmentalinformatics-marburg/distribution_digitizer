@@ -75,22 +75,17 @@ def edge(tiffile, outdir, n, m):
 #n=5
 #m=9
 #mainpointclassification( n, m)
-def mainPointFiltering(workingDir, n, m):
-  inputDir = workingDir+"/data/output/maps/align/"
-  ouputTifDir = workingDir+"/data/output/maps/pointFiltering/"
+def mainPointFiltering(workingDir, outDir, n, m):
+  inputDir = outDir+"/maps/align/"
+  ouputTifDir = outDir+"/maps/pointFiltering/"
   os.makedirs(ouputTifDir, exist_ok=True)
   print(inputDir)
   print(ouputTifDir)
-  print(n)
-  print(m)
   
-  outputCsvDir = workingDir + "/data/output/maps/csv_files/"
+  outputCsvDir = outDir + "/maps/csv_files/"
   os.makedirs(outputCsvDir, exist_ok=True)
   # initialize csv file for storing the cooridnates (if the file does not exist already)
   csv_file_path = initialize_csv_file(outputCsvDir, "X", "Y")  
-  
-  ouputPngDir = workingDir+"/www/data/pointFiltering_png/"
-  os.makedirs(ouputPngDir, exist_ok=True)
   
   for file in glob.glob(inputDir + '*.tif'):
     print(file)

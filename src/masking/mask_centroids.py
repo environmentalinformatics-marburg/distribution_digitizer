@@ -15,6 +15,7 @@ function 'MainMaskCentroids': Functions for looping over all files that should b
 ### Mask drawn centroids
 
 def mask_centroids(tiffile, outdir):
+  try:
     img = np.array(Image.open(tiffile))
     
     # Define the exact red color used in circle detection
@@ -28,36 +29,50 @@ def mask_centroids(tiffile, outdir):
     outfile = os.path.basename(tiffile)
     output_filepath = os.path.join(outdir, outfile)
     cv2.imwrite(output_filepath, mask)
-
-
-
-def MainMaskCentroids(workingDir):
-    ## For output of circle_detection:
-    # Define input and output directories
-    inputDir = workingDir+"/data/output/maps/circleDetection/"
-    outputDir = workingDir+"/data/output/masking_black/circleDetection/"
     
-    # Create the output directory if it doesn't exist
-    os.makedirs(outputDir, exist_ok=True)
+  except Exception as e:
+        print("An error occurred in mainGeomask:", e)
+
+
+
+
+def MainMaskCentroids(workingDir, outDir):
+  try:
+
+    # Joining input directory path
+    inputDir = os.path.join(outDir, "maps", "circleDetection")
+    
+    # Joining output directory path
+    outputDir = os.path.join(outDir, "masking_black","circleDetection")
     
     # Loop through TIFF files in the input directory
     for file in glob.glob(inputDir + '*.tif'):
         print(file)
-        # call the function
-        mask_centroids(file, outputDir)
+        if os.path.exists(file):
+             # call the function
+            mask_centroids(file, outputDir)
+        else:
+          print("Die Datei existiert nicht:", output_file_path)
+      
+   
+    # Joining input directory path
+    inputDir = os.path.join(outDir, "maps", "pointFiltering")
     
-    ## For output of point_filtering:    
-    # Define input and output directories
-    inputDir = workingDir+"/data/output/maps/pointFiltering/"
-    outputDir = workingDir+"/data/output/masking_black/pointFiltering/"
-    
-    # Create the output directory if it doesn't exist
-    os.makedirs(outputDir, exist_ok=True)
-    
+    # Joining output directory path
+    outputDir = os.path.join(outDir, "masking_black","pointFiltering")
     # Loop through TIFF files in the input directory
     for file in glob.glob(inputDir + '*.tif'):
         print(file)
+        if os.path.exists(file):
+             # call the function
+            mask_centroids(file, outputDir)
+        else:
+          print("Die Datei existiert nicht:", output_file_path)
         # call the function
         mask_centroids(file, outputDir)
+
+  except Exception as e:
+        print("An error occurred in MainMaskCentroids:", e)
+
 
 #MainMaskCentroids("C:/Users/user/Documents/MSc_Physische_Geographie/HiWi/distribution_digitizer")

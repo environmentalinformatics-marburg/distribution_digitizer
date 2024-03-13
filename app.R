@@ -107,7 +107,7 @@ rescale= (100/scale)
 workingDir <- getwd()
 print("Working directory 1:")
 print(workingDir)
-outDir = paste0(workingDir,"/data/output/")
+outDir <- ""
 inputDir = paste0(workingDir,"/data/input/")
 
 #read config fields from config.csv in .../distribution_digitizer/config directory
@@ -118,12 +118,9 @@ if (file.exists(fileFullPath)){
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
 
-
 if (file.exists(config$dataOutputDir)) {
   outDir <-  config$dataOutputDir
 }
-
-# read the config file
 
 fileFullPath = (paste0(workingDir,'/config/configStartDialog.csv'))
 if (file.exists(fileFullPath)){
@@ -352,7 +349,7 @@ body <- dashboardBody(
                  fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
                                  p(strong(paste0(shinyfields1$inf, workingDir, "/data/templates/maps/"), style = "color:black")),
                                  p(shinyfields1$inf1, style = "color:black"),                
-                                 # Save the cropped template map image with the given index
+                                 # Save the template map image with the given index
                                  downloadButton('saveTemplate', 'Save map template', style="color:#FFFFFF;background:#999999"))),
                ),
                wellPanel(
@@ -362,7 +359,7 @@ body <- dashboardBody(
                                  
                                  p(strong(paste0(shinyfields1$inf2, workingDir, "/data/templates/symbols"), style = "color:black")),
                                  p(shinyfields1$inf3, style = "color:black"),                
-                                 # Save the cropped template map image with the given index
+                                 # Save the template map image with the given index
                                  downloadButton('saveSymbol', 'Save map symbol/Legende', style="color:#FFFFFF;background:#999999")))
                )
         ), # col 4
@@ -491,6 +488,7 @@ body <- dashboardBody(
       fluidRow(column(3,textInput("siteNumberMasks", label=shinyfields6$input, value = ''))),
       actionButton("listMasks",  label = "List masks"),
       actionButton("listMasksB",  label = "List black masks"),
+      actionButton("listMasksCD",  label = "List CD masks"),
       # actionButton("listMPointsF",  label = "List points filterng"),
       fluidRow(
         column(4,
@@ -524,7 +522,7 @@ body <- dashboardBody(
         column(8,
                uiOutput('listMS', style="float:left"),
                uiOutput('listMSB', style="float:left"),
-               uiOutput('listMPF', style="float:left")
+               uiOutput('listMCD', style="float:left")
         )
       ) # END fluid Row
     ),  # END tabItem 4
@@ -641,13 +639,7 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$saveConfig, {
     dataInputDir = input$dataInputDir
     tryCatch({
-      prepare_directory(outDir)
-       
-      webViewMap = paste0(workingDir,"/www/data/")
-      if (file.exists(webViewMap) && file.info(webViewMap)$isdir) {
-        prepare_directory(webViewMap)
-      } 
-       
+
       # Check if the directory exists
       if (file.exists(dataInputDir) ){#&& file.info(dataInputDir)$isdir) {
         output$message <- NULL
@@ -690,7 +682,19 @@ server <- shinyServer(function(input, output, session) {
         output$message <- renderPrint("The 'templates' directory does not exist.")
         break
       }
+      # Generate current date-time string
+      current_datetime <- format(Sys.time(), "%Y-%m-%d_%H-%M-%S")
+      # Directory name with current date-time
+      out_directory_name <- paste("output_", current_datetime, sep = "")
+      print(outDir)
+      # Concatenate base path with directory name
+      outDir <- file.path(input$dataOutputDir, out_directory_name)
+      print(outDir)
+      print("OK")
+      prepare_base_output(outDir)
       
+      webViewMap = paste0(workingDir,"/www/data/")
+      prepare_www_output(webViewMap)
       
       x <- data.frame(workingDir= workingDir, 
                       workingDirInformation = "Your working directory is the local digitizer repository!",
@@ -698,7 +702,7 @@ server <- shinyServer(function(input, output, session) {
                       autor = input$author,
                       pYear = input$pYear,
                       dataInputDir= input$dataInputDir,
-                      dataOutputDir = input$dataOutputDir,
+                      dataOutputDir = outDir,
                       numberSitesPrint = input$numberSitesPrint,
                       allPrintedPages = input$allPrintedPages,
                       sNumberPosition = input$sNumberPosition,
@@ -717,6 +721,7 @@ server <- shinyServer(function(input, output, session) {
                   quote=FALSE)
       
       shinyalert::shinyalert(title = "Success", text = "Configuration successfully saved!", type = "success")
+
     },  
     error = function(e) {
       errorMessage <- paste("Ein Fehler ist aufgetreten:", e$message)
@@ -813,27 +818,10 @@ server <- shinyServer(function(input, output, session) {
     }) 
   
   observeEvent(input$listMTemplates, {
-    #output$plot <- renderImage({
-    ##    NULL
-    
-    #})
     output$listMapTemplates = renderUI({
-      # Define the directory path
-      new_directory <- paste0(workingDir, "/www/data/map_templates_png/")
-      #print(new_directory)
       # Check if the directory already exists
-      if (!dir.exists(new_directory)) {
-        # Create the directory if it doesn't exist
-        dir.create(new_directory)
-        
-        findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")
-        converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/map_templates_png/"))
-        #cat("New directory created:", new_directory, "\n")
-      } else {
-        cat("Directory already exists:", new_directory, "\n")
-        findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")
-        converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/map_templates_png/"))
-      }
+      findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")
+      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/map_templates_png/"))
       prepareImageView("/map_templates_png/", '.png')
     })
   })
@@ -867,22 +855,9 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listSTemplates, {
     output$listSymbolTemplates = renderUI({
-      
-      # Define the directory path
-      new_directory <- paste0(workingDir, "/www/data/symbol_templates_png/")
-      
-      # Check if the directory already exists
-      if (!dir.exists(new_directory)) {
-        # Create the directory if it doesn't exist
-        dir.create(new_directory)
-        cat("New directory created:", new_directory, "\n")
-      } else {
-        cat("Directory already exists:", new_directory, "\n")
-      }
-      
+    
       findTemplateResult = paste0(workingDir, "/data/input/templates/symbols/")
-      converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/symbol_templates_png/"))
-      
+      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/symbol_templates_png/"))
       prepareImageView("/symbol_templates_png/", '.png')
     })
   })
@@ -897,9 +872,8 @@ server <- shinyServer(function(input, output, session) {
     
     # call the function for map matching 
     manageProcessFlow("mapMatching", "map matching", "matching")
-    
     # convert the tif images to png and show this on the plot
-    converTifToPngSave(paste0(outDir, "/maps/matching/"), paste0(workingDir, "/www/data/matching_png/"))
+    convertTifToPngSave(paste0(outDir, "/maps/matching/"), paste0(workingDir, "/www/data/matching_png/"))
     
   })
   
@@ -925,7 +899,7 @@ server <- shinyServer(function(input, output, session) {
     manageProcessFlow("alignMaps", "align maps", "allign")
     
     # convert the tif images to png and show this on the plot
-    converTifToPngSave(paste0(outDir, "/maps/align/"), paste0(workingDir, "/www/data/align_png/"))
+    convertTifToPngSave(paste0(outDir, "/maps/align/"), paste0(workingDir, "/www/data/align_png/"))
   })
   
   observeEvent(input$listAlign, {
@@ -943,15 +917,16 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
-  # ----------------------------------------# 2.2 Crop map species #---------------------------------------------------------------------- #
+  # ----------------------------------------# 2.2 Crop map legend species #---------------------------------------------------------------------- #
   # Crop map species
   observeEvent(input$mapReadRpecies, {
     
     # call the function for cropping
     manageProcessFlow("mapReadRpecies", "cropping map species", "align")
     
-    # convert the tif images to png and show this on the plot
-    converTifToPngSave(paste0(outDir, "/maps/align/"), paste0(workingDir, "/www/data/cropped_png/"))
+    # convert the tif images to png and save in www
+    findTemplateResult = paste0(outDir, "/maps/align/")
+    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/cropped_png/"))
   })
   
   observeEvent(input$listCropped, {
@@ -968,13 +943,15 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   
-  
+  # ----------------------------------------# 2.3 Crop page species #---------------------------------------------------------------------- #
   # Crop page species
   observeEvent(input$pageReadRpecies, {
     
     # call the function for cropping
     manageProcessFlow("pageReadRpecies", "read page species", "output")
-    
+    # convert the tif images to png and save in www
+    findTemplateResult = paste0(outDir, "/maps/align/")
+    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/cropped_png/"))
   })
   
   # ----------------------------------------# 3. Points Matching #----------------------------------------------------------------------
@@ -982,9 +959,9 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$pointMatching, {
     # call the function for cropping
     manageProcessFlow("pointMatching", "points matching", "pointMatching")
-    # convert the tif images to png and show this on the plot
+    # convert the tif images to png and save in www
     findTemplateResult = paste0(outDir, "/maps/align/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointMatching_png/"))
+    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointMatching_png/"))
   })
   
   observeEvent(input$listPointsM, {
@@ -1006,9 +983,9 @@ server <- shinyServer(function(input, output, session) {
     # call the function for filtering
     manageProcessFlow("pointFiltering", "points filtering", "pointFiltering")
     
-    # convert the tif images to png and show this on the plot
-    findTemplateResult = paste0(workingDir, "/data/output/maps/pointFiltering/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointFiltering_png/"))
+    # convert the tif images to png and save in www
+    findTemplateResult = paste0(outDir, "/maps/pointFiltering/")
+    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointFiltering_png/"))
   })
   
   observeEvent(input$listPointsF, {
@@ -1044,9 +1021,9 @@ server <- shinyServer(function(input, output, session) {
     # call the function for circle detection
     manageProcessFlow("pointCircleDetection", "points circle detection", "pointCircleDetection")
     
-    # convert the tif images to png and show this on the plot
-    findTemplateResult = paste0(workingDir, "/data/output/maps/circleDetection/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/CircleDetection_png/"))
+    # convert the tif images to png and save in www
+    findTemplateResult = paste0(outDir, "/maps/circleDetection/")
+    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/CircleDetection_png/"))
   })
   
   observeEvent(input$listPointsCD, {
@@ -1068,21 +1045,24 @@ server <- shinyServer(function(input, output, session) {
     # call the function for filtering
     manageProcessFlow("masking", "masking white background", "masking")
     
-    findTemplateResult = paste0(workingDir, "/data/output/masking/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_png/"))
+    findTemplateResult = paste0(outDir, "/masking/")
+    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_png/"))
   })
   
   observeEvent(input$maskingBlack, {
     # call the function for filtering
     manageProcessFlow("maskingB", "masking black background", "masking")
     
-    findTemplateResult = paste0(workingDir, "/data/output/masking_black/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_black_png/"))
+    findTemplateResult = paste0(outDir, "/masking_black/")
+    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_black_png/"))
   })
   # ---- # Masking centroids --------
   observeEvent(input$maskingCentroids, {
     # call the function for filtering
     manageProcessFlow("maskingCentroids", "masking centroids", "maskingCentroids")
+    
+    findTemplateResult = paste0(outDir, "/masking_black/circleDetection/")
+    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/maskingCentroids/"))
   })
   
   observeEvent(input$listMasks, {
@@ -1111,7 +1091,18 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   
-  
+  observeEvent(input$listMasksCD, {
+    if(input$siteNumberMasks!= ''){
+      output$listMCD = renderUI({
+        prepareImageView("/maskingCentroids/", input$siteNumberMasks)
+      })
+    }
+    else{
+      output$listMCD = renderUI({
+        prepareImageView("/maskingCentroids/", '.png')
+      })
+    }
+  })
   # ----------------------------------------# Georeferencing #----------------------------------------------------------------------
   # Georeferencing start
   # GCP points extraction
@@ -1120,21 +1111,16 @@ server <- shinyServer(function(input, output, session) {
     library(reticulate)
     fname=paste0(workingDir, "/", "src/georeferencing/geo_points_extraction.py")
     source_python(fname)
-    maingeopointextract(workingDir,input$filterm)
+    maingeopointextract(workingDir,outDir, input$filterm)
     cat("\nSuccessfully executed")
   })
   
   observeEvent(input$georeferencing, {
     # call the function for filtering
     manageProcessFlow("georeferencing", "georeferencing", "georeferencing")
-    
-    # Verzeichnis erstellen
-    new_directory <- paste0(workingDir, "/www/data/georeferencing_png/")
-    dir.create(new_directory)
-    
     # convert the tif images to png and save this in /www directory
-    findTemplateResult = paste0(workingDir, "/data/output/georeferencing/masks/")
-    converTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/georeferencing_png/"))
+    findTemplateResult = paste0(outDir, "/georeferencing/masks/")
+    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/georeferencing_png/"))
     
   })
   
@@ -1147,9 +1133,9 @@ server <- shinyServer(function(input, output, session) {
     shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
                closeOnClickOutside = FALSE, animation = TRUE)
     
-    listgeoTiffiles = list.files(paste0(workingDir, "/data/output/rectifying/"), full.names = T, pattern = paste0('georeferenced',input$siteNumberGeoreferencing))
+    listgeoTiffiles = list.files(paste0(outDir, "/rectifying/"), full.names = T, pattern = paste0('georeferenced',input$siteNumberGeoreferencing))
     if( length(listgeoTiffiles) == 0) {
-      listgeoTiffiles = list.files(paste0(workingDir, "/data/output/rectifying/"), full.names = T, pattern = '.tif')
+      listgeoTiffiles = list.files(paste0(outDir, "/rectifying/"), full.names = T, pattern = '.tif')
     }
     num_leaflet_outputs_GEO <- length(listgeoTiffiles)
     
@@ -1336,7 +1322,6 @@ server <- shinyServer(function(input, output, session) {
     tryCatch(
       # Processing spatial data computing
       expr = {
-        prepare_directory("/www/data/pages/")
         fname=paste0(workingDir, "/", "src/extract_coordinates/poly_to_point.py")
         source_python(fname)
         main_circle_detection(workingDir)
@@ -1348,7 +1333,7 @@ server <- shinyServer(function(input, output, session) {
         main_point_filtering(workingDir)
         
         # prepare pages as png for the spatia view
-        converTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/data/pages/"))
+        convertTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/data/pages/"))
         source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
         mergeFinalData(workingDir)
       },
@@ -1531,6 +1516,11 @@ server <- shinyServer(function(input, output, session) {
   
   manageProcessFlow <- function(processing, allertText1, allertText2){
     
+    # IMPORTANT not remove!
+    config <- read.csv(paste0(workingDir,"/config/config.csv"),header = TRUE, sep = ';')
+    outDir = config$dataOutputDir
+    # END IMPORTANT
+    
     # show start action message
     message=paste0("The process ", allertText1, " is started on: ")
     shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
@@ -1538,189 +1528,229 @@ server <- shinyServer(function(input, output, session) {
     
     
     if(processing == "mapMatching"){
-      
-      prepare_directory(paste0(outDir, "/maps/matching/"))
-      prepare_directory(paste0(workingDir, "/www/data/matching_png/"))
-      # processing template matching
-      fname=paste0(workingDir, "/", "src/matching/map_matching.py")
-      
-      print("The processing template matching python script:")
-      print(fname)
-      source_python(fname)
-      #print("Threshold:")
-      #print(input$threshold_for_TM)
-      main_template_matching(workingDir, outDir, input$threshold_for_TM, config$sNumberPosition)
-      findTemplateResult = paste0(outDir, "/maps/matching/")
-      files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-      countFiles = paste0(length(files),"")
-      message=paste0("Ended on: ", 
-                     format(current_time(), "%H:%M:%S \n"), " The number extracted outputs with threshold = ",
-                     input$threshold_for_TM , " are \n", countFiles ," and saved in directory \n",findTemplateResult, 
-                     "! \n High threshold values lead to few matchings, low values to many matchings.")
+      tryCatch({
+        # processing template matching
+        fname=paste0(workingDir, "/", "src/matching/map_matching.py")
+        
+        print("The processing template matching python script:")
+        print(fname)
+        source_python(fname)
+        print("Threshold:")
+        print(input$threshold_for_TM)
+        print(outDir)
+        main_template_matching(workingDir, outDir, input$threshold_for_TM, config$sNumberPosition)
+        findTemplateResult = paste0(outDir, "/maps/matching/")
+        
+        files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles = paste0(length(files),"")
+        message=paste0("Ended on: ", 
+                       format(current_time(), "%H:%M:%S \n"), " The number extracted outputs with threshold = ",
+                       input$threshold_for_TM , " are \n", countFiles ," and saved in directory \n",findTemplateResult, 
+                       "! \n High threshold values lead to few matchings, low values to many matchings.")
+      }, error = function(e) {
+        cat("An error occurred during mapMatching processing:\n")
+        print(e)
+      })
     }
     
     if(processing == "alignMaps" ){
-      prepare_directory(paste0(outDir, "/maps/align/"))
-      prepare_directory(paste0(workingDir, "/www/data/align_png/"))
-      
-      # align
-      fname=paste0(workingDir, "/", "src/matching/map_align.py")
-      print("Processing align python script:")
-      print(fname)
-      source_python(fname)
-      align_images_directory(workingDir, outDir)
-      #print(fname)
-      cat("\nSuccessfully executed")
-      findTemplateResult = paste0(outDir, "/maps/align/")
-      files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-      countFiles = paste0(length(files),"")
-      message=paste0("Ended on: ", 
-                     format(current_time(), "%H:%M:%S \n"), " The number extracted outputs ", " are \n", 
-                     countFiles ," and saved in directory \n",findTemplateResult)
+      tryCatch({
+
+        # align
+        fname=paste0(workingDir, "/", "src/matching/map_align.py")
+        print("Processing align python script:")
+        print(fname)
+        source_python(fname)
+        align_images_directory(workingDir, outDir)
+        #print(fname)
+        cat("\nSuccessfully executed")
+        findTemplateResult = paste0(outDir, "/maps/align/")
+        files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles = paste0(length(files),"")
+        message=paste0("Ended on: ", 
+                       format(current_time(), "%H:%M:%S \n"), " The number extracted maps ", " are \n", 
+                       countFiles ," and saved in directory \n",findTemplateResult)
+      }, error = function(e) {
+        cat("An error occurred during alignMaps processing:\n")
+        print(e)
+      })
     }
     
     if(processing == "mapReadRpecies" ){
-      # Croping
-      fname=paste0(workingDir, "/", "src/read_species/map_read_species.R")
-      print("Croping the species names from the map botton R script:")
-      print(fname)
-      source(fname)
-      species = read_legends(workingDir)
+      tryCatch({
+        # Croping
+        fname <- paste0(workingDir, "/", "src/read_species/map_read_species.R")
+        print("Croping the species names from the map botton R script:")
+        print(fname)
+        source(fname)
+        species <- read_legends(workingDir, outDir)
+        cat("\nSuccessfully executed")
+        findTemplateResult <- paste0(outDir, "/maps/align/")
+        files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles <- paste0(length(files), "")
+        message <- paste0("Ended on: ", 
+                          format(current_time(), "%H:%M:%S \n"), " The number rename maps ", " are \n", 
+                          countFiles, " and saved in directory \n", findTemplateResult)
+      }, error = function(e) {
+        cat("An error occurred during mapReadRpecies processing:\n")
+        print(e)
+      })
     }
     
     if(processing == "pageReadRpecies" ){
-      # read page species
-      fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
-      print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ",workingDir,"/data/output directory"))
-      #print(fname)
-      source(fname)
-      #print(config$middle)
-      #print(config$regExYear)
-      #print(config$keywordReadSpecies)
-      #print(config$keywordBefore)
-      #print(config$keywordThen)
-      #print(config$keywordReadSpecies, config$)
-      #'D:/distribution_digitizer_11_01_2024/data/input/pages/0058.tif', "_cinnara", "Range", keyword_top = 2, middle=True)
-      #'(workingDir, keyword, keyword_top, keaword_bottom, middle=TRUE) 
-      #print(length(config$keywordReadSpecies))
-      if(length(config$keywordReadSpecies) > 0) {
-        species = readPageSpecies(workingDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
-      }
-      else{
-        species = readPageSpecies(workingDir,'None', config$keywordBefore, config$keywordThen, config$middle)
-      }
+      tryCatch({
+        # read page species
+        fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
+        print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ",outDir," directory"))
+        source(fname)
+        if(length(config$keywordReadSpecies) > 0) {
+          species = readPageSpecies(workingDir, outDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
+        }
+        else{
+          species = readPageSpecies(workingDir, outDir, 'None', config$keywordBefore, config$keywordThen, config$middle)
+        }
+      }, error = function(e) {
+        cat("An error occurred during pageReadRpecies processing:\n")
+        print(e)
+      })
     }
     
     
     if(processing == "pointMatching") {
-
-      prepare_directory(paste0(workingDir, "/www/data/matching_png/"))
-      # Processing points matching
-      fname=paste0(workingDir, "/", "src/matching/point_matching.py")
-      print(" Processing point python script:")
-      print(fname)
-      source_python(fname)
-      mainPointMatching(workingDir, outDir, input$threshold_for_PM)
+      tryCatch({
+       # Processing points matching
+        fname=paste0(workingDir, "/", "src/matching/point_matching.py")
+        print(" Processing point python script:")
+        print(fname)
+        source_python(fname)
+        mainPointMatching(workingDir, outDir, input$threshold_for_PM)
+      }, error = function(e) {
+        cat("An error occurred during pageReadRpecies processing:\n")
+        print(e)
+      })
     }
     
     if(processing == "pointFiltering") {
-      prepare_directory("/data/output/maps/pointFiltering/")
-      prepare_directory("/www/data/pointFiltering_png")
-      
-      fname=paste0(workingDir, "/", "src/matching/point_filtering.py")
-      fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
-      print(" Process pixel filtering  python script:")
-      print(fname)
-      source_python(fname)
-      source_python(fname2)
-      mainPointFiltering(workingDir, input$filterK, input$filterG)
+      tryCatch({
+
+        fname=paste0(workingDir, "/", "src/matching/point_filtering.py")
+        fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
+        print(" Process pixel filtering  python script:")
+        print(fname)
+        source_python(fname)
+        source_python(fname2)
+        mainPointFiltering(workingDir, outDir, input$filterK, input$filterG)
+      }, error = function(e) {
+        cat("An error occurred during pageReadRpecies processing:\n")
+        print(e)
+      })
     }
     
     if(processing == "pointCircleDetection") {
-      prepare_directory(paste0(outDir, "/maps/circleDetection/"))
-      prepare_directory(paste0(workingDir, "/www/data/CircleDetection_png/"))
-      
-      fname=paste0(workingDir, "/", "src/matching/circle_detection.py")
-      fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
-      print("Processing circle detection python script:")
-      print(fname)
-      source_python(fname)
-      source_python(fname2)
-      mainCircleDetection(workingDir, outDir, input$Gaussian, input$minDist, input$thresholdEdge, input$thresholdCircles, input$minRadius, input$maxRadius)
+      tryCatch({
+
+        fname=paste0(workingDir, "/", "src/matching/circle_detection.py")
+        fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
+        print("Processing circle detection python script:")
+        print(fname)
+        source_python(fname)
+        source_python(fname2)
+        print(outDir)
+        mainCircleDetection(workingDir, outDir, input$Gaussian, input$minDist, 
+                            input$thresholdEdge, input$thresholdCircles, input$minRadius, input$maxRadius)
+      }, error = function(e) {
+        cat("An error occurred during pageReadRpecies processing:\n")
+        print(e)
+      })
     }
     
     if(processing == "masking"){
-      prepare_directory("/data/output/masking/")
-      prepare_directory("/www/masking_png/")
-      
-      fname=paste0(workingDir, "/", "src/masking/masking.py")
-      print(" Process masking python script:")
-      print(fname)
-      source_python(fname)
-      mainGeomask(workingDir, input$morph_ellipse)
-      fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
-      source_python(fname)
-      mainGeomaskB(workingDir, input$morph_ellipse)
+      tryCatch({
+
+        fname=paste0(workingDir, "/", "src/masking/masking.py")
+        print(" Process masking python script:")
+        print(fname)
+        source_python(fname)
+        mainGeomask(workingDir, outDir, input$morph_ellipse)
+        fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
+        source_python(fname)
+        mainGeomaskB(workingDir, outDir, input$morph_ellipse)
+      }, error = function(e) {
+        cat("An error occurred during pageReadRpecies processing:\n")
+        print(e)
+      })
     }
     
     if(processing == "maskingCentroids"){
-      prepare_directory("/data/output/masking_black/circleDetection/")
-      prepare_directory("/data/output/masking_black/pointFiltering/")
-      
-      fname=paste0(workingDir, "/", "src/masking/mask_centroids.py")
-      print(" Process masking python script:")
-      print(fname)
-      source_python(fname)
-      MainMaskCentroids(workingDir)
+      tryCatch({
+
+        fname=paste0(workingDir, "/", "src/masking/mask_centroids.py")
+        print(" Process masking python script:")
+        print(fname)
+        source_python(fname)
+        MainMaskCentroids(workingDir, outDir)
+      }, error = function(e) {
+        cat("An error occurred during pageReadRpecies processing:\n")
+        print(e)
+      })
     }
     
     if(processing == "georeferencing"){
-      prepare_directory("/data/output/geor/maps/pointFiltering/")
-      prepare_directory("/data/output/geor/maps/circleDetection/")
-      prepare_directory("/data/output/geor/masks/")
-      prepare_directory("/data/output/geor/masks/circleDetection/")
-      prepare_directory("/data/output/geor/masks/pointFiltering/")
-      # processing georeferencing
-      fname=paste0(workingDir, "/", "src/georeferencing/mask_georeferencing.py")
-      print(" Process georeferencing python script:")
-      print(fname)
-      source_python(fname)
-      mainmaskgeoreferencingMaps(workingDir)
-      mainmaskgeoreferencingMaps_CD(workingDir)
-      mainmaskgeoreferencingMasks(workingDir)
-      mainmaskgeoreferencingMasks_CD(workingDir)
-      mainmaskgeoreferencingMasks_PF(workingDir)
-      # processing rectifying
-      fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
-      print(" Process rectifying python script:")
-      print(fname)
-      source_python(fname)
-      mainRectifying(workingDir)
-      mainRectifying_CD(workingDir)
-      mainRectifying_PF(workingDir)
+      tryCatch({
+
+        # processing georeferencing
+        fname=paste0(workingDir, "/", "src/georeferencing/mask_georeferencing.py")
+        print(" Process georeferencing python script:")
+        print(fname)
+        source_python(fname)
+        mainmaskgeoreferencingMaps(workingDir, outDir)
+        mainmaskgeoreferencingMaps_CD(workingDir, outDir)
+        mainmaskgeoreferencingMasks(workingDir, outDir)
+        mainmaskgeoreferencingMasks_CD(workingDir, outDir)
+        mainmaskgeoreferencingMasks_PF(workingDir, outDir)
+        # processing rectifying
+        fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
+        print(" Process rectifying python script:")
+        print(fname)
+        source_python(fname)
+        mainRectifying(workingDir, outDir)
+        mainRectifying_CD(workingDir, outDir)
+        mainRectifying_PF(workingDir, outDir)
+      }, error = function(e) {
+        cat("An error occurred during pageReadRpecies processing:\n")
+        print(e)
+      })
     }
     
     if(processing == "georef_coords_from_csv"){
       # processing mathematical georeferencing of extracted coordinates stored in csv file
-      fname=paste0(workingDir, "/", "src/georeferencing/centroid_georeferencing.py")
-      print(" Process georeferencing python script:")
-      print(fname)
-      source_python(fname)
-      mainCentroidGeoref(workingDir)
+      tryCatch({
+        fname=paste0(workingDir, "/", "src/georeferencing/centroid_georeferencing.py")
+        print(" Process georeferencing python script:")
+        print(fname)
+        source_python(fname)
+        mainCentroidGeoref(workingDir)
+      }, error = function(e) {
+        cat("An error occurred during pageReadRpecies processing:\n")
+        print(e)
+      })
     }
     
     if(processing=="polygonize"){
-      prepare_directory( "/data/output/polygonize/")
-      prepare_directory( "/data/output/polygonize/circleDetection/")
-      
-      # processing polygonize
-      fname=paste0(workingDir, "/", "src/polygonize/polygonize.py")
-      print(" Process polygonizing python script:")
-      print(fname)
-      source_python(fname)
-      mainPolygonize(workingDir)
-      mainPolygonize_CD(workingDir)
-      mainPolygonize_PF(workingDir)
+      tryCatch({
+
+        # processing polygonize
+        fname=paste0(workingDir, "/", "src/polygonize/polygonize.py")
+        print(" Process polygonizing python script:")
+        print(fname)
+        source_python(fname)
+        mainPolygonize(workingDir)
+        mainPolygonize_CD(workingDir)
+        mainPolygonize_PF(workingDir)
+      }, error = function(e) {
+        cat("An error occurred during pageReadRpecies processing:\n")
+        print(e)
+      })
     }
     
     cat("\nSuccessfully executed")
@@ -1732,56 +1762,7 @@ server <- shinyServer(function(input, output, session) {
                closeOnClickOutside = TRUE, animation = TRUE)
     
   }
-  # ----------------------------------------# Function to list the result images #---------------------------------------------------------------------- #
-  prepareImageView <- function(dirName, index){
-    pathToMatchingImages = paste0(workingDir, "/www", dirName)
-    if(index !=".png"){index <- paste0("^", index, "\\w*")}
-    listPngImages = list.files(pathToMatchingImages, full.names = F, pattern = index)
-    display_image = function(i) {
-      HTML(paste0('<div class="shiny-map-image" > 
-                  <img src = ', paste0(dirName,listPngImages[i] ), ' style="width:100%;"><a href="',paste0(dirName,listPngImages[i] ),'" style="width:27%;" target=_blank>', listPngImages[i],'</a></div>'))
-    }
-    lapply(1:length(listPngImages), display_image)
-  }
-  
-  
-  # ----------------------------------------
-  # Function to list CSV files as links
-  # ----------------------------------------
-  prepareCSVLinks <- function(dirName, index) {
-    #pathToCSVFiles = paste0(workingDir, "/www", dirName)
-    listCSVFiles = list.files(paste0(workingDir, "/data/output"), full.names = FALSE, pattern = index)
-    
-    display_link = function(i) {
-      HTML(paste0('<div class="csv-link" > 
-                <a href="', paste0(dirName, listCSVFiles[i]), '" target="_blank">', listCSVFiles[i], '</a></div>'))
-    }
-    
-    lapply(1:length(listCSVFiles), display_link)
-  }
-  
-  # Beispielaufruf:
-  dirName <- "/example_directory"
-  index <- ".csv"  # Muster für die CSV-Dateien
-  prepareCSVLinks(dirName, index)
-  
-  
-  # CONVERT tif images to png and save in /www directory
-  converTifToPngSave <- function(pathToTiffImages, patjhToPngImages){
-    tifFiles <- list.files(pathToTiffImages, pattern = ".tif", recursive = FALSE)
-    # convert tif to png and save this into the given path
-    for (f in tifFiles) {
-      tifFile = paste0(pathToTiffImages, f)
-      print(tifFile)
-      tifImage = image_read(tifFile)
-      pngFile <- image_convert(tifImage, "png")
-      #temp_scale <- image_scale(pngFile, paste0(scale,"%"))
-      pngName <- tools::file_path_sans_ext(f)
-      fname = paste0(patjhToPngImages, pngName, ".png")
-      print(fname)
-      image_write(pngFile, path = fname, format = "png", )
-    }
-  }
+ 
   
   # save the last working directory
   onStop(function() {
@@ -1792,7 +1773,7 @@ server <- shinyServer(function(input, output, session) {
     # write.table(x, file = paste0(workingDir,"/lastwd.txt") ,sep = ",", col.names = NA)
   })
   
-  # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------
+  # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------#
   #Function to show the ccrop process in the app 
   plot_png <- function(path, plot_brush, index, add=FALSE)
   {
@@ -1839,49 +1820,174 @@ server <- shinyServer(function(input, output, session) {
     
   }, deleteFile = FALSE)
   
+  
+  ######
+  # -----------------------------------------# Other functions #---------------------------------------------------------------------#
+  ######
+  
+  # Function to list the result MAPS
+  prepareImageView <- function(dirName, index){
+    tryCatch({
+      pathToMatchingImages = paste0(workingDir, "/www/data/", dirName)
+      if(index !=".png"){index <- paste0("^", index, "\\w*")}
+      listPngImages = list.files(pathToMatchingImages, full.names = F, pattern = index)
+      display_image = function(i) {
+        HTML(paste0('<div class="shiny-map-image" > 
+                    <img src = ', paste0("data",dirName,listPngImages[i] ), ' style="width:100%;"><a href="',paste0("data", 
+                                                                                                                    dirName,listPngImages[i] ),'" style="width:27%;" target=_blank>', listPngImages[i],'</a></div>'))
+      }
+      lapply(1:length(listPngImages), display_image)
+    }, error = function(e) {
+      cat("An error occurred during prepareImageView processing:\n")
+      print(e)
+    })
+  }
+  
+  # Function to list CSV files as links
+  prepareCSVLinks <- function(dirName, index) {
+    tryCatch({
+      #pathToCSVFiles = paste0(workingDir, "/www", dirName)
+      listCSVFiles = list.files(paste0(workingDir, "/data/output"), full.names = FALSE, pattern = index)
+      
+      display_link = function(i) {
+        HTML(paste0('<div class="csv-link" > 
+                  <a href="', paste0(dirName, listCSVFiles[i]), '" target="_blank">', listCSVFiles[i], '</a></div>'))
+      }
+      
+      lapply(1:length(listCSVFiles), display_link)
+    }, error = function(e) {
+      cat("An error occurred during prepareCSVLinks processing:\n")
+      print(e)
+    })
+  }
+  
+  # Beispielaufruf:
+  dirName <- "/example_directory"
+  index <- ".csv"  # Muster für die CSV-Dateien
+  prepareCSVLinks(dirName, index)
+  
+  # Function to convert tif images to png and save in /www directory
+  convertTifToPngSave <- function(pathToTiffImages, pathToPngImages) {
+    print(pathToTiffImages)
+    tryCatch({
+      # Get list of tif files
+      tifFiles <- list.files(pathToTiffImages, pattern = ".tif", recursive = FALSE)
+      
+      # Convert tif to png and save in the given path
+      for (f in tifFiles) {
+        tifFile <- paste0(pathToTiffImages, f)
+        
+        # Check if tif file exists
+        if (file.exists(tifFile)) {
+          print(tifFile)
+          tifImage <- image_read(tifFile)
+          pngFile <- image_convert(tifImage, "png")
+          pngName <- tools::file_path_sans_ext(f)
+          fname <- paste0(pathToPngImages, pngName, ".png")
+          image_write(pngFile, path = fname, format = "png")
+        } else {
+          cat("Error in convert tif to png: The file", tifFile, "does not exist.\n")
+        }
+      }
+    }, error = function(e) {
+      cat("An error occurred during convertTifToPngSave processing:\n")
+      print(e)
+    })
+  }
+  
+  
   # Function to create a new folder and move data
-  prepare_directory <- function(data_directory) {
-    # Überprüfe, ob der eingegebene Verzeichnispfad für die Eingabedaten gültig ist
-    if (nchar(data_directory) > 0) {
-      if (dir.exists(data_directory)) {
-        new_folder_path = paste(data_directory, "backupdata")
-        shinyalert(
-          title = "Confirmation",
-          text = paste0("Would you like to move the data from folder - ", data_directory," to folder - ", new_folder_path),
-          showCancelButton = FALSE,
-          callbackR = function(ok) {
-            if (ok) {
-              # Check if destination folder exists, if not, create it
-              if (!file.exists(new_folder_path)) {
-                dir.create(new_folder_path, recursive = TRUE)
-              }
-              
-              # Get list of files in source folder
-              files_to_move <- list.files(data_directory, full.names = TRUE)
-              
-              # Move each file to destination folder
-              for (file_path in files_to_move) {
-                file.rename(file_path, file.path(new_folder_path, basename(file_path)))
-              }
+  prepare_www_output  <- function(base_path ) {
+    tryCatch({
+      # Überprüfe, ob der eingegebene Verzeichnispfad für die Eingabedaten gültig ist
+      if (nchar(base_path ) > 0) {
+        if(!dir.exists(base_path)){
+          dir.create(base_path , recursive = TRUE)
+        }
+
+        directory_names <- c("align_png", "CircleDetection_png", "cropped_png", "georeferencing_png", 
+                             "masking_black_png", "masking_circleDetection", "masking_png", "matching_png", "pages",
+                             "pointFiltering_png", "pointMatching_png", "polygonize", "symbol_templates_png",
+                             "map_templates_png")
+        
+        for (sub_dir_name in directory_names) {
+              sub_dir_path <- file.path(base_path, sub_dir_name) 
+              print(sub_dir_path)# Path for subdirectory
+              dir.create(sub_dir_path, recursive = TRUE, showWarnings = FALSE)  # Create subdirectory
             }
-          }
-        )
         
       } else {
-        # Erstelle das Verzeichnis, falls es nicht existiert
-        dir.create(data_directory, recursive = TRUE)
+        # Zeige eine Fehlermeldung an, wenn der Verzeichnispfad ungültig ist
+        showModal(modalDialog(
+          title = "Error",
+          "Please provide a valid input directory path."
+        ))
+        return()  # Stoppe die Funktion, falls der Verzeichnispfad ungültig ist
       }
-      # Speichere den Verzeichnispfad für die Eingabedaten
-      
-    } else {
-      # Zeige eine Fehlermeldung an, wenn der Verzeichnispfad ungültig ist
-      showModal(modalDialog(
-        title = "Error",
-        "Please provide a valid input directory path."
-      ))
-      return()  # Stoppe die Funktion, falls der Verzeichnispfad ungültig ist
-    }
+    }, error = function(e) {
+      cat("An error occurred during prepare_www_output processing:\n")
+      print(e)
+    })
   }
+  
+  # Function to create a new folder and move data
+  prepare_base_output  <- function(base_path ) {
+    tryCatch({
+      # Überprüfe, ob der eingegebene Verzeichnispfad für die Eingabedaten gültig ist
+      if (nchar(base_path ) > 0) {
+        if(!dir.exists(base_path)){
+          dir.create(base_path , recursive = TRUE)
+        }
+       
+        directory_names <- c("final_output", "georeferencing", "maps", "masking", 
+                             "masking_black", "output_shape", "pagerecords", "polygonize",
+                             "rectifying")
+        
+        # Iteriere über den Vektor und erstelle die Verzeichnisse
+        for (dir_name in directory_names) {
+          dir_path <- file.path(base_path, dir_name)  # Passe den Pfad entsprechend an
+          dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)  # Erstelle das Verzeichnis
+          # Check if the current directory is "maps"
+          if (dir_name == "maps") {
+             # Define subdirectory names for "maps"
+            sub_directory_names <- c("align", "csv_files", "matching")  # Add your subdirectory names here
+            
+            # Iterate over subdirectory names and create them within "maps"
+            for (sub_dir_name in sub_directory_names) {
+              sub_dir_path <- file.path(dir_path, sub_dir_name) 
+              print(sub_dir_path)# Path for subdirectory
+              dir.create(sub_dir_path, recursive = TRUE, showWarnings = FALSE)  # Create subdirectory
+            }
+          }
+          if (dir_name == "final_output" || dir_name == "maps" || dir_name == "masking_black"|| dir_name == "polygonize" || dir_name == "rectifying") {
+            # Define subdirectory names for "maps"
+            sub_directory_names <- c("circleDetection", "pointFiltering")  # Add your subdirectory names here
+            
+            # Iterate over subdirectory names and create them within "maps"
+            for (sub_dir_name in sub_directory_names) {
+              sub_dir_path <- file.path(dir_path, sub_dir_name) 
+              print(sub_dir_path)# Path for subdirectory
+              dir.create(sub_dir_path, recursive = TRUE, showWarnings = FALSE)  # Create subdirectory
+            }
+          }
+        }
+        
+        
+      } else {
+        # Zeige eine Fehlermeldung an, wenn der Verzeichnispfad ungültig ist
+        showModal(modalDialog(
+          title = "Error",
+          "Please provide a valid input directory path."
+        ))
+        return()  # Stoppe die Funktion, falls der Verzeichnispfad ungültig ist
+      }
+    }, error = function(e) {
+    cat("An error occurred during prepare_base_output processing:\n")
+    print(e)
+    })
+  }
+  
+  
   
 })
 

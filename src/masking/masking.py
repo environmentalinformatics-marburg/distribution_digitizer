@@ -25,37 +25,32 @@ def geomask(file, outputdir, n):
   Returns:
       None
   """
+  try:
+      # Create black and white masks
+      image = np.array(PIL.Image.open(file))
+      grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+      ret, thresh = cv2.threshold(grayImage,125,255,cv2.THRESH_TOZERO_INV)
+      kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n,n))
+      #kernel1 = cv2.getStructuringElement(cv2.MORPH_RECT, (n,n))
+      #kernel1 = cv2.getStructuringElement(cv2.MORPH_CROSS, (n,n))
+      opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel1, iterations=3)
+      #closing = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel1, iterations=3)
+      #gradient = cv2.morphologyEx(img, cv2.MORPH_GRADIENT, kernel1)
+      (thr, blackAndWhiteImage) = cv2.threshold(opening, 0, 255, cv2.THRESH_BINARY_INV)
+      
+      # Save the processed image
+      PIL.Image.fromarray(blackAndWhiteImage).save(os.path.join(outputdir, os.path.basename(file)))
+      
+      # Get coordinates of non-black pixels
+      indices = np.where(blackAndWhiteImage!= [0])
+      coordinates = zip(indices[0], indices[1])
+      print(coordinates)
+
+  except Exception as e:
+        print("An error occurred in geomask:", e)
   
-  # Create black and white masks
-  image = np.array(PIL.Image.open(file))
-  grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-  ret, thresh = cv2.threshold(grayImage,125,255,cv2.THRESH_TOZERO_INV)
-  kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n,n))
-  #kernel1 = cv2.getStructuringElement(cv2.MORPH_RECT, (n,n))
-  #kernel1 = cv2.getStructuringElement(cv2.MORPH_CROSS, (n,n))
-  opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel1, iterations=3)
-  #closing = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel1, iterations=3)
-  #gradient = cv2.morphologyEx(img, cv2.MORPH_GRADIENT, kernel1)
-  (thr, blackAndWhiteImage) = cv2.threshold(opening, 0, 255, cv2.THRESH_BINARY_INV)
   
-  # Save the processed image
-  PIL.Image.fromarray(blackAndWhiteImage).save(os.path.join(outputdir, os.path.basename(file)))
-  
-  # Get coordinates of non-black pixels
-  indices = np.where(blackAndWhiteImage!= [0])
-  coordinates = zip(indices[0], indices[1])
-  print(coordinates)
-
-
-
-#for tests the function mainGeomask
-#maingeomask("D:/Results/", 5)
-#workingDir="D:/Results/"
-#mainGeomask(workingDir, 5)
-#workingDir="D:/distribution_digitizer/"
-
-
-def mainGeomask(workingDir, n):
+def mainGeomask(workingDir, outDir, n):
   """
   Generate geographical masks for all TIFF files in the input directory.
 
@@ -66,22 +61,20 @@ def mainGeomask(workingDir, n):
   Returns:
       None
   """
-  # Define input and output directories
-  inputDir = workingDir+"/data/output/maps/align/"
-  outputDir = workingDir+"/data/output/masking/"
-  
-  # Create the output directory if it doesn't exist
-  os.makedirs(outputDir, exist_ok=True)
-  
-  # Define output directories for the list overview
-  outputPngDir = workingDir+"/www/masking_png/"
-  
-  # Create the output directory if it doesn't exist
-  os.makedirs(outputPngDir, exist_ok=True)
-  
-  # Loop through TIFF files in the input directory
-  for file in glob.glob(inputDir + '*.tif'):
-    print(file)
-    # call a geo-mask using the geomask function
-    geomask(file, outputDir, n)
-
+    
+  try:
+      # Define input and output directories
+      inputDir = outDir+"/maps/align/"
+      outputDir = outDir+"/masking/"
+      
+      # Create the output directory if it doesn't exist
+      os.makedirs(outputDir, exist_ok=True)
+      
+      # Loop through TIFF files in the input directory
+      for file in glob.glob(inputDir + '*.tif'):
+        print(file)
+        # call a geo-mask using the geomask function
+        geomask(file, outputDir, n)
+        
+  except Exception as e:
+        print("An error occurred in mainGeomask:", e)

@@ -19,7 +19,7 @@ def geomask(file, outputdir, n):
 
 
 #workingDir="D:/distribution_digitizer/"
-def mainGeomaskB(workingDir, n):
+def mainGeomaskB(workingDir, outDir, n):
   """
   Generate geographical masks for all TIFF files in the input directory.
 
@@ -30,18 +30,12 @@ def mainGeomaskB(workingDir, n):
   Returns:
       None
   """
-  # Define input and output directories
-  inputDir = workingDir+"/data/output/maps/pointFiltering/"
-  outputDir = workingDir+"/data/output/masking_black/"
   
-  # Create the output directory if it doesn't exist
-  os.makedirs(outputDir, exist_ok=True)
+  # Joining input directory path
+  inputDir = os.path.join(outDir, "maps", "pointFiltering")
   
-  # Define output directories for the list overview
-  outputPngDir = workingDir+"/www/masking_black_png/"
-  
-  # Create the output directory if it doesn't exist
-  os.makedirs(outputPngDir, exist_ok=True)
+  # Joining output directory path
+  outputDir = os.path.join(outDir, "masking_black")
   
   # Loop through TIFF files in the input directory
   for file in glob.glob(inputDir + '*.tif'):

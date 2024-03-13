@@ -1,7 +1,7 @@
 """
 File: circle_detection.py
 Author: Kai Richter
-Last modified on 2023-11-10 by Kai Richter:
+Last modified on 2024-03-13 by Spaska Fortevar:
   Addition of functions mainRectifying_CD and mainRectifying_PF
 
 Description: 
@@ -39,95 +39,85 @@ import csv
 
 # circle detection
 def circle_detection(tiffile, outdir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius):
-    
-    # open fiffile containing the map and convert it to grayscale
-    img = np.array(Image.open(tiffile))
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # apply Gaussian blur to reduce noise
-    gray_blur = cv2.GaussianBlur(gray, (blur, blur), 0)
-    
-    # detect circles using Hough Circle Transform
-    circles = cv2.HoughCircles(
-        gray_blur,
-        cv2.HOUGH_GRADIENT,
-        dp=1,
-        minDist=min_dist,
-        param1=threshold_edge,
-        param2=threshold_circles,
-        minRadius=min_radius,
-        maxRadius=max_radius
-    )
-    
-    # initialize a list to store centroid coordinates
-    centroids = []
-    
-    # draw blue circles around the detected contours and mark the centroid position with a red color
-    if circles is not None:
-        circles = np.uint16(np.around(circles))
-        for circle in circles[0, :]:
-            # draw the outer circle
-            cv2.circle(img, (circle[0], circle[1]), circle[2], (0, 0, 255), 2)
-            
-            # calculate centroid coordinates
-            centroid_x = int(circle[0])
-            centroid_y = -int(circle[1])
-            
-            # append centroid coordinates to the list
-            centroids.append((centroid_x, centroid_y))
-            
-            # draw a small red dot at the centroid position
-            cv2.circle(img, (centroid_x, -centroid_y), 1, (139, 0, 0), -1)
-    
-    # define output filename
-    output_file = os.path.join(outdir, os.path.basename(tiffile))
-    
-    # write out modified tif file
-    Image.fromarray(img, 'RGB').save(output_file)
-
-    return centroids, output_file
-# End of function
+  
+  try:
+      # open fiffile containing the map and convert it to grayscale
+      img = np.array(Image.open(tiffile))
+      gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+      
+      # apply Gaussian blur to reduce noise
+      gray_blur = cv2.GaussianBlur(gray, (blur, blur), 0)
+      
+      # detect circles using Hough Circle Transform
+      circles = cv2.HoughCircles(
+          gray_blur,
+          cv2.HOUGH_GRADIENT,
+          dp=1,
+          minDist=min_dist,
+          param1=threshold_edge,
+          param2=threshold_circles,
+          minRadius=min_radius,
+          maxRadius=max_radius
+      )
+      
+      # initialize a list to store centroid coordinates
+      centroids = []
+      
+      # draw blue circles around the detected contours and mark the centroid position with a red color
+      if circles is not None:
+          circles = np.uint16(np.around(circles))
+          for circle in circles[0, :]:
+              # draw the outer circle
+              cv2.circle(img, (circle[0], circle[1]), circle[2], (0, 0, 255), 2)
+              
+              # calculate centroid coordinates
+              centroid_x = int(circle[0])
+              centroid_y = -int(circle[1])
+              
+              # append centroid coordinates to the list
+              centroids.append((centroid_x, centroid_y))
+              
+              # draw a small red dot at the centroid position
+              cv2.circle(img, (centroid_x, -centroid_y), 1, (139, 0, 0), -1)
+      
+      # define output filename
+      output_file = os.path.join(outdir, os.path.basename(tiffile))
+      
+      # write out modified tif file
+      Image.fromarray(img, 'RGB').save(output_file)
+  
+      return centroids, output_file
+  except Exception as e:
+        print("An error occurred in circleDetection:", e)
+  # End of function
 
 
 
 # function for calling circle_detection
 def mainCircleDetection(workingDir, outDir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius):
-    outputTifDir = ""
-    inputDir = ""
-    
-    if(os.path.exists(outDir)):
-      if outDir.endswith("/"):
-        inputDir = outDir + "maps/align/"
-        outputTifDir = outDir + "maps/circleDetection/"
-        outputCsvDir = outDir + "maps/csv_files/"
-      else:
-        inputDir = outDir + "/maps/align/"
-        outputTifDir = outDir + "maps/circleDetection/"
-        outputCsvDir = outDir + "/maps/csv_files/"
-    else:
-      if working_dir.endswith("/"):
-        inputDir = working_dir + "data/output/maps/align/"
-        outputTifDir = workingDir + "data/output/maps/circleDetection/"
-        outputCsvDir = workingDir + "data/output/maps/csv_files/"
-      else: 
-        inputDir = working_dir + "/data/output/maps/align/"
-        outputTifDir = workingDir + "/data/output/maps/circleDetection/"
-        outputCsvDir = workingDir + "/data/output/maps/csv_files/"
-    
-   
-    #os.makedirs(outputTifDir, exist_ok=True)
-
-    
-    #os.makedirs(outputCsvDir, exist_ok=True)
-    # initialize csv file for storing the cooridnates (if the file does not exist already)
-    csv_file_path = initialize_csv_file(outputCsvDir, "X", "Y")
-
-    ouputPngDir = workingDir + "/www/CircleDetection_png/"
-    #os.makedirs(ouputPngDir, exist_ok=True)
-
-    for file in glob.glob(inputDir + '*.tif'):
-        #print(file)
-        # call the function and store the centroid list
-        centroids, output_file = circle_detection(file, outputTifDir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius)
-        # add centroids to the csv file that has been initialized previously
-        append_to_csv_file(csv_file_path, centroids, os.path.basename(file), "circle_detection", 0)
+  try:
+      outputTifDir = ""
+      inputDir = ""
+      print(outDir)
+      if(os.path.exists(outDir)):
+        if outDir.endswith("/"):
+          inputDir = outDir + "maps/align/"
+          outputTifDir = outDir + "maps/circleDetection/"
+          outputCsvDir = outDir + "maps/csv_files/"
+        else:
+          inputDir = outDir + "/maps/align/"
+          outputTifDir = outDir + "/maps/circleDetection/"
+          outputCsvDir = outDir + "/maps/csv_files/"
+     
+      # initialize csv file for storing the cooridnates (if the file does not exist already)
+      csv_file_path = initialize_csv_file(outputCsvDir, "X", "Y")
+  
+      for file in glob.glob(inputDir + '*.tif'):
+          #print(file)
+          # call the function and store the centroid list
+          centroids, output_file = circle_detection(file, outputTifDir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius)
+          # add centroids to the csv file that has been initialized previously
+          append_to_csv_file(csv_file_path, centroids, os.path.basename(file), "circle_detection", 0)
+          
+  except Exception as e:
+        print("An error occurred in mainCircleDetection:", e)

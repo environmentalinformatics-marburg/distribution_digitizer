@@ -58,68 +58,64 @@ def cropImage(source_image, outdir, x, y, w, h, i):
 #mainTemplateMatching(working_dir, 0.99)
 
 #crop_specie("D:/distribution_digitizer/data/input/pages/0060.tif")
+def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h):
+  try:
+      image = cv2.imread(path_to_page)
+      rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+      
+      legend1 = 'distribution'
+      legend2 = 'locality'
+      d = pytesseract.image_to_data(rgb, output_type=Output.DICT)
+      n_boxes = len(d['level'])
+      specie = ''
+      double_specie = ''
 
-def crop_specie(working_dir, path_to_page, path_to_map, y, h):
+      for i in range(n_boxes-2):
+          (x1, y1, w1, h1, c1) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i], d['conf'][i])
+          text = d['text'][i].lstrip()
+          
+          pre = d['text'][i+1].lstrip()
+          if (text == legend1 or text == legend2):
+              
+              if (pre == 'of'):
+                  if( abs(y1 - (y+h)) < h ):
+                      if(double_specie != d['text'][i+2].lstrip()):
+                          double_specie = (d['text'][i+2].lstrip())
+                          if text == legend1:
+                              specie = specie + "_" + (d['text'][i+2].lstrip()) + legend1
+                          else:
+                              specie = specie + "_" + (d['text'][i+2].lstrip()) + legend2
+                      else:
+                          continue
+      
+      specie = re.sub(r"[^\w\s]", "", specie)
+      
+      if (specie == ''):
+          specie = 'notfounddistribution'
+      
+      align_map = ""
+      map_new_name = ""
+      
+      if(os.path.exists(out_dir)):
+          if out_dir.endswith("/"):
+            out_dir = out_dir.rstrip("/")
+          align_map = os.path.join(out_dir, "maps/align/", os.path.basename(path_to_map))
+          map_new_name = os.path.join(out_dir, "maps/align/", os.path.basename(path_to_map).rsplit('.', 1)[0]  + "_" + specie + ".tif")
+         
+      else:
+          if working_dir.endswith("/"):
+            working_dir = working_dir.rstrip("/")
+          align_map = os.path.join(working_dir, "data/output/maps/align/", os.path.basename(path_to_map))
+          map_new_name = os.path.join(working_dir, "data/output/maps/align/", os.path.basename(path_to_map).rsplit('.', 1)[0]  + "_" + specie + ".tif")
+        
+      
+      if os.path.isfile(align_map):
+          os.rename(align_map, map_new_name)
+      else:
+          raise FileNotFoundError("File not found: " + align_map)
+      
+      return specie
   
-  #path_to_page = "D:/distribution_digitizer_11_01_2024//data/input/pages/0050.tif"
-  #outputdir = "D:/distribution_digitizer_11_01_2024/data/input_align/"  
-  # load the input image, convert it from BGR to RGB channel ordering,
-  # and use Tesseract to localize each area of text in the input image
-  image = cv2.imread(path_to_page)
-  rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-  #cv2.imshow('img', rgb)
-  legend1 = 'distribution'
-  legend2 = 'locality'
-  d = pytesseract.image_to_data(rgb, output_type=Output.DICT)
-  n_boxes = len(d['level'])
-  specie = ''
-  double_specie = ''
-  
-  for i in range(n_boxes-2):
-    (x1, y1, w1, h1, c1) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i], d['conf'][i])
-    text=d['text'][i].lstrip()
-    
-    pre = d['text'][i+1].lstrip()
-    if (text == legend1 or text == legend2):
-      #print(text)
-      if (pre == 'of'):
-        if( abs(y1 - (y+h)) < h ):
-          if(double_specie != d['text'][i+2].lstrip()):
-            double_specie = (d['text'][i+2].lstrip())
-            if text == legend1:
-              specie = specie + "_" + (d['text'][i+2].lstrip()) + legend1
-            else:
-              specie = specie + "_" + (d['text'][i+2].lstrip()) + legend2
-          else:
-            continue
-    
-  #print(specie)
-  specie = re.sub(r"[^\w\s]", "", specie)
-  #print(specie)
-  
-  output_png= working_dir + "/www/data/cropped_png/"
-  os.makedirs(output_png, exist_ok=True)    
-  if (specie == ''):
-        specie = 'notfounddistribution'
-  # rename the align maps
-  # path_to_map = "D:/distribution_digitizer/data/output/maps/matching/27_0060map_1_0.tif"
-  # working_dir = "D:/distribution_digitizer/"
-  align_map = working_dir + "/data/output/maps/align/" + os.path.basename(path_to_map)
-  map_new_name = working_dir + "/data/output/maps/align/" + os.path.basename(path_to_map).rsplit('.', 1)[0]  + "_" + specie + ".tif"
-  if os.path.isfile(align_map):
-    os.rename(align_map, map_new_name)
-    print (align_map)
-  else:
-    print ("File not exist")
-   
-  # rename the orign maps
-  #if os.path.isfile(path_to_map):
-    #os.rename(path_to_map, map_new_name)
-   # map_new_name = path_to_map.rsplit('.', 1)[0]  + "_" + specie + ".tif"
-  #  os.rename(path_to_map, map_new_name)
-   # print(map_new_name)
- # else:
-   # print ("File not exist")
-  return specie
-     
+  except Exception as e:
+      return str(e)
   #print("End")  

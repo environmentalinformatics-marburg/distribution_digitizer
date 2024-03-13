@@ -14,7 +14,7 @@ os <- import("os")
 #workingDir="D:/distribution_digitizer_11_01_2024/"
 
 # Function to read the species
-readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywordThen, middle) {
+readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefore, keywordThen, middle) {
   #species = readPageSpecies(workingDir,config$keywordReadSpecies, 2, 0, TRUE)
   #print(keywordReadSpecies)
   #print(keywordBefore)
@@ -23,9 +23,11 @@ readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywo
   #keywordReadSpecies = "Range"
   #keywordBefore = 0
   ##keywordThen = 2
+  print("Start read")
+  print(outDir)
   middle = 1
   # Set the path to the folder containing CSV files
-  folder_path <- paste0(workingDir, "/data/output/pagerecords/")
+  folder_path <- paste0(outDir, "/pagerecords/")
   
   # List all CSV files in the folder
   file_list <- list.files(path = folder_path, pattern = "\\.csv", full.names = TRUE)
@@ -118,10 +120,10 @@ readPageSpecies <- function(workingDir, keywordReadSpecies, keywordBefore, keywo
     
     # Save the dataframe to CSV
     if (i == 1) {
-      write.table(new_dataframe, file = paste0(workingDir, "/data/output/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = TRUE, append = TRUE)
+      write.table(new_dataframe, file = paste0(outDir, "/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = TRUE, append = TRUE)
     }
     else{
-      write.table(new_dataframe, file = paste0(workingDir, "/data/output/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = FALSE, append = TRUE)
+      write.table(new_dataframe, file = paste0(outDir, "/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = FALSE, append = TRUE)
     }
     
   }
