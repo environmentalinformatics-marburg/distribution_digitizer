@@ -867,14 +867,9 @@ server <- shinyServer(function(input, output, session) {
   ####################
   
   # START th template matching 
-  
   observeEvent(input$templateMatching, {
-    
     # call the function for map matching 
     manageProcessFlow("mapMatching", "map matching", "matching")
-    # convert the tif images to png and show this on the plot
-    convertTifToPngSave(paste0(outDir, "/maps/matching/"), paste0(workingDir, "/www/data/matching_png/"))
-    
   })
   
   observeEvent(input$listMapsMatching, {
@@ -891,17 +886,17 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   
-  # ----------------------------------------# 2.1 Maps align #----------------------------------------------------------------------
-  # Align maps start
+  
+  ####################
+  # 2.1 Maps align #----------------------------------------------------------------------#
+  ####################
+  # Start Align maps 
   observeEvent(input$alignMaps, {
-    
     # call the function for align maps 
     manageProcessFlow("alignMaps", "align maps", "allign")
-    
-    # convert the tif images to png and show this on the plot
-    convertTifToPngSave(paste0(outDir, "/maps/align/"), paste0(workingDir, "/www/data/align_png/"))
   })
   
+  # List align maps
   observeEvent(input$listAlign, {
     if(input$siteNumberMapsMatching != ''){
       #print(input$siteNumberMapsMatching)
@@ -914,21 +909,19 @@ server <- shinyServer(function(input, output, session) {
         prepareImageView("/align_png/", '.png')
       })
     }
-    
   })
   
-  # ----------------------------------------# 2.2 Crop map legend species #---------------------------------------------------------------------- #
-  # Crop map species
+  
+  ####################
+  # 2.2 Crop map legend species#----------------------------------------------------------------------#
+  ####################
+  # Start read  legend species
   observeEvent(input$mapReadRpecies, {
-    
     # call the function for cropping
     manageProcessFlow("mapReadRpecies", "cropping map species", "align")
-    
-    # convert the tif images to png and save in www
-    findTemplateResult = paste0(outDir, "/maps/align/")
-    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/cropped_png/"))
   })
   
+  # List map legend species
   observeEvent(input$listCropped, {
     if(input$siteNumberMapsMatching != ''){
       #print(input$siteNumberMapsMatching)
@@ -943,26 +936,25 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   
-  # ----------------------------------------# 2.3 Crop page species #---------------------------------------------------------------------- #
-  # Crop page species
+  
+  ####################
+  # 2.3 Crop species name of the page content #----------------------------------------------------------------------#
+  ####################
+  # Start Crop page species
   observeEvent(input$pageReadRpecies, {
-    
     # call the function for cropping
     manageProcessFlow("pageReadRpecies", "read page species", "output")
-    # convert the tif images to png and save in www
-    findTemplateResult = paste0(outDir, "/maps/align/")
-    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/cropped_png/"))
   })
   
-  # ----------------------------------------# 3. Points Matching #----------------------------------------------------------------------
-  # points detection with matching 
+  
+  ####################
+  # 3. Points Matching  #----------------------------------------------------------------------#
+  ####################
+  # Start points detection with matching 
   observeEvent(input$pointMatching, {
     # call the function for cropping
     manageProcessFlow("pointMatching", "points matching", "pointMatching")
-    # convert the tif images to png and save in www
-    findTemplateResult = paste0(outDir, "/maps/align/")
-    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointMatching_png/"))
-  })
+    })
   
   observeEvent(input$listPointsM, {
     if(input$siteNumberPointsMatching != ''){
@@ -978,14 +970,14 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   
-  # Process point filtering 
+  
+  ####################
+  # 3.1 Points Filtering  #----------------------------------------------------------------------#
+  ####################
+  # Start Process point filtering 
   observeEvent(input$pointFiltering, {
     # call the function for filtering
     manageProcessFlow("pointFiltering", "points filtering", "pointFiltering")
-    
-    # convert the tif images to png and save in www
-    findTemplateResult = paste0(outDir, "/maps/pointFiltering/")
-    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointFiltering_png/"))
   })
   
   observeEvent(input$listPointsF, {
@@ -1016,14 +1008,14 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   
+  ####################
+  # 3.2 Circle Detection  #----------------------------------------------------------------------#
+  ####################
   # Process circle detection
   observeEvent(input$pointCircleDetection, {
     # call the function for circle detection
     manageProcessFlow("pointCircleDetection", "points circle detection", "pointCircleDetection")
     
-    # convert the tif images to png and save in www
-    findTemplateResult = paste0(outDir, "/maps/circleDetection/")
-    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/CircleDetection_png/"))
   })
   
   observeEvent(input$listPointsCD, {
@@ -1108,7 +1100,6 @@ server <- shinyServer(function(input, output, session) {
   # GCP points extraction
   observeEvent(input$pointextract, {
     #Processing georeferencing
-    library(reticulate)
     fname=paste0(workingDir, "/", "src/georeferencing/geo_points_extraction.py")
     source_python(fname)
     maingeopointextract(workingDir,outDir, input$filterm)
@@ -1451,8 +1442,6 @@ server <- shinyServer(function(input, output, session) {
       
     })
     
-    
-    
     cat("\nSuccessfully executed")
     
   })
@@ -1529,6 +1518,7 @@ server <- shinyServer(function(input, output, session) {
     
     if(processing == "mapMatching"){
       tryCatch({
+        
         # processing template matching
         fname=paste0(workingDir, "/", "src/matching/map_matching.py")
         
@@ -1542,11 +1532,14 @@ server <- shinyServer(function(input, output, session) {
         findTemplateResult = paste0(outDir, "/maps/matching/")
         
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        convertTifToPngSave(paste0(outDir, "/maps/matching/"), paste0(workingDir, "/www/data/matching_png/"))
+        
         countFiles = paste0(length(files),"")
         message=paste0("Ended on: ", 
                        format(current_time(), "%H:%M:%S \n"), " The number extracted outputs with threshold = ",
                        input$threshold_for_TM , " are \n", countFiles ," and saved in directory \n",findTemplateResult, 
                        "! \n High threshold values lead to few matchings, low values to many matchings.")
+        
       }, error = function(e) {
         cat("An error occurred during mapMatching processing:\n")
         print(e)
@@ -1562,14 +1555,19 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         align_images_directory(workingDir, outDir)
-        #print(fname)
+    
         cat("\nSuccessfully executed")
         findTemplateResult = paste0(outDir, "/maps/align/")
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles = paste0(length(files),"")
+      
+        # convert the tif images to png and show this on the plot
+        convertTifToPngSave(paste0(outDir, "/maps/align/"), paste0(workingDir, "/www/data/align_png/"))
+        
         message=paste0("Ended on: ", 
                        format(current_time(), "%H:%M:%S \n"), " The number extracted maps ", " are \n", 
                        countFiles ," and saved in directory \n",findTemplateResult)
+        
       }, error = function(e) {
         cat("An error occurred during alignMaps processing:\n")
         print(e)
@@ -1578,6 +1576,7 @@ server <- shinyServer(function(input, output, session) {
     
     if(processing == "mapReadRpecies" ){
       tryCatch({
+        
         # Croping
         fname <- paste0(workingDir, "/", "src/read_species/map_read_species.R")
         print("Croping the species names from the map botton R script:")
@@ -1587,7 +1586,11 @@ server <- shinyServer(function(input, output, session) {
         cat("\nSuccessfully executed")
         findTemplateResult <- paste0(outDir, "/maps/align/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        
         countFiles <- paste0(length(files), "")
+        # convert the tif images to png and save in www
+        convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/cropped_png/"))
+        
         message <- paste0("Ended on: ", 
                           format(current_time(), "%H:%M:%S \n"), " The number rename maps ", " are \n", 
                           countFiles, " and saved in directory \n", findTemplateResult)
@@ -1599,6 +1602,7 @@ server <- shinyServer(function(input, output, session) {
     
     if(processing == "pageReadRpecies" ){
       tryCatch({
+        
         # read page species
         fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
         print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ",outDir," directory"))
@@ -1609,6 +1613,15 @@ server <- shinyServer(function(input, output, session) {
         else{
           species = readPageSpecies(workingDir, outDir, 'None', config$keywordBefore, config$keywordThen, config$middle)
         }
+        cat("\nSuccessfully executed")
+        findTemplateResult <- paste0(outDir, "/maps/align/")
+        files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles <- paste0(length(files), "")
+        message <- paste0("Ended on: ", 
+                          format(current_time(), "%H:%M:%S \n"), " The number rename maps ", " are \n", 
+                          countFiles, " and saved in directory \n", findTemplateResult)
+        # convert the tif images to png and save in www
+        convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/cropped_png/"))
       }, error = function(e) {
         cat("An error occurred during pageReadRpecies processing:\n")
         print(e)
@@ -1618,14 +1631,22 @@ server <- shinyServer(function(input, output, session) {
     
     if(processing == "pointMatching") {
       tryCatch({
-       # Processing points matching
+        
+        # Processing points matching
         fname=paste0(workingDir, "/", "src/matching/point_matching.py")
         print(" Processing point python script:")
         print(fname)
         source_python(fname)
         mainPointMatching(workingDir, outDir, input$threshold_for_PM)
+        
+        cat("\nSuccessfully executed")
+        files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles <- paste0(length(files), "")
+        # convert the tif images to png and save in www
+        findTemplateResult = paste0(outDir, "/maps/align/")
+        convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointMatching_png/"))
       }, error = function(e) {
-        cat("An error occurred during pageReadRpecies processing:\n")
+        cat("An error occurred during pointMatching processing:\n")
         print(e)
       })
     }
@@ -1640,8 +1661,19 @@ server <- shinyServer(function(input, output, session) {
         source_python(fname)
         source_python(fname2)
         mainPointFiltering(workingDir, outDir, input$filterK, input$filterG)
+        
+        cat("\nSuccessfully executed")
+        # convert the tif images to png and save in www
+        findTemplateResult = paste0(outDir, "/maps/pointFiltering/")
+        files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles <- paste0(length(files), "")
+        message <- paste0("Ended on: ", 
+                          format(current_time(), "%H:%M:%S \n"), " The number rename maps ", " are \n", 
+                          countFiles, " and saved in directory \n", findTemplateResult)
+        convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointFiltering_png/"))
+        
       }, error = function(e) {
-        cat("An error occurred during pageReadRpecies processing:\n")
+        cat("An error occurred during pointFiltering processing:\n")
         print(e)
       })
     }
@@ -1658,6 +1690,16 @@ server <- shinyServer(function(input, output, session) {
         print(outDir)
         mainCircleDetection(workingDir, outDir, input$Gaussian, input$minDist, 
                             input$thresholdEdge, input$thresholdCircles, input$minRadius, input$maxRadius)
+        
+        # convert the tif images to png and save in www
+        findTemplateResult = paste0(outDir, "/maps/circleDetection/")
+        files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles <- paste0(length(files), "")
+        message <- paste0("Ended on: ", 
+                          format(current_time(), "%H:%M:%S \n"), " The number rename maps ", " are \n", 
+                          countFiles, " and saved in directory \n", findTemplateResult)
+        
+        convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/CircleDetection_png/"))
       }, error = function(e) {
         cat("An error occurred during pageReadRpecies processing:\n")
         print(e)
@@ -1862,9 +1904,11 @@ server <- shinyServer(function(input, output, session) {
   }
   
   # Beispielaufruf:
-  dirName <- "/example_directory"
-  index <- ".csv"  # Muster für die CSV-Dateien
-  prepareCSVLinks(dirName, index)
+  #dirName <- "/example_directory"
+  #index <- ".csv"  # Muster für die CSV-Dateien
+  #prepareCSVLinks(dirName, index)
+  
+  
   
   # Function to convert tif images to png and save in /www directory
   convertTifToPngSave <- function(pathToTiffImages, pathToPngImages) {
@@ -1939,7 +1983,7 @@ server <- shinyServer(function(input, output, session) {
           dir.create(base_path , recursive = TRUE)
         }
        
-        directory_names <- c("final_output", "georeferencing", "maps", "masking", 
+        directory_names <- c("final_output", "georeferencing", "geor", "maps", "masking", 
                              "masking_black", "output_shape", "pagerecords", "polygonize",
                              "rectifying")
         
@@ -1955,18 +1999,27 @@ server <- shinyServer(function(input, output, session) {
             # Iterate over subdirectory names and create them within "maps"
             for (sub_dir_name in sub_directory_names) {
               sub_dir_path <- file.path(dir_path, sub_dir_name) 
-              print(sub_dir_path)# Path for subdirectory
+              dir.create(sub_dir_path, recursive = TRUE, showWarnings = FALSE)  # Create subdirectory
+            }
+          }
+          # Check if the current directory is "georeferencing"
+          if (dir_name == "georeferencing") {
+            # Define subdirectory names for "maps"
+            sub_directory_names <- c("maps", "mask")  # Add your subdirectory names here
+            
+            # Iterate over subdirectory names and create them within "georeferencing"
+            for (sub_dir_name in sub_directory_names) {
+              sub_dir_path <- file.path(dir_path, sub_dir_name) 
               dir.create(sub_dir_path, recursive = TRUE, showWarnings = FALSE)  # Create subdirectory
             }
           }
           if (dir_name == "final_output" || dir_name == "maps" || dir_name == "masking_black"|| dir_name == "polygonize" || dir_name == "rectifying") {
-            # Define subdirectory names for "maps"
+            # Define subdirectory names"
             sub_directory_names <- c("circleDetection", "pointFiltering")  # Add your subdirectory names here
             
-            # Iterate over subdirectory names and create them within "maps"
+            # Iterate over subdirectory names and create them within 
             for (sub_dir_name in sub_directory_names) {
               sub_dir_path <- file.path(dir_path, sub_dir_name) 
-              print(sub_dir_path)# Path for subdirectory
               dir.create(sub_dir_path, recursive = TRUE, showWarnings = FALSE)  # Create subdirectory
             }
           }
