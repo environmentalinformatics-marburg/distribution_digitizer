@@ -39,11 +39,10 @@ def mask_centroids(tiffile, outdir):
 def MainMaskCentroids(workingDir, outDir):
   try:
 
-    # Joining input directory path
-    inputDir = os.path.join(outDir, "maps", "circleDetection")
-    
-    # Joining output directory path
-    outputDir = os.path.join(outDir, "masking_black","circleDetection")
+    ## For output of circle_detection:
+    # Define input and output directories
+    inputDir = outDir + "/maps/circleDetection/"
+    outputDir = outDir + "/masking_black/circleDetection/"
     
     # Loop through TIFF files in the input directory
     for file in glob.glob(inputDir + '*.tif'):
@@ -55,11 +54,11 @@ def MainMaskCentroids(workingDir, outDir):
           print("Die Datei existiert nicht:", output_file_path)
       
    
-    # Joining input directory path
-    inputDir = os.path.join(outDir, "maps", "pointFiltering")
-    
-    # Joining output directory path
-    outputDir = os.path.join(outDir, "masking_black","pointFiltering")
+    ## For output of point_filtering:    
+    # Define input and output directories
+    inputDir = outDir + "/maps/pointFiltering/"
+    outputDir = outDir + "/masking_black/pointFiltering/"
+   
     # Loop through TIFF files in the input directory
     for file in glob.glob(inputDir + '*.tif'):
         print(file)

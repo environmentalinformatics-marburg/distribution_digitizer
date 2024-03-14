@@ -47,7 +47,7 @@ def geomask(file, outputdir, n):
       print(coordinates)
 
   except Exception as e:
-        print("An error occurred in geomask:", e)
+        print("An error occurred in masking geomask:", e)
   
   
 def mainGeomask(workingDir, outDir, n):

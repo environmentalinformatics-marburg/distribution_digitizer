@@ -43,10 +43,24 @@ def rectifying(input_raster, output_raster):
   gdal.Warp(dst_path, src_ds)
   
   
-def mainRectifying(workingDir):
-  output= workingDir + "/data/output/rectifying/"
+def mainRectifying(workingDir, outDir):
+  output= outDir + "/rectifying/"
   os.makedirs(output, exist_ok=True) 
-  inputdir = workingDir +"/data/output/geor/masks/"
+  inputdir = outDir +"/georeferencing/masks/"
+  print(inputdir)
+  for input_raster in glob.glob(inputdir + "*.tif"):
+    print(input_raster)
+    dst_layername = os.path.basename(input_raster)
+    print(dst_layername)
+    output_raster = output + dst_layername
+    print(output_raster)
+    rectifying(input_raster, output_raster)
+
+
+def mainRectifying_CD(workingDir, outDir):
+  output= outDir + "/rectifying/circleDetection/"
+  os.makedirs(output, exist_ok=True) 
+  inputdir = outDir +"/georeferencing/masks/circleDetection/"
   
   for input_raster in glob.glob(inputdir + "*.tif"):
     print(input_raster)
@@ -57,24 +71,10 @@ def mainRectifying(workingDir):
     rectifying(input_raster, output_raster)
 
 
-def mainRectifying_CD(workingDir):
-  output= workingDir + "/data/output/rectifying/circleDetection/"
+def mainRectifying_PF(workingDir, outDir):
+  output= outDir + "/rectifying/pointFiltering/"
   os.makedirs(output, exist_ok=True) 
-  inputdir = workingDir +"/data/output/geor/masks/circleDetection/"
-  
-  for input_raster in glob.glob(inputdir + "*.tif"):
-    print(input_raster)
-    dst_layername = os.path.basename(input_raster)
-    print(dst_layername)
-    output_raster = output + dst_layername
-    print(output_raster)
-    rectifying(input_raster, output_raster)
-
-
-def mainRectifying_PF(workingDir):
-  output= workingDir + "/data/output/rectifying/pointFiltering/"
-  os.makedirs(output, exist_ok=True) 
-  inputdir = workingDir +"/data/output/geor/masks/pointFiltering/"
+  inputdir = outDir +"/georeferencing/masks/pointFiltering/"
   
   for input_raster in glob.glob(inputdir + "*.tif"):
     print(input_raster)

@@ -3,7 +3,7 @@ File: centroid_georeferencing.py
 Author: Kai Richter
 Date: 2023-11-12
 
-Last modified on: 2023/11/06 by Kai Richter
+Last modified on: 2024-03-14 by Spaska Forteva
 
 Description:
 Script for georeferencing the extracted coordinates of centroids mathematically (TO BE IMPROVED!!!)
@@ -18,13 +18,15 @@ Also, a point-shapefile is stored in /data/output/output_shape/
 ### Georeference extracted centroid coordinates
 
 # import libraries
-import glob
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import Point
+import glob  # Importing glob to handle file path patterns
+import pandas as pd  # Importing pandas for data manipulation
+import geopandas as gpd  # Importing geopandas for geospatial data operations
+from shapely.geometry import Point  # Importing Point from shapely.geometry for geometric operations
 
 
 def centroid_georef(gcppoints, input_csv, output_csv, output_shape):
+  
+  try:
     # Read the gcp_point_map1.points file
     gcp_df = pd.read_csv(gcppoints)
     
@@ -45,19 +47,25 @@ def centroid_georef(gcppoints, input_csv, output_csv, output_shape):
     centroid_df.to_csv(output_csv, index=False, sep=';')
     
     # Create a GeoDataFrame from the georeferenced DataFrame
-    geometry = [Point(x, y) for x, y in zip(centroid_df['X_WGS84'], centroid_df['Y_WGS84'])]
-    gdf = gpd.GeoDataFrame(centroid_df, geometry=geometry, crs='EPSG:4326')
+    geometry = [Point(x, y) for x, y in zip(centroid_df['X_WGS84'], centroid_df['Y_WGS84'])]  # Create Point geometries from WGS84 coordinates
+    gdf = gpd.GeoDataFrame(centroid_df, geometry=geometry, crs='EPSG:4326')  # Create a GeoDataFrame with WGS84 CRS
     
     # Save the GeoDataFrame as a shapefile
-    gdf.to_file(output_shape)
+    gdf.to_file(output_shape)  # Saving the GeoDataFrame to a shapefile
+  except Exception as e:
+        print("An error occurred in mainCentroidGeoref:", e)
 
 
-def mainCentroidGeoref(workingDir):
-  g_dir = workingDir + "/data/input/templates/geopoints/"
-  output_csv = workingDir + "/data/output/output_final.csv"
-  output_shape_dir = workingDir + "/data/output/output_shape/"
-  os.makedirs(output_shape_dir, exist_ok = True)
-  output_shape = output_shape_dir + "output_final.shp"
-  input_csv = workingDir + "/data/output/maps/csv_files/coordinates.csv"
-  for gcp_points in glob.glob(g_dir + "*.points"):
-    centroid_georef(gcp_points, input_csv, output_csv, output_shape)
+def mainCentroidGeoref(workingDir, outDir):
+  
+  try:
+    g_dir = workingDir + "/data/input/templates/geopoints/"  # Define directory containing GCP points files
+    output_csv = outDir + "/output_final.csv"  # Define path for output CSV file
+    output_shape_dir = outDir + "/output_shape/"  # Define directory for output shapefiles
+    os.makedirs(output_shape_dir, exist_ok = True)  # Create output directory if it doesn't exist
+    output_shape = output_shape_dir + "output_final.shp"  # Define path for output shapefile
+    input_csv = outDir + "/maps/csv_files/coordinates.csv"  # Define path for input CSV file
+    for gcp_points in glob.glob(g_dir + "*.points"):  # Iterate over GCP points files
+      centroid_georef(gcp_points, input_csv, output_csv, output_shape)  # Call centroid_georef function
+  except Exception as e:
+        print("An error occurred in mainCentroidGeoref:", e)

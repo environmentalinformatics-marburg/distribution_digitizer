@@ -1149,7 +1149,7 @@ server <- shinyServer(function(input, output, session) {
     leaflet_list_GEO <- lapply(seq_along(listgeoTiffiles), function(i) {
       #print(listgeoTiffiles[i])
       leaflet() %>%
-        addTiles("Test") %>%
+        addTiles("Georeferencing") %>%
         addProviderTiles("OpenStreetMap.Mapnik") %>%
         addRasterImage(raster(listgeoTiffiles[i]), opacity = 0.7) %>%
         addControl(
@@ -1160,8 +1160,8 @@ server <- shinyServer(function(input, output, session) {
         ) %>%
         addControl(
           htmltools::div(
-            img(src = paste0("/georeferencing_png/",listPng[i]), width = 200, height = 200),
-            tags$a(href = paste0("/georeferencing_png/",listPng[i]), listPng[i], target="_blank"),
+            img(src = paste0("/data/georeferencing_png/",listPng[i]), width = 200, height = 200),
+            tags$a(href = paste0("/data/georeferencing_png/",listPng[i]), listPng[i], target="_blank"),
           ),
           position = "bottomleft"
         )
@@ -1248,9 +1248,9 @@ server <- shinyServer(function(input, output, session) {
         ) %>%
         addControl(
           htmltools::div(
-            img(src = paste0("/cropped_png/",listPng[i]), width = 200, height = 200),
+            img(src = paste0("/data/cropped_png/",listPng[i]), width = 200, height = 200),
             #p(listPng[i])
-            tags$a(href = paste0("/cropped_png/",listPng[i]), listPng[i], target="_blank"),
+            tags$a(href = paste0("/data/cropped_png/",listPng[i]), listPng[i], target="_blank"),
           ),
           
           position = "bottomleft"
