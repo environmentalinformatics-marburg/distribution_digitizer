@@ -504,13 +504,13 @@ body <- dashboardBody(
                  fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
                  fluidRow(column(3, actionButton("masking",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
                ), 
-               wellPanel(
+               #wellPanel(
                  # ----------------------------------------# Masking (black)#----------------------------------------------------------------------
-                 h4("Or you can extract masks with black background", style = "color:black"),
-                 p(shinyfields5$inf2, style = "color:black"),
-                 fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
-                 fluidRow(column(3, actionButton("maskingBlack",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
-               ),
+              #   h4("Or you can extract masks with black background", style = "color:black"),
+              #   p(shinyfields5$inf2, style = "color:black"),
+              #   fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
+              #   fluidRow(column(3, actionButton("maskingBlack",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
+              # ),
                # ---------------------------------------- # 4.2 Masking centroids -----------------------------------------------------------------
                wellPanel(
                  h3(shinyfields5.1$head_sub, style = "color:black"),
@@ -890,6 +890,7 @@ server <- shinyServer(function(input, output, session) {
   ####################
   # 2.1 Maps align #----------------------------------------------------------------------#
   ####################
+  
   # Start Align maps 
   observeEvent(input$alignMaps, {
     # call the function for align maps 
@@ -915,6 +916,7 @@ server <- shinyServer(function(input, output, session) {
   ####################
   # 2.2 Crop map legend species#----------------------------------------------------------------------#
   ####################
+  
   # Start read  legend species
   observeEvent(input$mapReadRpecies, {
     # call the function for cropping
@@ -940,6 +942,7 @@ server <- shinyServer(function(input, output, session) {
   ####################
   # 2.3 Crop species name of the page content #----------------------------------------------------------------------#
   ####################
+  
   # Start Crop page species
   observeEvent(input$pageReadRpecies, {
     # call the function for cropping
@@ -950,6 +953,7 @@ server <- shinyServer(function(input, output, session) {
   ####################
   # 3. Points Matching  #----------------------------------------------------------------------#
   ####################
+  
   # Start points detection with matching 
   observeEvent(input$pointMatching, {
     # call the function for cropping
@@ -975,6 +979,7 @@ server <- shinyServer(function(input, output, session) {
   # 3.1 Points Filtering  #----------------------------------------------------------------------#
   ####################
   # Start Process point filtering 
+  
   observeEvent(input$pointFiltering, {
     # call the function for filtering
     manageProcessFlow("pointFiltering", "points filtering", "pointFiltering")
@@ -1012,6 +1017,7 @@ server <- shinyServer(function(input, output, session) {
   # 3.2 Circle Detection  #----------------------------------------------------------------------#
   ####################
   # Process circle detection
+  
   observeEvent(input$pointCircleDetection, {
     # call the function for circle detection
     manageProcessFlow("pointCircleDetection", "points circle detection", "pointCircleDetection")
@@ -1032,30 +1038,26 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
-  # ----------------------------------------# Masking #----------------------------------------------------------------------
+ 
+  ####################
+  # 4. Masking #----------------------------------------------------------------------#
+  ####################
+  
   observeEvent(input$masking, {
     # call the function for filtering
     manageProcessFlow("masking", "masking white background", "masking")
     
-    findTemplateResult = paste0(outDir, "/masking/")
-    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_png/"))
   })
+
   
-  observeEvent(input$maskingBlack, {
-    # call the function for filtering
-    manageProcessFlow("maskingB", "masking black background", "masking")
-    
-    findTemplateResult = paste0(outDir, "/masking_black/")
-    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_black_png/"))
-  })
-  # ---- # Masking centroids --------
+  ####################
+  # 4.1 Masking centroids #----------------------------------------------------------------------#
+  ####################
+
   observeEvent(input$maskingCentroids, {
     # call the function for filtering
     manageProcessFlow("maskingCentroids", "masking centroids", "maskingCentroids")
-    
-    findTemplateResult = paste0(outDir, "/masking_black/circleDetection/")
-    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/maskingCentroids/"))
-  })
+ })
   
   observeEvent(input$listMasks, {
     if(input$siteNumberMasks!= ''){
@@ -1109,15 +1111,14 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$georeferencing, {
     # call the function for filtering
     manageProcessFlow("georeferencing", "georeferencing", "georeferencing")
-    # convert the tif images to png and save this in /www directory
-    findTemplateResult = paste0(outDir, "/georeferencing/masks/")
-    convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/georeferencing_png/"))
+
     
   })
   
   
   # Georeferencing list maps
   observeEvent(input$listGeoreferencing, {
+    
     # Anzahl der Leaflet-Elemente, die Sie hinzufügen möchten
     # show start action message
     message=paste0("Process ", "Georeferencing", " is started on: ")
@@ -1194,29 +1195,6 @@ server <- shinyServer(function(input, output, session) {
     # call the function for filtering
     manageProcessFlow("polygonize", "polygonize", "polygonize")
     
-    # Write new directory
-    new_directory <- paste0(workingDir, "/www/data/polygonize/")
-    dir.create(new_directory)
-    
-    findTemplateResult = paste0(workingDir, "/data/output/polygonize/")
-    shFiles <- list.files(findTemplateResult, pattern = ".sh", recursive = TRUE, full.names = TRUE)
-    
-    # copy the shape files into www directory
-    for (f in shFiles) {
-      # Source and destination file paths
-      baseName = basename(f)
-      destination_file <- paste0(workingDir, "/www/data/polygonize/", baseName)
-      #print(destination_file)
-      # Copy the file
-      file.copy(from = f, to = destination_file, overwrite = TRUE)
-      
-      # Check if the copy was successful
-      if (file.exists(destination_file)) {
-        cat("File copied successfully to:", destination_file)
-      } else {
-        cat("File copy failed.")
-      }
-    }
   }) 
   
   # Polygonize list maps  
@@ -1565,7 +1543,7 @@ server <- shinyServer(function(input, output, session) {
         convertTifToPngSave(paste0(outDir, "/maps/align/"), paste0(workingDir, "/www/data/align_png/"))
         
         message=paste0("Ended on: ", 
-                       format(current_time(), "%H:%M:%S \n"), " The number extracted maps ", " are \n", 
+                       format(current_time(), "%H:%M:%S \n"), " The number align maps ", " are \n", 
                        countFiles ," and saved in directory \n",findTemplateResult)
         
       }, error = function(e) {
@@ -1592,7 +1570,7 @@ server <- shinyServer(function(input, output, session) {
         convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/cropped_png/"))
         
         message <- paste0("Ended on: ", 
-                          format(current_time(), "%H:%M:%S \n"), " The number rename maps ", " are \n", 
+                          format(current_time(), "%H:%M:%S \n"), " The number maps ", " are \n", 
                           countFiles, " and saved in directory \n", findTemplateResult)
       }, error = function(e) {
         cat("An error occurred during mapReadRpecies processing:\n")
@@ -1618,7 +1596,7 @@ server <- shinyServer(function(input, output, session) {
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Ended on: ", 
-                          format(current_time(), "%H:%M:%S \n"), " The number rename maps ", " are \n", 
+                          format(current_time(), "%H:%M:%S \n"), " The number maps ", " are \n", 
                           countFiles, " and saved in directory \n", findTemplateResult)
         # convert the tif images to png and save in www
         convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/cropped_png/"))
@@ -1668,7 +1646,7 @@ server <- shinyServer(function(input, output, session) {
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Ended on: ", 
-                          format(current_time(), "%H:%M:%S \n"), " The number rename maps ", " are \n", 
+                          format(current_time(), "%H:%M:%S \n"), " The number PF maps ", " are \n", 
                           countFiles, " and saved in directory \n", findTemplateResult)
         convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointFiltering_png/"))
         
@@ -1696,12 +1674,12 @@ server <- shinyServer(function(input, output, session) {
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Ended on: ", 
-                          format(current_time(), "%H:%M:%S \n"), " The number rename maps ", " are \n", 
+                          format(current_time(), "%H:%M:%S \n"), " The number CD maps", " are \n", 
                           countFiles, " and saved in directory \n", findTemplateResult)
         
         convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/CircleDetection_png/"))
       }, error = function(e) {
-        cat("An error occurred during pageReadRpecies processing:\n")
+        cat("An error occurred during pointCircleDetection processing:\n")
         print(e)
       })
     }
@@ -1714,11 +1692,26 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         mainGeomask(workingDir, outDir, input$morph_ellipse)
+        
         fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
+        print(" Process masking black python script:")
+        print(fname)
         source_python(fname)
         mainGeomaskB(workingDir, outDir, input$morph_ellipse)
+        
+        findTemplateResult = paste0(outDir, "/masking/")
+        files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles <- paste0(length(files), "")
+        message <- paste0("Ended on: ", 
+                          format(current_time(), "%H:%M:%S \n"), " The number masks ", " are \n", 
+                          countFiles, " and saved in directory \n", findTemplateResult)
+        
+        convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_png/"))
+        
+        findTemplateResult = paste0(outDir, "/masking_black/")
+        convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_black_png/"))
       }, error = function(e) {
-        cat("An error occurred during pageReadRpecies processing:\n")
+        cat("An error occurred during masking processing:\n")
         print(e)
       })
     }
@@ -1731,8 +1724,17 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         MainMaskCentroids(workingDir, outDir)
+        
+        findTemplateResult = paste0(outDir, "/masking_black/circleDetection/")
+        files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles <- paste0(length(files), "")
+        message <- paste0("Ended on: ", 
+                          format(current_time(), "%H:%M:%S \n"), " The number centroids masks ", " are \n", 
+                          countFiles, " and saved in directory \n", findTemplateResult)
+        convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/maskingCentroids/"))
+        
       }, error = function(e) {
-        cat("An error occurred during pageReadRpecies processing:\n")
+        cat("An error occurred during maskingCentroids processing:\n")
         print(e)
       })
     }
@@ -1758,8 +1760,17 @@ server <- shinyServer(function(input, output, session) {
         mainRectifying(workingDir, outDir)
         mainRectifying_CD(workingDir, outDir)
         mainRectifying_PF(workingDir, outDir)
+        findTemplateResult = paste0(outDir, "/georeferencing/masks/")
+        files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles <- paste0(length(files), "")
+        message <- paste0("Georeferencing ended on: ", 
+                          format(current_time(), "%H:%M:%S \n"), " The number georeferencing masks ", " are \n", 
+                          countFiles, " and saved in directory \n", findTemplateResult)
+        # convert the tif images to png and save this in /www directory
+        convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/georeferencing_png/"))
+        
       }, error = function(e) {
-        cat("An error occurred during pageReadRpecies processing:\n")
+        cat("An error occurred during georeferencing processing:\n")
         print(e)
       })
     }
@@ -1768,10 +1779,10 @@ server <- shinyServer(function(input, output, session) {
       # processing mathematical georeferencing of extracted coordinates stored in csv file
       tryCatch({
         fname=paste0(workingDir, "/", "src/georeferencing/centroid_georeferencing.py")
-        print(" Process georeferencing python script:")
+        print(" Process georef_coords_from_csv python script:")
         print(fname)
         source_python(fname)
-        mainCentroidGeoref(workingDir)
+        mainCentroidGeoref(workingDir, outDir)
       }, error = function(e) {
         cat("An error occurred during pageReadRpecies processing:\n")
         print(e)
@@ -1786,9 +1797,34 @@ server <- shinyServer(function(input, output, session) {
         print(" Process polygonizing python script:")
         print(fname)
         source_python(fname)
-        mainPolygonize(workingDir)
-        mainPolygonize_CD(workingDir)
-        mainPolygonize_PF(workingDir)
+        mainPolygonize(workingDir, outDir)
+        mainPolygonize_CD(workingDir, outDir)
+        mainPolygonize_PF(workingDir, outDir)
+        findTemplateResult = paste0(outDir, "/polygonize/")
+        files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+        countFiles <- paste0(length(files), "")
+        message <- paste0("Georeferencing ended on: ", 
+                          format(current_time(), "%H:%M:%S \n"), " The number polygonized masks ", " are \n", 
+                          countFiles, " and saved in directory \n", findTemplateResult)
+        
+        shFiles <- list.files(findTemplateResult, pattern = ".sh", recursive = TRUE, full.names = TRUE)
+        
+        # copy the shape files into www directory
+        for (f in shFiles) {
+          # Source and destination file paths
+          baseName = basename(f)
+          destination_file <- paste0(workingDir, "/www/data/polygonize/", baseName)
+          #print(destination_file)
+          # Copy the file
+          file.copy(from = f, to = destination_file, overwrite = TRUE)
+          
+          # Check if the copy was successful
+          if (file.exists(destination_file)) {
+            cat("File copied successfully to:", destination_file)
+          } else {
+            cat("File copy failed.")
+          }
+        }
       }, error = function(e) {
         cat("An error occurred during pageReadRpecies processing:\n")
         print(e)
@@ -1950,7 +1986,7 @@ server <- shinyServer(function(input, output, session) {
         }
 
         directory_names <- c("align_png", "CircleDetection_png", "cropped_png", "georeferencing_png", 
-                             "masking_black_png", "masking_circleDetection", "masking_png", "matching_png", "pages",
+                             "masking_black_png", "masking_circleDetection", "masking_png", "maskingCentroids","matching_png", "pages",
                              "pointFiltering_png", "pointMatching_png", "polygonize", "symbol_templates_png",
                              "map_templates_png")
         
