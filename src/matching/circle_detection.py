@@ -1,7 +1,7 @@
 """
 File: circle_detection.py
 Author: Kai Richter
-Last modified on 2024-03-13 by Spaska Fortevar:
+Last modified on 2024-03-13 by Spaska Forteva:
   Addition of functions mainRectifying_CD and mainRectifying_PF
 
 Description: 

@@ -604,9 +604,12 @@ body <- dashboardBody(
     tabItem(
       tabName = "tab8",
       actionButton("viewCSV",  label ="Overview spatial final data", style="color:#FFFFFF;background:#999999"),
-      downloadButton("downloadCSV", "CSV download"),
+
       wellPanel( 
-        dataTableOutput("myTable")
+        #downloadButton("downloadCSV", label = "Download CSV", style="color:#FFFFFF;background:#999999"),
+        downloadButton("download_csv", label = "Download CSV", style="color:#FFFFFF;background:#999999"),
+        
+        dataTableOutput("view_csv")
       ),
     )
   ) # END tabItems
@@ -686,11 +689,10 @@ server <- shinyServer(function(input, output, session) {
       current_datetime <- format(Sys.time(), "%Y-%m-%d_%H-%M-%S")
       # Directory name with current date-time
       out_directory_name <- paste("output_", current_datetime, sep = "")
-      print(outDir)
+    
       # Concatenate base path with directory name
       outDir <- file.path(input$dataOutputDir, out_directory_name)
-      print(outDir)
-      print("OK")
+    
       prepare_base_output(outDir)
       
       webViewMap = paste0(workingDir,"/www/data/")
@@ -1097,8 +1099,13 @@ server <- shinyServer(function(input, output, session) {
       })
     }
   })
-  # ----------------------------------------# Georeferencing #----------------------------------------------------------------------
-  # Georeferencing start
+  
+  
+  ####################
+  # 5. Georeferencing #----------------------------------------------------------------------#
+  ####################
+  
+  # Start
   # GCP points extraction
   observeEvent(input$pointextract, {
     #Processing georeferencing
@@ -1111,8 +1118,6 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$georeferencing, {
     # call the function for filtering
     manageProcessFlow("georeferencing", "georeferencing", "georeferencing")
-
-    
   })
   
   
@@ -1132,7 +1137,7 @@ server <- shinyServer(function(input, output, session) {
     num_leaflet_outputs_GEO <- length(listgeoTiffiles)
     
     # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
-    listPng = list.files(paste0(workingDir, "/www/data/georeferencing_png/"), full.names = F, pattern = paste0('georeferenced', input$siteNumberGeoreferencing))  #print(listPng)
+    listPng = list.files(paste0(workingDir, "/www/data/georeferencing_png/"), full.names = F, pattern = paste0('geor', input$siteNumberGeoreferencing))  #print(listPng)
     
     output$leaflet_outputs_GEO <- renderUI({
       #print( paste('00',input$siteNumberGeoreferencing,'map'))
@@ -1189,203 +1194,151 @@ server <- shinyServer(function(input, output, session) {
   
   
   
-  # ----------------------------------------# Polygonize #----------------------------------------------------------------------
-  # Polygonize start
+  ####################
+  # 6. Polygonize #----------------------------------------------------------------------#
+  ####################
+  
+  # Start
   observeEvent(input$polygonize, {
     # call the function for filtering
     manageProcessFlow("polygonize", "polygonize", "polygonize")
     
   }) 
   
-  # Polygonize list maps  
+  
   observeEvent(input$listPolygonize, {
-    # Load the shapefile data
-    listShapefiles = list.files(paste0(workingDir, "/www/data/polygonize/"), full.names = T, pattern = '.shp')
-    #input$siteNumberPolygonize='69'
-    listShapefiles = grep(input$siteNumberPolygonize, listShapefiles, value= TRUE)
-    
-    # diese shape files sind erstmal von keine Bedeutung
-    muster <- "filtered"
-    
-    # Index der Dateien finden, die das Muster nicht enthalten
-    listShapefiles <- grep(paste0("^((?!(", muster, ")).)*$"), listShapefiles, value = TRUE, perl = TRUE)
-    num_leaflet_outputs <- length(listShapefiles)
-    #print(listShapefiles)
-    
-    # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
-    listPng = list.files(paste0(workingDir, "/www/data/cropped_png/"), full.names = F, pattern = input$siteNumberPolygonize)
-    #print(listPng)
-    
-    output$leaflet_outputs_PL <- renderUI({
-      # Liste von Leaflet-Elementen
-      leaflet_outputs_list <- lapply(1:num_leaflet_outputs, function(i) {
-        leafletOutput(outputId = paste0("listPL", i))
+    tryCatch({
+      # IMPORTANT not remove!
+      config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
+      outDir <- config$dataOutputDir
+      listShapefiles = list.files(paste0(workingDir, "/www/data/polygonize/"), full.names = T, pattern = '.shp')
+      listShapefiles = grep(input$siteNumberPolygonize, listShapefiles, value= TRUE)
+      muster <- "filtered"
+      listShapefiles <- grep(paste0("^((?!(", muster, ")).)*$"), listShapefiles, value = TRUE, perl = TRUE)
+      num_leaflet_outputs <- length(listShapefiles)
+      
+      listPng = list.files(paste0(workingDir, "/www/data/cropped_png/"), full.names = F, pattern = input$siteNumberPolygonize)
+      
+      output$leaflet_outputs_PL <- renderUI({
+        leaflet_outputs_list <- lapply(1:num_leaflet_outputs, function(i) {
+          leafletOutput(outputId = paste0("listPL", i))
+        })
+        do.call(tagList, leaflet_outputs_list)
       })
       
-      # Liste der Leaflet-Elemente in UI auszugeben
-      do.call(tagList, leaflet_outputs_list)
+      leaflet_list_PL <- lapply(seq_along(listShapefiles), function(i) {
+        leaflet() %>%
+          addTiles("Test") %>%
+          addProviderTiles("OpenStreetMap.Mapnik") %>%
+          addPolygons(data = st_read(listShapefiles[i]),
+                      fillColor = "blue",
+                      fillOpacity = 0.6,
+                      color = "white",
+                      stroke = TRUE,
+                      weight = 6) %>%
+          addControl(
+            htmltools::div(
+              p(listShapefiles[i]),
+            ),
+            position = "bottomright"
+          ) %>%
+          addControl(
+            htmltools::div(
+              img(src = paste0("/data/cropped_png/",listPng[i]), width = 200, height = 200),
+              tags$a(href = paste0("/data/cropped_png/",listPng[i]), listPng[i], target="_blank"),
+            ),
+            position = "bottomleft"
+          )
+      })
+      
+      leaflet_lists <- lapply(1:length(leaflet_list_PL), function(i) {
+        output[[paste0('listPL', i)]] <- renderLeaflet({ leaflet_list_PL[[i]] })
+      })
+    }, error = function(e) {
+      message <- paste("Error in observeEvent(input$listPolygonize):", e$message)
+      shinyalert(text = message, type = "error")
     })
-    
-    
-    
-    # Liste von Leaflet-Objektenlapply(seq_along(my_list), function(i) {
-    leaflet_list_PL <- lapply(seq_along(listShapefiles), function(i) {
-      #print(listShapefiles[i])
-      leaflet() %>%
-        addTiles("Test") %>%
-        addProviderTiles("OpenStreetMap.Mapnik") %>%
-        addPolygons(data = st_read(listShapefiles[i]),
-                    fillColor = "blue",
-                    fillOpacity = 0.6,
-                    color = "white",
-                    stroke = TRUE,
-                    weight = 6) %>%
-        addControl(
-          htmltools::div(
-            p(listShapefiles[i]),
-          ),
-          position = "bottomright"
-        ) %>%
-        addControl(
-          htmltools::div(
-            img(src = paste0("/data/cropped_png/",listPng[i]), width = 200, height = 200),
-            #p(listPng[i])
-            tags$a(href = paste0("/data/cropped_png/",listPng[i]), listPng[i], target="_blank"),
-          ),
-          
-          position = "bottomleft"
-        )
-    })
-    
-    # Ergebnisse in den Output-Variablen speichern
-    
-    leaflet_lists <- lapply(1:length(leaflet_list_PL), function(i) {
-      output[[paste0('listPL', i)]] <- renderLeaflet({ leaflet_list_PL[[i]] })
-    })
-    # Render the HTML shape name 1
-    # output$shape_name1 <- renderUI({
-    #  HTML(paste("<p><strong>Shape Name:</strong> ", basename(listShapefile[1]), "</p>"))
-    # })
-    # Render the HTML align map1
-    # output$align_map1 <- renderUI({
-    #   HTML(paste("<img src=", workingDir, "/www/data/align_png/",basename(listShapefile[1]), ">"))
-    # })
   })
   
-  # Render the HTML align map3
-  # output$align_map3 <- renderUI({
-  #    HTML(paste("<img src=", workingDir, "/www/data/align_png/",basename(listShapefile[3]), ">"))
-  #  })
+
   
+  ####################
+  # 7. Save the outputs #----------------------------------------------------------------------#
+  ####################
   
-  
-  # ----------------------------------------# Save the outputs #----------------------------------------------------------------------
-  
+  # Start
   observeEvent(input$startSpatialDataComputing, {
-    
-    # show start action message
-    message=paste0("Process ", "Spatial data computing", " is started on: ")
-    shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
-               closeOnClickOutside = FALSE, animation = TRUE)
-    messageOnClose = ""
-    tryCatch(
-      # Processing spatial data computing
-      expr = {
-        fname=paste0(workingDir, "/", "src/extract_coordinates/poly_to_point.py")
-        source_python(fname)
-        main_circle_detection(workingDir)
-        main_point_filtering(workingDir)
-        
-        fname=paste0(workingDir, "/", "src/extract_coordinates/extract_coords.py")
-        source_python(fname)
-        main_circle_detection(workingDir)
-        main_point_filtering(workingDir)
-        
-        # prepare pages as png for the spatia view
-        convertTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/data/pages/"))
-        source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
-        mergeFinalData(workingDir)
-      },
-      error = function(e) {
-        messageOnClose = e$message
-        # Hier steht der Code, der ausgeführt wird, wenn ein Fehler auftritt
-        showModal(
-          modalDialog(
-            title = "Fehler",
-            paste("Ein Fehler ist aufgetreten:", e$message),
-            easyClose = TRUE,
-            footer = NULL
-          )
-        )
-      },
-      finally = {
-        cat("\nSuccessfully executed")
-        # show end action message if no errors
-        closeAlert(num = 0, id = NULL)
-        if(messageOnClose == "") {messageOnClose = "Spatial final data computing" }
-        shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"), 
-                                "The Spatial final data is saved in spatial_final_data.csv in directory /data/output/" ),
-                   type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
-                   closeOnClickOutside = TRUE, animation = TRUE)
-      }
-    )
+    # call the function for filtering
+    manageProcessFlow("spatial_data_computing", "spatial", "spatial")
   })
   
   observeEvent(input$spatialViewPF, {
-    
-    customMouseover <- JS(
-      "function(event) {
-    var layer = event.target;
-    layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
-  }"
-    )
-    
-    marker_data <- read.csv(paste0(workingDir, "/data/output/spatial_final_data.csv"), sep = ";", header = TRUE)
-    filtered_data <- marker_data[marker_data$Detection.method == "point_filtering", ]
-    name_on_top = paste0(filtered_data$species)#,": ", filtered_data$File,".png")
-    name = paste0( filtered_data$File,".png")
-    page = basename(filtered_data$file_name)
-    page <- sub("\\.tif$", "", basename(filtered_data$file_name))
-    page = paste0(page, ".png")
-    # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
-    filtered_data$X_WGS84 <- as.numeric(gsub(",", ".", filtered_data$X_WGS84))
-    filtered_data$Y_WGS84 <- as.numeric(gsub(",", ".", filtered_data$Y_WGS84))
-    # OpenStreetMap show
-    output$mapSpatialViewPF <- renderLeaflet({
-      leaflet() %>%
-        addTiles() %>%
-        addMarkers(
-          data = filtered_data,
-          lat = ~Y_WGS84,
-          lng = ~X_WGS84,
-          label = name_on_top,
-          labelOptions = labelOptions(
-            direction = "auto",
-            noHide = TRUE,
-            onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
-          ),
-          #popup = ~paste0("<a href='/matching_png/", Link, "' target='_blank'>", marker_data$Name, "</a>")
-          popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$search_specie, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
-                          "<img src='/matching_png/", name, "' width='100' height='100'></a>",
-                          "<a href='/pages/", page, "' target='_blank'>",
-                          "<img src='/pages/", page, "' width='100' height='100'></a>")
+    tryCatch({
+      # IMPORTANT not remove!
+      config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
+      outDir <- config$dataOutputDir
+      customMouseover <- JS(
+        "function(event) { var layer = event.target;
+      layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();}"
+      )
+      
+      marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
+      filtered_data <- marker_data[marker_data$Detection.method == "point_filtering", ]
+      name_on_top <- paste0(filtered_data$species)
+      name <- paste0(filtered_data$File,".png")
+      page <- sub("\\.tif$", "", basename(filtered_data$file_name))
+      page <- paste0(page, ".png")
+      
+      # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
+      filtered_data$X_WGS84 <- as.numeric(gsub(",", ".", filtered_data$X_WGS84))
+      filtered_data$Y_WGS84 <- as.numeric(gsub(",", ".", filtered_data$Y_WGS84))
+      
+      # OpenStreetMap show
+      output$mapSpatialViewPF <- renderLeaflet({
+        leaflet() %>%
+          addTiles() %>%
+          addMarkers(
+            data = filtered_data,
+            lat = ~Y_WGS84,
+            lng = ~X_WGS84,
+            label = name_on_top,
+            labelOptions = labelOptions(
+              direction = "auto",
+              noHide = TRUE,
+              onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
+            ),
+            popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$search_specie, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
+                            "<img src='/matching_png/", name, "' width='100' height='100'></a>",
+                            "<a href='/pages/", page, "' target='_blank'>",
+                            "<img src='/pages/", page, "' width='100' height='100'></a>")
+          )
+      })
+      cat("\nSuccessfully executed")
+    }, error = function(e) {
+      showModal(
+        modalDialog(
+          title = "Error",
+          paste("An error occurred:", e$message),
+          easyClose = TRUE,
+          footer = NULL
         )
+      )
     })
-    
-    
-    cat("\nSuccessfully executed")
-    
   })
   
+  
+  # Spatial View CD
   observeEvent(input$spatialViewCD, {
-    
+    # IMPORTANT not remove!
+    config <- read.csv(paste0(workingDir,"/config/config.csv"),header = TRUE, sep = ';')
+    outDir = config$dataOutputDir
     customMouseover <- JS(
       "function(event) {
     var layer = event.target;
     layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
   }"
     )
-    marker_data <- read.csv(paste0(workingDir, "/data/output/spatial_final_data.csv"), sep = ";", header = TRUE)
+    marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
     filtered_data <- marker_data[marker_data$Detection.method == "circle_detection", ]
     name_on_top = paste0(filtered_data$species)#,": ", filtered_data$File,".png")
     name = paste0( filtered_data$File,".png")
@@ -1419,68 +1372,43 @@ server <- shinyServer(function(input, output, session) {
       # addControl(position = "bottomright", title = "Legend", html = "<div style='background-color: #ffffff; padding: 10px;'>Your Legend Text</div>")
       
     })
-    
     cat("\nSuccessfully executed")
-    
   })
-  # Daten aus der hochgeladenen CSV-Datei lesen
-  #data2 <- reactive({
-  #req(input$file)
-  #  df <- read.csv(input$file$datapath)
-  #  df
-  # })
+
   
-  # OpenStreetMap show
-  # output$mapShowCsv <- renderLeaflet({
-  # leaflet(data = data2()) %>%
-  #  addTiles() %>%
-  #  addMarkers(lng = ~Longitude, lat = ~Latitude,
-  #   label = ~Name,
-  #   labelOptions = labelOptions(
-  #   direction = "auto",
-  #  noHide = TRUE
-  #   ),
-  #   popup = ~paste0("<a href='/matching_png/", Name, "' target='_blank'>", ~Link, "</a>")
-  #  )
-  #})
+  ####################
+  # 8. Download the outputs #----------------------------------------------------------------------#
+  ####################
   
-  output$downloadCSV <- downloadHandler(
-    # Hier können Sie den Pfad zu Ihrer CSV-Datei angeben
+  output$download_csv<- downloadHandler(
     
     filename = function() {
-      csv_path <- paste0(workingDir, "/data/output/spatial_final_data.csv")
-      # Hier können Sie den Dateinamen für die heruntergeladene Datei festlegen
-      # In diesem Beispiel verwenden wir den ursprünglichen Dateinamen
-      basename(csv_path)
+      "spatial_final_data.csv"
     },
     content = function(file) {
-      csv_path <- paste0(workingDir, "/data/output/spatial_final_data.csv")
-      # Hier wird die gesamte CSV-Datei in die herunterzuladende Datei kopiert
+      csv_path <- paste0(outDir, "spatial_final_data.csv")
       file.copy(csv_path, file)
     }
+    
   )
   
+  ####################
+  # 9. View CSV Data #----------------------------------------------------------------------#
+  ####################
   observeEvent(input$viewCSV, {
     
-    # Hier können Sie den Pfad zu Ihrer CSV-Datei angeben
-    csv_path <- paste0(workingDir, "/data/output/spatial_final_data.csv")
-    
-    # Hier können Sie Daten für Ihre Tabelle oder Visualisierung laden
-    # In diesem Beispiel lesen wir die CSV-Datei
-    
-    data <- reactive({
-      my_data <- read.table(csv_path, sep = ";", header = TRUE, check.names = FALSE)
-      
-      #print(colnames(my_data))
-      return(my_data)
-    })
-    
-    output$myTable <- renderDataTable({
-      data()
-    })
+    # call the function for filtering
+    manageProcessFlow("view_csv", "view_csv", "view_csv")
     
   })
   
+  
+  
+  ####################
+  # FUNCTIONS       #----------------------------------------------------------------------#
+  ####################
+  
+  # Function to manage the processing
   manageProcessFlow <- function(processing, allertText1, allertText2){
     
     # IMPORTANT not remove!
@@ -1488,11 +1416,17 @@ server <- shinyServer(function(input, output, session) {
     outDir = config$dataOutputDir
     # END IMPORTANT
     
-    # show start action message
-    message=paste0("The process ", allertText1, " is started on: ")
-    shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
-               closeOnClickOutside = FALSE, animation = TRUE)
-    
+    message=""
+    message <- paste0("The process ", allertText1, " is started on: ")
+    shinyalert(
+        text = paste(message, format(current_time(), "%H:%M:%S")), 
+        type = "info", 
+        showConfirmButton = FALSE, 
+        closeOnEsc = TRUE,
+        closeOnClickOutside = FALSE, 
+        animation = TRUE
+    )
+
     
     if(processing == "mapMatching"){
       tryCatch({
@@ -1581,9 +1515,9 @@ server <- shinyServer(function(input, output, session) {
     if(processing == "pageReadRpecies" ){
       tryCatch({
         
-        # read page species
+        # Read page species
         fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
-        print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ",outDir," directory"))
+        print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ", outDir," directory"))
         source(fname)
         if(length(config$keywordReadSpecies) > 0) {
           species = readPageSpecies(workingDir, outDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
@@ -1620,6 +1554,8 @@ server <- shinyServer(function(input, output, session) {
         cat("\nSuccessfully executed")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
+        #outDir = "D:/test/output_2024-03-14_11-29-27"
+        #workingDir = "D:/distribution_digitizer/"
         # convert the tif images to png and save in www
         findTemplateResult = paste0(outDir, "/maps/align/")
         convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointMatching_png/"))
@@ -1778,6 +1714,7 @@ server <- shinyServer(function(input, output, session) {
     if(processing == "georef_coords_from_csv"){
       # processing mathematical georeferencing of extracted coordinates stored in csv file
       tryCatch({
+        
         fname=paste0(workingDir, "/", "src/georeferencing/centroid_georeferencing.py")
         print(" Process georef_coords_from_csv python script:")
         print(fname)
@@ -1789,7 +1726,7 @@ server <- shinyServer(function(input, output, session) {
       })
     }
     
-    if(processing=="polygonize"){
+    if(processing == "polygonize"){
       tryCatch({
 
         # processing polygonize
@@ -1831,12 +1768,76 @@ server <- shinyServer(function(input, output, session) {
       })
     }
     
-    cat("\nSuccessfully executed")
-    # show end action message
+    if(processing == "spatial_data_computing"){
+      
+      tryCatch(
+        # Processing spatial data computing
+       
+        expr = {
+          fname=paste0(workingDir, "/", "src/extract_coordinates/poly_to_point.py")
+          source_python(fname)
+          main_circle_detection(workingDir, outDir)
+          main_point_filtering(workingDir, outDir)
+          
+          fname=paste0(workingDir, "/", "src/extract_coordinates/extract_coords.py")
+          source_python(fname)
+          main_circle_detection(workingDir, outDir)
+          main_point_filtering(workingDir, outDir)
+          
+          # prepare pages as png for the spatia view
+          convertTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/data/pages/"))
+          source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
+          mergeFinalData(workingDir, outDir)
+        },
+        error = function(e) {
+          messageOnClose = e$message
+          # Hier steht der Code, der ausgeführt wird, wenn ein Fehler auftritt
+          showModal(
+            modalDialog(
+              title = "Error",
+              paste("Error in startSpatialDataComputing:", e$message),
+              easyClose = TRUE,
+              footer = NULL
+            )
+          )
+        },
+        finally = {
+          cat("\nSuccessfully executed")
+          # show end action message if no errors
+          closeAlert(num = 0, id = NULL)
+          message = "End of processing spatial on " 
+          message = paste(message, format(current_time(), "%H:%M:%S."), 
+                                  " The data spatial_final_data.csv in: " , outDir)
+        }
+      )
+    }
     
+
+    
+    if(processing == "view_csv"){
+      # Hier können Sie den Pfad zu Ihrer CSV-Datei angeben
+      csv_path <- paste0(outDir, "/spatial_final_data.csv")
+      
+      # Hier können Sie Daten für Ihre Tabelle oder Visualisierung laden
+      # In diesem Beispiel lesen wir die CSV-Datei
+      
+      data <- reactive({
+        dd_data <- read.table(csv_path, sep = ";", header = TRUE, check.names = FALSE)
+        
+        #print(colnames(my_data))
+        return(dd_data)
+      })
+      
+      output$view_csv <- renderDataTable({
+        data()
+      })
+      
+    }
+    
+    cat("\nSuccessfully executed")
+
     closeAlert(num = 0, id = NULL)
-    shinyalert(text = message, type = "info", 
-               showConfirmButton = TRUE, closeOnEsc = TRUE,
+    shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"), "!\n Results are located at: " , outDir ), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
                closeOnClickOutside = TRUE, animation = TRUE)
     
   }
@@ -1977,12 +1978,15 @@ server <- shinyServer(function(input, output, session) {
   
   
   # Function to create a new folder and move data
-  prepare_www_output  <- function(base_path ) {
+  prepare_www_output  <- function(www_output  ) {
     tryCatch({
+      file_list <- list.files(www_output , full.names = TRUE)
+      # Lösche das Verzeichnis und alle seine Inhalte
+      unlink(www_output , recursive = TRUE)
       # Überprüfe, ob der eingegebene Verzeichnispfad für die Eingabedaten gültig ist
-      if (nchar(base_path ) > 0) {
-        if(!dir.exists(base_path)){
-          dir.create(base_path , recursive = TRUE)
+      if (nchar(www_output  ) > 0) {
+        if(!dir.exists(www_output)){
+          dir.create(www_output  , recursive = TRUE)
         }
 
         directory_names <- c("align_png", "CircleDetection_png", "cropped_png", "georeferencing_png", 
@@ -1991,7 +1995,7 @@ server <- shinyServer(function(input, output, session) {
                              "map_templates_png")
         
         for (sub_dir_name in directory_names) {
-              sub_dir_path <- file.path(base_path, sub_dir_name) 
+              sub_dir_path <- file.path(www_output, sub_dir_name) 
               print(sub_dir_path)# Path for subdirectory
               dir.create(sub_dir_path, recursive = TRUE, showWarnings = FALSE)  # Create subdirectory
             }

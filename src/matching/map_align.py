@@ -1,3 +1,13 @@
+"""
+File: circle_detection.py
+Author: Spaska Forteva:
+Last modified on 2024-03-13 by Spaska Forteva:
+  Addition of try
+
+Description: 
+
+"""
+
 import PIL
 import numpy as np
 import imutils
@@ -6,9 +16,6 @@ import os
 import glob
 from PIL import Image
 
-__author__ = "Spaska Forteva"
-__date__ = "2022-12-14"
-__change_date__ = "2024-03-01"
 
 def align_images(image_path, template_path, output_dir, max_features=500, keep_percent=0.2, debug=False):
     """
@@ -66,21 +73,21 @@ def align_images(image_path, template_path, output_dir, max_features=500, keep_p
         return True  # Success
 
     except Exception as e:
-        print(f"Error: {e}")
+        print("An error occurred in align_images:", e)
         return False  # Error
 
 
 def align_images_directory(working_dir, outDir):
-    """
-    Aligns images in the specified working directory.
+  """
+  Aligns images in the specified working directory.
 
-    Args:
-    - working_dir (str): Working directory containing input images.
+  Args:
+  - working_dir (str): Working directory containing input images.
 
-    Returns:
-    - None
-    """
-    
+  Returns:
+  - None
+  """
+  try:
     # OUTPUT
     #print("Working directory align:")
     #print(working_dir)
@@ -104,22 +111,26 @@ def align_images_directory(working_dir, outDir):
       
     # Output directory for aligned images
     #os.makedirs(output_dir, exist_ok=True)
-
+  
     # Directory for template images
     template_dir = working_dir + "/data/input/templates/align_ref/"
-
+  
     # Directory for input images
-
-
+  
+  
     # Directory for converted PNG images after the matching process
     output_png_dir = working_dir + "/www/data/align_png/"
     #os.makedirs(output_png_dir, exist_ok=True)
-
+  
     for template_path in glob.glob(template_dir + '*.tif'):
         for image_path in glob.glob(input_dir + '*.tif'):
             print(image_path)
             success = align_images(image_path, template_path, output_dir)
             if not success:
                 return False  # Exit the loop if there's an error
-
+  
     return True  # Success
+  
+  except Exception as e:
+        print("An error occurred in align_images_directory:", e)
+        return False  # Error

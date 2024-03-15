@@ -4,6 +4,8 @@ Author: Kai Richter
 Date: 2023-07-31
 Last modified on 2023-11-10 by Kai Richter:
   Addition of functions mainRectifying_CD and mainRectifying_PF
+Last modified on 2024-03-15 by Spaska Forteva:
+  add try and error messages
 
 Description: 
 Script for iteratively rectifying the georeferenced output GeoTIFF files from '5. Georeferencing'.
@@ -44,42 +46,54 @@ def rectifying(input_raster, output_raster):
   
   
 def mainRectifying(workingDir, outDir):
-  output= outDir + "/rectifying/"
-  os.makedirs(output, exist_ok=True) 
-  inputdir = outDir +"/georeferencing/masks/"
-  print(inputdir)
-  for input_raster in glob.glob(inputdir + "*.tif"):
-    print(input_raster)
-    dst_layername = os.path.basename(input_raster)
-    print(dst_layername)
-    output_raster = output + dst_layername
-    print(output_raster)
-    rectifying(input_raster, output_raster)
+  try:
+    output= outDir + "/rectifying/"
+    os.makedirs(output, exist_ok=True) 
+    inputdir = outDir +"/georeferencing/masks/"
+    print(inputdir)
+    for input_raster in glob.glob(inputdir + "*.tif"):
+      print(input_raster)
+      dst_layername = os.path.basename(input_raster)
+      print(dst_layername)
+      output_raster = output + dst_layername
+      print(output_raster)
+      rectifying(input_raster, output_raster)
+  except Exception as e:
+        print("An error occurred in mainRectifying:", e)
+  # End of function
 
 
 def mainRectifying_CD(workingDir, outDir):
-  output= outDir + "/rectifying/circleDetection/"
-  os.makedirs(output, exist_ok=True) 
-  inputdir = outDir +"/georeferencing/masks/circleDetection/"
-  
-  for input_raster in glob.glob(inputdir + "*.tif"):
-    print(input_raster)
-    dst_layername = os.path.basename(input_raster)
-    print(dst_layername)
-    output_raster = output + dst_layername
-    print(output_raster)
-    rectifying(input_raster, output_raster)
+  try:
+    output= outDir + "/rectifying/circleDetection/"
+    os.makedirs(output, exist_ok=True) 
+    inputdir = outDir +"/georeferencing/masks/circleDetection/"
+    
+    for input_raster in glob.glob(inputdir + "*.tif"):
+      print(input_raster)
+      dst_layername = os.path.basename(input_raster)
+      print(dst_layername)
+      output_raster = output + dst_layername
+      print(output_raster)
+      rectifying(input_raster, output_raster)
+  except Exception as e:
+        print("An error occurred in mainRectifying_CD:", e)
+  # End of function
 
 
 def mainRectifying_PF(workingDir, outDir):
-  output= outDir + "/rectifying/pointFiltering/"
-  os.makedirs(output, exist_ok=True) 
-  inputdir = outDir +"/georeferencing/masks/pointFiltering/"
-  
-  for input_raster in glob.glob(inputdir + "*.tif"):
-    print(input_raster)
-    dst_layername = os.path.basename(input_raster)
-    print(dst_layername)
-    output_raster = output + dst_layername
-    print(output_raster)
-    rectifying(input_raster, output_raster)
+  try:
+    output= outDir + "/rectifying/pointFiltering/"
+    os.makedirs(output, exist_ok=True) 
+    inputdir = outDir +"/georeferencing/masks/pointFiltering/"
+    
+    for input_raster in glob.glob(inputdir + "*.tif"):
+      print(input_raster)
+      dst_layername = os.path.basename(input_raster)
+      print(dst_layername)
+      output_raster = output + dst_layername
+      print(output_raster)
+      rectifying(input_raster, output_raster)
+  except Exception as e:
+        print("An error occurred in mainRectifying_PF:", e)
+  # End of function

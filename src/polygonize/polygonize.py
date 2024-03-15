@@ -30,18 +30,19 @@ import numpy as np
 import rasterio
 
 def polygonize(input_raster, output_shape, dst_layername):
-    """
-    Polygonizes the pixels of an input raster image and filters relevant pixels representing symbols or symbol centroids.
-
-    Args:
-        input_raster (str): Path to the input raster image.
-        output_shape (str): Path to save the output shapefile.
-        dst_layername (str): Name of the output layer.
-
-    Returns:
-        None
-    """
+  """
+  Polygonizes the pixels of an input raster image and filters relevant pixels representing symbols or symbol centroids.
   
+  Args:
+      input_raster (str): Path to the input raster image.
+      output_shape (str): Path to save the output shapefile.
+      dst_layername (str): Name of the output layer.
+  
+  Returns:
+      None
+  """
+  try:
+
     src_ds = gdal.Open(input_raster)  # Open the input raster datasource
     srcband = src_ds.GetRasterBand(1)  # Get the raster band
     
@@ -85,19 +86,24 @@ def polygonize(input_raster, output_shape, dst_layername):
     srcband = None
     src_ds = None
     dst_ds = None
+    
+  except Exception as e:
+        print("An error occurred in polygonize:", e)
+  # End of function
 
 # Function to execute polygonize function for multiple raster images
 def mainPolygonize(workingDir, outDir):
-    """
-    Executes the polygonize function for all raster images in the given directory.
+  """
+  Executes the polygonize function for all raster images in the given directory.
 
-    Args:
-        workingDir (str): Directory containing the input raster images.
-        outDir (str): Output directory to save the polygonized shapefiles.
+  Args:
+      workingDir (str): Directory containing the input raster images.
+      outDir (str): Output directory to save the polygonized shapefiles.
 
-    Returns:
-        None
-    """
+  Returns:
+      None
+  """
+  try:
 
     output= outDir + "/polygonize/"
     inputdir = outDir +"/rectifying/"
@@ -109,19 +115,24 @@ def mainPolygonize(workingDir, outDir):
         output_shape = output + dst_layername
         print(output_shape)
         polygonize(input_raster, output_shape, dst_layername)
+  except Exception as e:
+        print("An error occurred in mainPolygonize:", e)
+  # End of function
 
 
 def mainPolygonize_CD(workingDir, outDir):
-    """
-    Executes the polygonize function for georeferenced masks containing centroids detected by Circle Detection.
+  """
+  Executes the polygonize function for georeferenced masks containing centroids detected by Circle Detection.
 
-    Args:
-        workingDir (str): Directory containing the input raster images.
-        outDir (str): Output directory to save the polygonized shapefiles.
+  Args:
+      workingDir (str): Directory containing the input raster images.
+      outDir (str): Output directory to save the polygonized shapefiles.
 
-    Returns:
-        None
-    """
+  Returns:
+      None
+  """
+  try:
+
     output= outDir + "/polygonize/circleDetection/"
     inputdir = outDir +"/rectifying/circleDetection/"
     
@@ -132,19 +143,23 @@ def mainPolygonize_CD(workingDir, outDir):
         output_shape = output + dst_layername
         print(output_shape)
         polygonize(input_raster, output_shape, dst_layername)
+  except Exception as e:
+        print("An error occurred in mainPolygonize_CD:", e)
+  # End of function
 
 
 def mainPolygonize_PF(workingDir, outDir):
-    """
-    Executes the polygonize function for georeferenced masks containing centroids detected by Point Filtering.
+  """
+  Executes the polygonize function for georeferenced masks containing centroids detected by Point Filtering.
 
-    Args:
-        workingDir (str): Directory containing the input raster images.
-        outDir (str): Output directory to save the polygonized shapefiles.
+  Args:
+      workingDir (str): Directory containing the input raster images.
+      outDir (str): Output directory to save the polygonized shapefiles.
 
-    Returns:
-        None
-    """
+  Returns:
+      None
+  """
+  try:
     output= outDir + "/polygonize/pointFiltering/"
     inputdir = outDir +"/rectifying/pointFiltering/"
     for input_raster in glob.glob(inputdir + "*.tif"):
@@ -154,3 +169,7 @@ def mainPolygonize_PF(workingDir, outDir):
         output_shape = output + dst_layername
         print(output_shape)
         polygonize(input_raster, output_shape, dst_layername)
+        
+  except Exception as e:
+        print("An error occurred in mainPolygonize_PF:", e)
+  # End of function
