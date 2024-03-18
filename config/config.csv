@@ -1,2 +1,2 @@
-workingDir;workingDirInformation;title;autor;pYear;dataInputDir;dataOutputDir;numberSitesPrint;allPrintedPages;sNumberPosition;keywordReadSpecies;pFormat;pColor
-D:/distribution_digitizer_11_01_2024;Your working directory is the local digitizer repository!;Title;Autorname;2023;D:/distribution_digitizer_11_01_2024/data/input;D:/distribution_digitizer_11_01_2024/data/output;1;100;1;Range;1;1
+workingDir;workingDirInformation;title;autor;pYear;dataInputDir;dataOutputDir;numberSitesPrint;allPrintedPages;sNumberPosition;middle;regExYear;keywordReadSpecies;keywordBefore;keywordThen;pFormat;pColor
+D:/distribution_digitizer;Your working directory is the local digitizer repository!;Title;Autorname;2024;D:/distribution_digitizer/data/input;D:/test/output_2024-03-18_06-20-38;1;200;1;1;1;Range;0;2;1;1

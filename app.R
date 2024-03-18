@@ -1949,7 +1949,7 @@ server <- shinyServer(function(input, output, session) {
   
   # Function to convert tif images to png and save in /www directory
   convertTifToPngSave <- function(pathToTiffImages, pathToPngImages) {
-    print(pathToTiffImages)
+    #print(pathToTiffImages)
     tryCatch({
       # Get list of tif files
       tifFiles <- list.files(pathToTiffImages, pattern = ".tif", recursive = FALSE)
@@ -1960,7 +1960,7 @@ server <- shinyServer(function(input, output, session) {
         
         # Check if tif file exists
         if (file.exists(tifFile)) {
-          print(tifFile)
+          #print(tifFile)
           tifImage <- image_read(tifFile)
           pngFile <- image_convert(tifImage, "png")
           pngName <- tools::file_path_sans_ext(f)
