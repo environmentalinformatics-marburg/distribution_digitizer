@@ -15,17 +15,6 @@ os <- import("os")
 
 # Function to read the species
 readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefore, keywordThen, middle) {
-  #species = readPageSpecies(workingDir,config$keywordReadSpecies, 2, 0, TRUE)
-  #print(keywordReadSpecies)
-  #print(keywordBefore)
-  #print(keywordThen)
-  #print(middle)
-  #keywordReadSpecies = "Range"
-  #keywordBefore = 0
-  ##keywordThen = 2
-  print("Start read")
-  print(outDir)
-  middle = 1
   # Set the path to the folder containing CSV files
   folder_path <- paste0(outDir, "/pagerecords/")
   
@@ -36,9 +25,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
   combined_data <- data.frame()
   
   # Iterate through each CSV file and append it to the combined Dataframe
-  # Iterate through each CSV file and append it to the combined Dataframe
   for (file_path in file_list) {
-    print(file_path)  # Print the file path
     tryCatch({
       # Read the CSV file
       current_data <- read.csv(file_path)
@@ -59,75 +46,69 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
   
   # Import the Python script for species reading
   source_python(paste0(workingDir, "/src/read_species/page_crop_species.py"))
-  
   for (i in 1:nrow(filteredData)) {
     pagePath = filteredData[i,"file_name"]
-    #pagePath = 'D:/distribution_digitizer_11_01_2024/data/input/pages/0051.tif'
-    #print(pagePath)
-    speciesData =  filteredData[i,"species"]
-    # remove empty strings
-    speciesData <- speciesData[speciesData != ""]
-    print(speciesData)
-    
-    previous_page_path = filteredData[i,"previous_page_path"]
-    next_page_path = filteredData[i,"next_page_path"]
-   
-    # Call the Python function for species identification
-    pageTitleSpecies = find_species_context(pagePath, speciesData, previous_page_path, next_page_path, 
-                       keywordReadSpecies, keywordBefore, keywordThen, middle)
-    print(pageTitleSpecies)
-    # Remove duplicate entries
-    if (length(pageTitleSpecies) > 0) {
-      # Splitting flag, search_species, and rspecies
-      #pageTitleSpecies <- c("1_elma_Gomalia elma (Trimen, 1862)" ,   "2_litoralis_“Gomalia litoralis, n. sp.” — SWINHOE, C.1885")
-      splitted_results <- unique(pageTitleSpecies)
-      splitted_results <- strsplit(pageTitleSpecies, "_")
-      
-      # Extracting flag, search_species, and rspecies
-      legend_keys <- sapply(splitted_results, function(x) as.numeric(x[1]))
-      print(legend_keys)
-      search_species <- sapply(splitted_results, function(x) x[2])
-      print(search_species)
-      rspecies <- sapply(splitted_results, function(x) x[3])
-      print(rspecies)
-      
-      # Entferne Einträge, die das Wort "distribution" enthalten
-      #rspecies <- rspecies[!grepl("distribution", rspecies, ignore.case = TRUE)]
-      
-      # Bestimme die maximale Länge der Vektoren
-     # max_length <- max(length(legend_keys), length(search_species), length(rspecies))
-      
-      # Fülle die Vektoren auf die gleiche Länge auf, indem du fehlende Elemente mit NA auffüllst
-      #legend_keys <- c(legend_keys, rep(NA, max_length - length(legend_keys)))
-      #search_species <- c(search_species, rep(NA, max_length - length(search_species)))
-      #rspecies <- c(rspecies, rep(NA, max_length - length(rspecies)))
-    } else {
-        # Setze alle Vektoren auf NA, wenn es nur einen Eintrag gibt
-        legend_keys <- NA
-        search_species <- NA
-        rspecies <- NA
-    }
-    
-    # Create a new dataframe with the processed species data
-    new_dataframe <- data.frame(species = rspecies, legend_key = legend_keys, search_specie = search_species, stringsAsFactors = FALSE)
-
-    # Add a new column for the file name
-    new_dataframe$file_name <- pagePath
-    
-    # Add new columns for map name and original species name
-    new_dataframe$map_name <- filteredData[i,"map_name"]
- 
-    
-    # Save the dataframe to CSV
-    if (i == 1) {
-      write.table(new_dataframe, file = paste0(outDir, "/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = TRUE, append = TRUE)
-    }
-    else{
-      write.table(new_dataframe, file = paste0(outDir, "/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = FALSE, append = TRUE)
-    }
-    
+    tryCatch({
+        pagePath = filteredData[i,"file_name"]
+        print(pagePath)
+        speciesData =  filteredData[i,"species"]
+        print(speciesData)
+        speciesData <- speciesData[speciesData != ""]
+        
+        previous_page_path = filteredData[i,"previous_page_path"]
+        next_page_path = filteredData[i,"next_page_path"]
+        
+        # Call the Python function for species identification
+        pageTitleSpecies = find_species_context(pagePath, speciesData, previous_page_path, next_page_path, 
+                                                keywordReadSpecies, keywordBefore, keywordThen, middle)
+        
+        # Remove duplicate entries
+        if (length(pageTitleSpecies) > 0) {
+          splitted_results <- unique(pageTitleSpecies)
+          splitted_results <- strsplit(pageTitleSpecies, "_")
+          
+          # Extracting flag, search_species, and rspecies
+          legend_keys <- sapply(splitted_results, function(x) as.numeric(x[1]))
+          search_species <- sapply(splitted_results, function(x) x[2])
+          rspecies <- sapply(splitted_results, function(x) x[3])
+        } else {
+          # Set all vectors to NA if there's only one entry
+          legend_keys <- NA
+          search_species <- NA
+          rspecies <- NA
+        }
+        
+        # Create a new dataframe with the processed species data
+        new_dataframe <- data.frame(species = rspecies, legend_key = legend_keys, search_specie = search_species, stringsAsFactors = FALSE)
+        
+        # Add a new column for the file name
+        new_dataframe$file_name <- pagePath
+        
+        # Add new columns for map name and original species name
+        new_dataframe$map_name <- filteredData[i,"map_name"]
+        
+        # Replace any occurrence of '\\' with a placeholder value, e.g., "Error"
+        new_dataframe[is.na(new_dataframe)] <- "Error"
+        
+        # Save the dataframe to CSV
+        if (i == 1) {
+          write.table(new_dataframe, file = paste0(outDir, "/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = TRUE, append = TRUE)
+        }
+        else {
+          write.table(new_dataframe, file = paste0(outDir, "/pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = FALSE, append = TRUE)
+        }
+    }, error = function(e) {
+        cat("Error occurred while processing filteredData row:", i, "\n")
+        print(pagePath)
+        message(e)
+      #  Ausführung fortsetzen, z.B. indem Sie leere Werte oder eine Fehlermeldung in die Ausgabedatei schreiben
+        continue_execution <- TRUE
+        #if (continue_execution) {
+         # Schreiben Sie Platzhalter in die Datei oder eine Fehlermeldung
+         # write.table(..., file = ..., append = TRUE)
+       #}
+    })
   }
-  #print(pageTitleSpecies)
 }
 
 # Call the function with specified arguments
