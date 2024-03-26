@@ -79,8 +79,8 @@ def mainPointFiltering(workingDir, outDir, n, m):
   inputDir = outDir+"/maps/align/"
   ouputTifDir = outDir+"/maps/pointFiltering/"
   os.makedirs(ouputTifDir, exist_ok=True)
-  print(inputDir)
-  print(ouputTifDir)
+  #print(inputDir)
+  #print(ouputTifDir)
   
   outputCsvDir = outDir + "/maps/csv_files/"
   os.makedirs(outputCsvDir, exist_ok=True)
