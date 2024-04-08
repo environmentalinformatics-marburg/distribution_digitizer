@@ -48,7 +48,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
   source_python(paste0(workingDir, "/src/read_species/page_crop_species.py"))
   for (i in 1:nrow(filteredData)) {
     pagePath = filteredData[i,"file_name"]
-    if (i<5000){
+    if (i< 5000){
       tryCatch({
           pagePath = filteredData[i,"file_name"]
           print(pagePath)
@@ -63,7 +63,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
           pageTitleSpecies = find_species_context(pagePath, speciesData, previous_page_path, next_page_path, 
                                                   keywordReadSpecies, keywordBefore, keywordThen, middle)
           print(pageTitleSpecies)
-          #pageTitleSpecies = "2_tirichmirensis__Colias wiskotti tirichmirensis Rose subsp. n. — Rosz K. 2001_Colias wiskotti Stgr. - D’Abrera 2001_Colias wiskotti tirichmirensis Rose 2001"
+          #pageTitleSpecies = '0_schistacea_Virachola isocrates isocrates (Fabricius, 1793) e distribution of schistacea'
           pageTitleSpecies <- gsub("__", "_", pageTitleSpecies)
           # Remove duplicate entries
           if (length(pageTitleSpecies) > 0) {
@@ -81,7 +81,8 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
             search_species <- NA
             rspecies <- NA
           }
-          
+          search_species[is.na(search_species)] <- speciesData
+          rspecies[is.na(rspecies)] <- "Not found"
           
           # Create a new dataframe with the processed species data
           new_dataframe <- data.frame(species = rspecies, legend_key = legend_keys, search_specie = search_species, stringsAsFactors = FALSE)
