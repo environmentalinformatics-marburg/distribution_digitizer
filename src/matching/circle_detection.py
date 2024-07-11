@@ -105,11 +105,12 @@ def circle_detection(tiffile, outdir, blur, min_dist, threshold_edge, threshold_
         return [], ""
 
 # Append centroids to CSV file
-def append_to_csv(csv_file_path, centroids, filename, method, georef):
+def append_to_csv(next_id, csv_file_path, filename, centroids, method, georef):
     """
     Append centroid coordinates to an existing CSV file.
 
     Args:
+    - next_id: Next available ID for CSV entry
     - csv_file_path: File path of the CSV file
     - centroids: List of centroid coordinates (x, y) with their colors
     - filename: Input filename
@@ -132,11 +133,23 @@ def append_to_csv(csv_file_path, centroids, filename, method, georef):
             for centroid in centroids:
                 x, y, color = centroid
                 double = "true" if (x, y, color) in existing_centroids else "false"
-                writer.writerow([filename, method, x, y, color, len(centroids), georef, double])
+                writer.writerow([next_id, filename, method, x, y, "none", color, georef])
     
     except Exception as e:
         print(f"An error occurred in append_to_csv: {e}")
 
+def get_last_id(csv_path):
+    try:
+        with open(csv_path, 'r') as csvfile:
+            # Skip the header line
+            next(csvfile)
+            # Get the last line and retrieve the ID
+            last_line = csvfile.readlines()[-1]
+            last_id = int(last_line.split(',')[0])
+            return last_id
+    except (IndexError, FileNotFoundError, ValueError):
+        return 0
+      
 # Main function for circle detection
 def mainCircleDetection(workingDir, outDir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius):
     """
@@ -165,18 +178,23 @@ def mainCircleDetection(workingDir, outDir, blur, min_dist, threshold_edge, thre
         os.makedirs(outputCsvDir, exist_ok=True)
         
         # Initialize CSV file for storing the coordinates (if the file does not exist already)
-        csv_file_path = os.path.join(outputCsvDir, "coordinats.csv")
+        csv_file_path = os.path.join(outputCsvDir, "coordinates.csv")
         if not os.path.exists(csv_file_path):
             with open(csv_file_path, 'w', newline='') as file:
                 writer = csv.writer(file)
-                writer.writerow(['File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'color', 'number_points', 'georef', 'double'])
+                writer.writerow(['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'color', 'georef'])
         
-        for file in glob.glob(inputDir + '*.tif'):
-            print(file)
+        for file in glob.glob(os.path.join(inputDir, '*.tif')):
+            print(f"Processing file: {file}")
+            
             # Call the circle_detection function and store the centroid list
             centroids, output_file = circle_detection(file, outputTifDir, blur, min_dist, threshold_edge, threshold_circles, min_radius, max_radius, csv_file_path)
-            # Add centroids to the CSV file that has been initialized previously
-            append_to_csv(csv_file_path, centroids, os.path.basename(file), "circle_detection", 0)
+            
+            # Generate unique ID for the new CSV entry
+            next_id = get_last_id(csv_file_path) + 1
+            
+            # Add centroids to the CSV file
+            append_to_csv(next_id, csv_file_path, os.path.basename(file), centroids, "circle_detection", 0)
     
     except Exception as e:
         print(f"An error occurred in mainCircleDetection: {e}")

@@ -74,7 +74,7 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h):
         rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
         legend1 = 'distribution'
-        legend2 = 'locality'
+        #legend2 = 'locality'
         d = pytesseract.image_to_data(rgb, output_type=Output.DICT)
         n_boxes = len(d['level'])
         specie = ''
@@ -87,15 +87,15 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h):
             pre = d['text'][i+1].lstrip()
             
             # Check for the specific legends and extract species name
-            if (text == legend1 or text == legend2):
+            if (text == legend1 ):#or text == legend2):
                 if (pre == 'of'):
                     if(abs(y1 - (y + h)) < h):
                         if(double_specie != d['text'][i+2].lstrip()):
                             double_specie = (d['text'][i+2].lstrip())
                             if text == legend1:
                                 specie = specie + "_" + (d['text'][i+2].lstrip()) + legend1
-                            else:
-                                specie = specie + "_" + (d['text'][i+2].lstrip()) + legend2
+                            #else:
+                               # specie = specie + "_" + (d['text'][i+2].lstrip()) + legend2
                         else:
                             continue
         

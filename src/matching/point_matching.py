@@ -83,10 +83,8 @@ def point_match(tiffile, file, outputpcdir, point_threshold, template_id, templa
                 'X_WGS84': center_x,
                 'Y_WGS84': center_y,
                 'template': template_name,
-                'number_points': 1,
                 'color': color,
-                'georef': 0,
-                'double Punkt': 'false'
+                'georef': 0
             })
             current_id += 1
 
@@ -132,11 +130,11 @@ def map_points_matching(workingDir, outDir, point_threshold):
     copy_tiff_images(inputTiffDir, outputTiffDir)
     os.makedirs(outputTiffDir, exist_ok=True)
 
-    coord_csv_path = os.path.join(outDir, 'maps', 'csvFiles', 'coordinats.csv')
+    coord_csv_path = os.path.join(outDir, 'maps', 'csvFiles', 'coordinates.csv')
     current_id = get_last_id(coord_csv_path) + 1
 
     with open(coord_csv_path, 'a', newline='') as coord_csvfile:
-        coord_fieldnames = ['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'number_points', 'color', 'georef', 'double Punkt']
+        coord_fieldnames = ['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'color', 'georef']
         coord_writer = csv.DictWriter(coord_csvfile, fieldnames=coord_fieldnames)
 
         if current_id == 1:

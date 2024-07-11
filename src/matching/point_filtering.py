@@ -149,9 +149,9 @@ def append_to_csv(csv_file_path, centroids, filename, method, georef, template='
     with open(csv_file_path, 'a', newline='') as file:
         writer = csv.writer(file)
         if last_id == 0:
-            writer.writerow(['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'number_points', 'color', 'georef'])
+            writer.writerow(['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template',  'color', 'georef'])
         for centroid in centroids:
-            writer.writerow([last_id + 1, filename, method, centroid[0], centroid[1], template, len(centroids), centroid[2], georef])
+            writer.writerow([last_id + 1, filename, method, centroid[0], centroid[1], template, centroid[2], georef])
             last_id += 1
 
 def template_matching(image_path, template_path, method=cv2.TM_CCOEFF_NORMED):
@@ -166,7 +166,7 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius):
     output_tif_dir = os.path.join(output_dir, "maps/pointFiltering/")
     os.makedirs(output_tif_dir, exist_ok=True)
 
-    csv_path = os.path.join(output_dir, "maps/csvFiles/", "coordinats.csv")
+    csv_path = os.path.join(output_dir, "maps/csvFiles/", "coordinates.csv")
     initialize_csv_file(csv_path, "X_WGS84", "Y_WGS84")
     
     for file in glob.glob(input_dir + '*.tif'):
