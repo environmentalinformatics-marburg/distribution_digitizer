@@ -96,6 +96,7 @@ def mainmaskgeoreferencingMasks(workingDir, outDir):
   output_raster= outDir + "/georeferencing/masks/"
   os.makedirs(output_raster, exist_ok=True) 
   inputdir = outDir +"/masking_black/"
+  
   #inputdir = workingDir +"/data/output/masking/"
   g_dir = workingDir + "/data/input/templates/geopoints/"
   for gcp_points in glob.glob(g_dir + "*.points"):
@@ -106,6 +107,7 @@ def mainmaskgeoreferencingMasks_CD(workingDir, outDir):
   output_raster= outDir + "/georeferencing/masks/circleDetection/"
   os.makedirs(output_raster, exist_ok=True) 
   inputdir = outDir +"/masking_black/circleDetection/"
+  
   #inputdir = workingDir +"/data/output/masking/"
   g_dir = workingDir + "/data/input/templates/geopoints/"
   for gcp_points in glob.glob(g_dir + "*.points"):
@@ -116,6 +118,7 @@ def mainmaskgeoreferencingMasks_PF(workingDir, outDir):
   output_raster= outDir + "/georeferencing/masks/pointFiltering/"
   os.makedirs(output_raster, exist_ok=True) 
   inputdir = outDir +"/masking_black/pointFiltering/"
+  
   #inputdir = workingDir +"/data/output/masking/"
   g_dir = workingDir + "/data/input/templates/geopoints/"
   for gcp_points in glob.glob(g_dir + "*.points"):

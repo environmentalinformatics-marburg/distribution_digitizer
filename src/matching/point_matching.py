@@ -1,75 +1,162 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Jun 11 16:05:44 2021
-
-@author: venkates
-"""
 import cv2
 import PIL
 from PIL import Image
 import os.path
 import glob
-import numpy as np 
+import numpy as np
+import csv
+import os
 import shutil
 
-def pointmatch(tiffile, file, outputpcdir, point_threshold):
-  img = np.array(PIL.Image.open(tiffile))
-  tmp = np.array(PIL.Image.open(file))
-  w, h, c = tmp.shape
-  res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
-# Adjust this threshold value to suit you, you may need some trial runs (critical!)
-  threshold = point_threshold
-  loc = np.where(res >= threshold)
-# create empty lists to append the coord of the
-  lspoint = []
-  lspoint2 =[]
-  font = cv2.FONT_HERSHEY_SIMPLEX
-  for pt in zip(*loc[::-1]):
-    # check that the coords are not already in the list, if they are then skip the match
-     if pt[0] not in lspoint and pt[1] not in lspoint2:
-         # draw a blue boundary around a match
-          rect = cv2.rectangle(img, pt, (pt[0] + h, pt[1] + w), (0, 0, 255), 3)
-          for i in range(((pt[0])-9), ((pt[0])+9), 1):
-			## append the x cooord
-                 lspoint.append(i)
-          for k in range(((pt[1])-9), ((pt[1])+9), 1):
-			## append the y coord
-                 lspoint.append(k)
-     else:
-           continue   
-  PIL.Image.fromarray(img, 'RGB').save(os.path.join(outputpcdir , os.path.basename(tiffile)))
-  #cv2.imwrite(outputpcdir + os.path.basename(tiffile).rsplit('.', 1)[0] + '.tif',img)
-  
-  
-# only for tests
-# workingDir = "D:/distribution_digitizer"
+def copy_tiff_images(input_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    for file in os.listdir(input_dir):
+        if file.endswith(".tif"):
+            source_path = os.path.join(input_dir, file)
+            dest_path = os.path.join(output_dir, file)
+            shutil.copyfile(source_path, dest_path)
 
-def mainPointMatching(workingDir, outDir, point_threshold):
-  print("Points matching:")
-  #print(working_dir)
-  outputTiffDir = ""
-  if(os.path.exists(outDir)):
-    if outDir.endswith("/"):
-      outputTiffDir = outDir + "maps/align/"
+def non_max_suppression_fast(points, overlapThresh):
+    if len(points) == 0:
+        return []
+
+    if points.dtype.kind == "i":
+        points = points.astype("float")
+
+    pick = []
+    x1 = points[:, 0]
+    y1 = points[:, 1]
+    x2 = x1 + points[:, 2]
+    y2 = y1 + points[:, 3]
+
+    area = (x2 - x1 + 1) * (y2 - y1 + 1)
+    idxs = np.argsort(y2)
+
+    while len(idxs) > 0:
+        last = len(idxs) - 1
+        i = idxs[last]
+        pick.append(i)
+
+        xx1 = np.maximum(x1[i], x1[idxs[:last]])
+        yy1 = np.maximum(y1[i], y1[idxs[:last]])
+        xx2 = np.minimum(x2[i], x2[idxs[:last]])
+        yy2 = np.minimum(y2[i], y2[idxs[:last]])
+
+        w = np.maximum(0, xx2 - xx1 + 1)
+        h = np.maximum(0, yy2 - yy1 + 1)
+
+        overlap = (w * h) / area[idxs[:last]]
+
+        idxs = np.delete(idxs, np.concatenate(([last], np.where(overlap > overlapThresh)[0])))
+
+    return points[pick].astype("int")
+
+def point_match(tiffile, file, outputpcdir, point_threshold, template_id, template_name, color, coord_writer, current_id, nms_thresh=0.3):
+    img = np.array(PIL.Image.open(tiffile))
+    tmp = np.array(PIL.Image.open(file))
+    w, h, c = tmp.shape
+    res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
+    loc = np.where(res >= point_threshold)
+
+    points = []
+    for pt in zip(*loc[::-1]):
+        points.append([pt[0], pt[1], w, h])
+    points = np.array(points)
+
+    nms_points = non_max_suppression_fast(points, nms_thresh)
+
+    color_bgr = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
+
+    detected_points = []
+    for (x, y, w, h) in nms_points:
+        center_x = x + w // 2
+        center_y = y + h // 2
+        radius = min(w, h) // 4
+        cv2.circle(img, (center_x, center_y), radius, color_bgr, -1, lineType=cv2.LINE_AA)
+        cv2.circle(img, (center_x, center_y), radius, color_bgr, 2, lineType=cv2.LINE_AA)
+        detected_points.append((center_x, center_y))
+        if detected_points:
+            coord_writer.writerow({
+                'ID': current_id,
+                'File': os.path.basename(tiffile),
+                'Detection method': 'point_matching',
+                'X_WGS84': center_x,
+                'Y_WGS84': center_y,
+                'template': template_name,
+                'number_points': 1,
+                'color': color,
+                'georef': 0,
+                'double Punkt': 'false'
+            })
+            current_id += 1
+
+    if detected_points:
+        base_name = os.path.basename(tiffile).rsplit('.', 1)[0]
+        new_file_name = f"{base_name}.tif"
+        output_file_path = os.path.join(outputpcdir, new_file_name)
+        PIL.Image.fromarray(img).save(output_file_path)
+
+        return len(detected_points), output_file_path, color, current_id
+
+    return 0, "", color, current_id
+
+def get_last_id(csv_path):
+    try:
+        with open(csv_path, 'r') as csvfile:
+            last_line = csvfile.readlines()[-1]
+            last_id = int(last_line.split(',')[0])
+            return last_id
+    except (IndexError, FileNotFoundError):
+        return 0
+
+def map_points_matching(workingDir, outDir, point_threshold):
+    print("Points matching:")
+    outputTiffDir = ""
+    inputTiffDir = ""
+    if os.path.exists(outDir):
+        if outDir.endswith("/"):
+            inputTiffDir = outDir + "maps/align/"
+            outputTiffDir = outDir + "maps/pointMatching/"
+        else:
+            inputTiffDir = outDir + "/maps/align/"
+            outputTiffDir = outDir + "/maps/pointMatching/"
     else:
-      outputTiffDir = outDir + "/maps/align/"
-  else:
-    if working_dir.endswith("/"):
-      outputTiffDir = workingDir + "/data/output/maps/align/"
-    else: 
-      outputTiffDir = workingDir + "/data/output/maps/align/"
-  
+        if workingDir.endswith("/"):
+            inputTiffDir = workingDir + "data/output/maps/align/"
+            outputTiffDir = workingDir + "data/output/maps/pointMatching/"
+        else:
+            inputTiffDir = workingDir + "/data/output/maps/align/"
+            outputTiffDir = workingDir + "/data/output/maps/pointMatching/"
 
-  #os.makedirs(outputTiffDir, exist_ok=True)
-  pointTemplates = workingDir+"/data/input/templates/symbols/"
-  
-  # create out directory for the result images as png
-  ouputPngDir = workingDir+"/www/data/pointMatching_png/"
-  #os.makedirs(ouputPngDir, exist_ok=True)
-  #print(outputTiffDir)
-  #print(ouputPngDir)
-  
-  for tiffile in glob.glob(outputTiffDir + '*.tif'):
-    for file in glob.glob(pointTemplates + '*.tif'): 
-        pointmatch(tiffile, file, outputTiffDir, point_threshold)
+    pointTemplates = workingDir + "/data/input/templates/symbols/"
+    copy_tiff_images(inputTiffDir, outputTiffDir)
+    os.makedirs(outputTiffDir, exist_ok=True)
 
+    coord_csv_path = os.path.join(outDir, 'maps', 'csvFiles', 'coordinats.csv')
+    current_id = get_last_id(coord_csv_path) + 1
+
+    with open(coord_csv_path, 'a', newline='') as coord_csvfile:
+        coord_fieldnames = ['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'number_points', 'color', 'georef', 'double Punkt']
+        coord_writer = csv.DictWriter(coord_csvfile, fieldnames=coord_fieldnames)
+
+        if current_id == 1:
+            coord_writer.writeheader()
+
+        for file in glob.glob(pointTemplates + '*.tif'):
+            template_name = os.path.basename(file).rsplit('.', 1)[0]
+            if template_name.startswith('a_'):
+                color = '#0000FF'  # Blau
+            elif template_name.startswith('b_'):
+                color = '#FF0000'  # Rot
+            elif template_name.startswith('c_'):
+                color = '#00FF00'  # Grün
+            else:
+                color = '#000000'  # Schwarz
+
+            for tiffile in glob.glob(outputTiffDir + '*.tif'):
+                num_points, output_file_path, color_str, current_id = point_match(
+                    tiffile, file, outputTiffDir, point_threshold, 1, template_name, color, coord_writer, current_id)
+
+# Usage example:
+#
+# map_points_matching("D:/distribution_digitizer/", "D:/test/output_2024-07-09_10-18-30/", 0.8)

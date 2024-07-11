@@ -1,97 +1,77 @@
-"""
-File: geo_points_extraction.py
-Author: Kai Richter
-Date: 2023-11-12
-
-Last modified on: 2024-03-14 by Spaska Forteva
-
-Description:
-This script extracts georeferenced centroid coordinates from raster images.
-
-It utilizes OpenCV and GDAL libraries for image processing and geospatial operations.
-
-"""
-
-
-import numpy as np
 import cv2
 import numpy as np
-from osgeo import gdal
-import csv
+import pandas as pd
 import os
-import glob
+from osgeo import gdal
 
-def geopointextract(tiffile, geofile, outputcsv, n):
-  try:
+def read_geotransform_from_points_file(file_path):
+    df = pd.read_csv(file_path)
+    # Annahme: Erster Eintrag für die Transformation
+    map_x1, map_y1 = df.loc[0, ['mapX', 'mapY']]
+    source_x1, source_y1 = df.loc[0, ['sourceX', 'sourceY']]
+    # Zweiter Eintrag für die Transformation
+    map_x2, map_y2 = df.loc[1, ['mapX', 'mapY']]
+    source_x2, source_y2 = df.loc[1, ['sourceX', 'sourceY']]
+
+    # Berechnen der Pixelgröße
+    pixel_size_x = (map_x2 - map_x1) / (source_x2 - source_x1)
+    pixel_size_y = (map_y2 - map_y1) / (source_y2 - source_y1)
+
+    # Obere linke Ecke des Bildes
+    x_min = map_x1 - source_x1 * pixel_size_x
+    y_max = map_y1 - source_y1 * pixel_size_y
+
+    # Geotransformation (GDAL-style)
+    geotransform = [x_min, pixel_size_x, 0, y_max, 0, -pixel_size_y]
     
-    # Open the raster image file
-    img = gdal.Open(tiffile)
+    return geotransform
+
+def pixel_to_geo(pixel_coords, geotransform):
+    x_geo = geotransform[0] + pixel_coords[0] * geotransform[1]
+    y_geo = geotransform[3] + pixel_coords[1] * geotransform[5]
+    return (x_geo, y_geo)
+
+def process_image(image_path, geotransform):
+    # Laden des Bildes
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    # Finden der Konturen
+    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Liste für die Centroiden-Koordinaten
+    centroids = []
+
+    for contour in contours:
+        M = cv2.moments(contour)
+        if M['m00'] != 0:
+            cx = int(M['m10'] / M['m00'])
+            cy = int(M['m01'] / M['m00'])
+            geo_coords = pixel_to_geo((cx, cy), geotransform)
+            centroids.append((cx, cy, geo_coords[0], geo_coords[1]))
     
-    # Open the georeferenced image file
-    geoimg = gdal.Open(geofile)
+    return centroids
+
+def main(input_folder, points_file, output_csv):
+    geotransform = read_geotransform_from_points_file(points_file)
     
-    # Get the geotransformation parameters
-    gt = geoimg.GetGeoTransform()
+    all_centroids = []
+    for filename in os.listdir(input_folder):
+        if filename.endswith('.tif'):
+            image_path = os.path.join(input_folder, filename)
+            centroids = process_image(image_path, geotransform)
+            all_centroids.extend(centroids)
     
-    # Read the raster image as a NumPy array
-    img = np.array(img.GetRasterBand(1).ReadAsArray())
-    
-    # Apply image processing to extract features
-    ret, thresh = cv2.threshold(img, 120, 255, cv2.THRESH_TOZERO_INV)
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n, n))
-    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=3)
-    
-    # Find contours in the processed image
-    contours, hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    
-    # Open the output CSV file
-    with open(outputcsv, 'a', newline='') as csvfile:   
-      # Create a CSV writer object   
-      csvwriter = csv.writer(csvfile)   
-      
-      # Write the header fields   
-      csvwriter.writerow(["Filename", 'Centroid X', 'Centroid Y'])   
-      
-      # Iterate over contours to calculate centroids and write to CSV
-      for c in contours:
-        # Calculate moments for each contour
-        M = cv2.moments(c)
-        
-        # Calculate centroid coordinates
-        cX = int(M["m10"] / M["m00"])
-        cY = int(M["m01"] / M["m00"])
-        
-        # Convert pixel coordinates to geographic coordinates
-        x_pixel = cX
-        y_line = cY
-        x_geo = gt[0] + x_pixel * gt[1] + y_line * gt[2]
-        y_geo = gt[3] + x_pixel * gt[4] + y_line * gt[5]
-        
-        # Write the data row to the CSV file
-        csvwriter.writerows([[tiffile, x_geo, y_geo]])
-        
-  except Exception as e:
-        print("An error occurred in geopointextract:", e)
-  # End of function
-     
-     
-# Function to extract georeferenced centroid coordinates from multiple raster images
-def maingeopointextract(workingDir, outDir, n):
-  try:
-      
-    inputdir = outDir + "/georeferencing/masks/"
-    outputcsv = outDir + "/georecords.csv"
-    geofiledir = workingDir + "data/input/templates/geopoints/"
-    
-    # Iterate over raster images in the input directory
-    for tiffile in glob.glob(inputdir + '*.tif'): 
-      # Iterate over georeferenced images in the georeferenced image directory
-      for geofile in glob.glob(geofiledir + '*.tif'):
-        print(tiffile)
-        
-        # Call geopointextract function to extract centroid coordinates
-        geopointextract(tiffile, geofile, outputcsv, 5)
-      
-  except Exception as e:
-        print("An error occurred in maingeopointextract:", e)
-  # End of function
+    # Speichern der Koordinaten in einer CSV-Datei
+    df = pd.DataFrame(all_centroids, columns=['Pixel_X', 'Pixel_Y', 'Longitude', 'Latitude'])
+    df.to_csv(output_csv, index=False)
+
+
+
+points_file = "D:/distribution_digitizer/data/input/templates/geopoints/gcp_point_map1.points"
+input_folder ="D:/test/output_2024-07-08_10-40-48/georeferencing/masks"
+output_csv = "D:/test/output_2024-07-08_10-40-48/centroids.csv"
+
+main(input_folder, points_file, output_csv)
+
+
+#maingeopointextract(workingDir, outDir, 5):

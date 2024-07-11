@@ -28,10 +28,10 @@ Commment:
 import csv
 
 # define functions for initializing csv file
-def initialize_csv_file(output_dir, x, y):
+def initialize_csv_file(csv_file_path, x, y):
   try:
     
-    csv_file_path = os.path.join(output_dir, "coordinates.csv")
+    #csv_file_path = os.path.join(output_dir, "coordinates.csv")
     if not os.path.exists(csv_file_path):
         with open(csv_file_path, mode='w', newline='') as csv_file:
             csv_writer = csv.writer(csv_file)

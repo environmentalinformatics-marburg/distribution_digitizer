@@ -134,6 +134,7 @@ def mainPolygonize_CD(workingDir, outDir):
   try:
 
     output= outDir + "/polygonize/circleDetection/"
+    #inputdir = outDir +"/rectifying/circleDetection/"
     inputdir = outDir +"/rectifying/circleDetection/"
     
     for input_raster in glob.glob(inputdir + "*.tif"):

@@ -47,6 +47,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
   # Import the Python script for species reading
   source_python(paste0(workingDir, "/src/read_species/page_crop_species.py"))
   for (i in 1:nrow(filteredData)) {
+    print(filteredData)
     pagePath = filteredData[i,"file_name"]
     if (i< 5000){
       tryCatch({
@@ -72,8 +73,9 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
             
             # Extracting flag, search_species, and rspecies
             legend_keys <- sapply(splitted_results, function(x) as.numeric(x[1]))
-            search_species <- sapply(splitted_results, function(x) x[2])
-            rspecies <- sapply(splitted_results, function(x) x[3])
+            legend_indexs <- sapply(splitted_results, function(x) as.numeric(x[2]))
+            search_species <- sapply(splitted_results, function(x) x[3])
+            rspecies <- sapply(splitted_results, function(x) x[4])
             print(rspecies)
           } else { 
             # Set all vectors to NA if there's only one entry
@@ -85,7 +87,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
           rspecies[is.na(rspecies)] <- "Not found"
           
           # Create a new dataframe with the processed species data
-          new_dataframe <- data.frame(species = rspecies, legend_key = legend_keys, search_specie = search_species, stringsAsFactors = FALSE)
+          new_dataframe <- data.frame(species = rspecies, legend_key = legend_keys,legend_index = legend_indexs, search_specie = search_species, stringsAsFactors = FALSE)
           
           # Add a new column for the file name
           new_dataframe$file_name <- pagePath

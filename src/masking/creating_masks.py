@@ -51,3 +51,28 @@ def mainGeomaskB(workingDir, outDir, n):
   except Exception as e:
         print("An error occurred in masking_black:", e)
   
+
+
+def create_mask_from_csv(tiffile, csvfile, output_dir):
+    # Load the TIF image to get its dimensions
+    original_image = Image.open(tiffile)
+    width, height = original_image.size
+    
+    # Create a black image (mask) with the same dimensions
+    mask = np.zeros((height, width), dtype=np.uint8)
+
+    # Read the CSV file and extract the points
+    with open(csvfile, 'r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            x = int(row['X_WGS84'])
+            y = int(row['Y_WGS84'])
+            # Draw a white point on the mask at the specified coordinates
+            mask[y, x] = 255  # Assuming the coordinates are (x, y)
+
+    # Create the output file path
+    output_file = os.path.join(output_dir, os.path.basename(tiffile))
+    
+    # Save the mask as a TIF file
+    mask_image = Image.fromarray(mask)
+    mask_image.save(output_file)

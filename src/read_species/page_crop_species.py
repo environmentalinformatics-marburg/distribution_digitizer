@@ -37,15 +37,21 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
   
   if(middle==1): middle=True
   flag = 0
-  
+  leg1Index = 0
+  leg2Index = 0
+  legI = 0
   for search_specie in words:
     #print(search_specie)
     if(legend1 in search_specie):
       search_specie = search_specie.replace(legend1, "")
       flag = 1
+      leg1Index = leg1Index+1
+      legI = leg1Index
     if(legend2 in search_specie):
       search_specie = search_specie.replace(legend2, "")
       flag = 2
+      leg2Index = leg2Index+1
+      legI = leg2Index
     #print(search_specie) 
     
     
@@ -57,7 +63,8 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
     print("if aktuelle")
     print(specie_content)
     if (len(specie_content) > 3):
-      all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
+
+      all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
       continue
     
     print("if2 prev")
@@ -68,7 +75,7 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
       specie_content = find_specie_context(previous_page_path,
                           search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
       if (len(specie_content) > 3): 
-        all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
+        all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
         continue
       
       
@@ -80,7 +87,7 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
       specie_content = find_specie_context(next_page_path,
                            search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
       if (len(specie_content) > 3):
-        all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
+        all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
         continue
       
       
@@ -98,7 +105,7 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
       
       if(len(specie_content) > 5):
         #print(specie_content)
-        all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
+        all_results.append((str(flag)+ "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
         continue
     
     #print(specie_content)    
@@ -109,7 +116,7 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
       specie_content = get_lines_last_check(previous_page_path,
                           search_specie)
       if (len(specie_content) > 5): 
-        all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
+        all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
         continue
       
       
@@ -121,7 +128,7 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
       specie_content = get_lines_last_check(next_page_path,
                            search_specie)
       if (len(specie_content) > 3):
-        all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
+        all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
         continue 
       
   if(len(all_results) == 0):
