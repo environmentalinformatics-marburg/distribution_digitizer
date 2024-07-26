@@ -118,6 +118,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
     }
   }
   update_titles(csv_path=file.path(outDir, "coordinates_transformed.csv"), pageTitleSpecies)
+  update_titles(csv_path=file.path(outDir,"maps", "csvFiles", "coordinates.csv"), pageTitleSpecies)
   #processCoordinates(coordinatesPath = file.path(outDir,"maps", "csvFiles", "coordinates.csv"), pageSpeciesDataPath=file.path(outDir, "pageSpeciesData.csv"))
 }
 
