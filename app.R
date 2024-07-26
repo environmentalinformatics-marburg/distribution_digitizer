@@ -1208,15 +1208,18 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listPolygonize, {
     tryCatch({
+      #workingDir="D:/distribution_digitizer/"
+      #outDir="D:/test/output_2024-07-12_08-18-21/"
       # IMPORTANT not remove!
       config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
       outDir <- config$dataOutputDir
-      listShapefiles = list.files(paste0(workingDir, "/www/data/polygonize/"), full.names = T, pattern = '.shp')
+      listShapefiles = list.files(paste0(outDir, "/polygonize/circleDetection/"), full.names = T, pattern = '.shp')
       listShapefiles = grep(input$siteNumberPolygonize, listShapefiles, value= TRUE)
       muster <- "filtered"
       listShapefiles <- grep(paste0("^((?!(", muster, ")).)*$"), listShapefiles, value = TRUE, perl = TRUE)
+      print(listShapefiles)
       num_leaflet_outputs <- length(listShapefiles)
-      
+      print(num_leaflet_outputs)
       listPng = list.files(paste0(workingDir, "/www/data/pointFiltering_png/"), full.names = F, pattern = input$siteNumberPolygonize)
       
       output$leaflet_outputs_PL <- renderUI({
@@ -1282,16 +1285,16 @@ server <- shinyServer(function(input, output, session) {
       layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();}"
       )
       
-      marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ",", header = TRUE)
-      filtered_data <- marker_data[marker_data$Detection.method == "point_filtering", ]
-      name_on_top <- paste0(filtered_data$species)
-      name <- paste0(filtered_data$File,".png")
-      page <- sub("\\.tif$", "", basename(filtered_data$file_name))
-      page <- paste0(page, ".png")
+      marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
+      filtered_data <- marker_data[marker_data$Detectionmethod == "point_filtering", ]
+      name_on_top = paste0(filtered_data$speciesy)#,": ", filtered_data$File,".png")
+      name <- gsub("\\.tiff?$", ".png", filtered_data$File)
+      page <- gsub("\\.tiff?$", ".png", filtered_data$file_name)
+      
       
       # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
-      filtered_data$X_WGS84 <- as.numeric(gsub(",", ".", filtered_data$X_WGS84))
-      filtered_data$Y_WGS84 <- as.numeric(gsub(",", ".", filtered_data$Y_WGS84))
+      filtered_data$X <- as.numeric(gsub(",", ".", filtered_data$X))
+      filtered_data$Y <- as.numeric(gsub(",", ".", filtered_data$Y))
       
       # OpenStreetMap show
       output$mapSpatialViewPF <- renderLeaflet({
@@ -1299,8 +1302,8 @@ server <- shinyServer(function(input, output, session) {
           addTiles() %>%
           addMarkers(
             data = filtered_data,
-            lat = ~Y_WGS84,
-            lng = ~X_WGS84,
+            lat = ~Y,
+            lng = ~X,
             label = name_on_top,
             labelOptions = labelOptions(
               direction = "auto",
@@ -1338,25 +1341,26 @@ server <- shinyServer(function(input, output, session) {
     layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
   }"
     )
+    #workingDir <- "D:/distribution_digitizer"
+    #outDir <- "D:/test/output_2024-07-12_08-18-21"
     marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
-    filtered_data <- marker_data[marker_data$Detection.method == "circle_detection", ]
-    name_on_top = paste0(filtered_data$species)#,": ", filtered_data$File,".png")
-    name = paste0( filtered_data$File,".png")
-    page = basename(filtered_data$file_name)
-    page <- sub("\\.tif$", "", basename(filtered_data$file_name))
-    page = paste0(page, ".png")
+    filtered_data <- marker_data[marker_data$Detectionmethod == "circle_detection", ]
+    name_on_top = paste0(filtered_data$speciesy)#,": ", filtered_data$File,".png")
+    name <- gsub("\\.tiff?$", ".png", filtered_data$File)
+    page <- gsub("\\.tiff?$", ".png", filtered_data$file_name)
+
     
     # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
-    filtered_data$X_WGS84 <- as.numeric(gsub(",", ".", filtered_data$X_WGS84))
-    filtered_data$Y_WGS84 <- as.numeric(gsub(",", ".", filtered_data$Y_WGS84))
+    filtered_data$X <- as.numeric(gsub(",", ".", filtered_data$X))
+    filtered_data$Y <- as.numeric(gsub(",", ".", filtered_data$Y))
     
     output$mapSpatialViewCD <- renderLeaflet({
       leaflet() %>%
         addTiles() %>% 
         addMarkers(
           data = filtered_data,
-          lat = ~Y_WGS84,
-          lng = ~X_WGS84,
+          lat = ~Y,
+          lng = ~X,
           label = name_on_top,
           labelOptions = labelOptions(
             direction = "auto",
@@ -1550,13 +1554,14 @@ server <- shinyServer(function(input, output, session) {
         source_python(fname)
         map_points_matching(workingDir, outDir, input$threshold_for_PM)
         findTemplateResult = paste0(outDir, "/maps/pointMatching/")
+        print(findTemplateResult)
         cat("\nSuccessfully executed")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
-        #outDir = "D:/test/output_2024-03-14_11-29-27"
+        #outDir = "D:/test/output_2024-07-12_08-18-21/"
         #workingDir = "D:/distribution_digitizer/"
+        
         # convert the tif images to png and save in www
-       
         convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointMatching_png/"))
       }, error = function(e) {
         cat("An error occurred during pointMatching processing:\n")
@@ -1623,7 +1628,7 @@ server <- shinyServer(function(input, output, session) {
       tryCatch({
 
         fname=paste0(workingDir, "/", "src/masking/masking.py")
-        print(" Process masking python script:")
+        print(" Process masking normale python script:")
         print(fname)
         source_python(fname)
         mainGeomask(workingDir, outDir, input$morph_ellipse)
@@ -1655,7 +1660,7 @@ server <- shinyServer(function(input, output, session) {
       tryCatch({
 
         fname=paste0(workingDir, "/", "src/masking/mask_centroids.py")
-        print(" Process masking python script:")
+        print(" Process masking Centroids python script:")
         print(fname)
         source_python(fname)
         MainMaskCentroids(workingDir, outDir)
@@ -1669,7 +1674,7 @@ server <- shinyServer(function(input, output, session) {
         convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/maskingCentroids/"))
         
       }, error = function(e) {
-        cat("An error occurred during maskingCentroids processing:\n")
+        cat("An error occurred during masking Centroids processing:\n")
         print(e)
       })
     }
@@ -1688,13 +1693,16 @@ server <- shinyServer(function(input, output, session) {
         mainmaskgeoreferencingMasks_CD(workingDir, outDir)
         mainmaskgeoreferencingMasks_PF(workingDir, outDir)
         # processing rectifying
+        
         fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
         print(" Process rectifying python script:")
         print(fname)
         source_python(fname)
+        mainRectifying_Map_PF(workingDir, outDir)
         mainRectifying(workingDir, outDir)
         mainRectifying_CD(workingDir, outDir)
         mainRectifying_PF(workingDir, outDir)
+        
         findTemplateResult = paste0(outDir, "/georeferencing/masks/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
@@ -1734,9 +1742,10 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         mainPolygonize(workingDir, outDir)
-        #mainPolygonize_CD(workingDir, outDir)
-        #mainPolygonize_PF(workingDir, outDir)
-        findTemplateResult = paste0(outDir, "/polygonize/")
+        mainPolygonize_Map_PF(workingDir, outDir)
+        mainPolygonize_CD(workingDir, outDir)
+        mainPolygonize_PF(workingDir, outDir)
+        findTemplateResult = paste0(outDir, "/polygonize/circleDetection")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Georeferencing ended on: ", 
