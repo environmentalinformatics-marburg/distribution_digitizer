@@ -1,7 +1,7 @@
 import cv2
 import PIL
 from PIL import Image
-import os.path
+import os
 import glob
 import numpy as np
 import csv
@@ -47,88 +47,85 @@ def mask_existing_circles(image_array):
 
 # Function to determine the average color of a contour
 def get_contour_color(image, contour):
+    # Erstellt eine Maske nur für den aktuellen Kontur
     mask = np.zeros(image.shape[:2], dtype=np.uint8)
     cv2.drawContours(mask, [contour], -1, 255, -1)
     mean_val = cv2.mean(image, mask=mask)
-    return (int(mean_val[2]), int(mean_val[1]), int(mean_val[0]))  # Return as (R, G, B)
+    return (int(mean_val[2]), int(mean_val[1]), int(mean_val[0]))  # Return as BGR
 
 # Function to convert RGB to hex
 def rgb_to_hex(rgb_color):
     return '#{:02x}{:02x}{:02x}'.format(rgb_color[0], rgb_color[1], rgb_color[2])
 
-# Function to determine if a color is considered red, blue, or green
-def determine_color(rgb_color):
-    hex_color = rgb_to_hex(rgb_color)
-    red_hex = '#FF0000'
-    blue_hex = '#0000FF'
-    green_hex = '#00FF00'
-    if rgb_color[0] > 150 and rgb_color[1] < 100 and rgb_color[2] < 100:
-        return 'red', red_hex
-    elif rgb_color[0] < 100 and rgb_color[1] < 100 and rgb_color[2] > 150:
-        return 'blue', blue_hex
-    elif rgb_color[0] < 100 and rgb_color[1] > 150 and rgb_color[2] < 100:
-        return 'green', green_hex
-    else:
-        return 'orange', '#FFa500'  # Hex color for orange
+def determine_color(color_count, threshold=3):
+    for color, count in color_count.items():
+        if count >= threshold:
+            return color
+    return 'orange'
 
-# Edge and Contour Detection
+def count_color_pixels(image, contour, color_ranges):
+    mask = np.zeros(image.shape[:2], dtype=np.uint8)
+    cv2.drawContours(mask, [contour], -1, 255, -1)
+    color_count = {}
+    for color, (lower, upper) in color_ranges.items():
+        color_mask = cv2.inRange(image, lower, upper)
+        color_mask = cv2.bitwise_and(color_mask, color_mask, mask=mask)
+        count = np.count_nonzero(color_mask)
+        color_count[color] = count
+    return color_count
+
 def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius):
     image_array = np.array(PIL.Image.open(tiffile))
-
-    # Mask existing red, blue, and green circles
     image_array = mask_existing_circles(image_array)
-
     gray_image = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
     gray_image = cv2.GaussianBlur(gray_image, (blur_radius, blur_radius), 0)
-    
     _, thresh_image = cv2.threshold(gray_image, 120, 255, cv2.THRESH_TOZERO_INV)
-    
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
     opened_image = cv2.morphologyEx(thresh_image, cv2.MORPH_OPEN, kernel, iterations=3)
-    
     contours, _ = cv2.findContours(opened_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     
-    centroids = []  # List to store centroids and colors
-    
-    processed_image = image_array.copy()  # Create a copy of the original image
+    centroids = []
+    processed_image = image_array.copy()
+
+    # Definiere Farbbereiche in BGR
+    color_ranges = {
+        'red': (np.array([0, 0, 150]), np.array([100, 100, 255])),
+        'blue': (np.array([150, 0, 0]), np.array([255, 100, 100])),
+        'green': (np.array([0, 150, 0]), np.array([100, 255, 100]))
+    }
+
     for contour in contours:
-        # Calculate the centroid of the contour
-        moments = cv2.moments(contour)
-        if moments["m00"] != 0:
-            centroid_x = int(moments["m10"] / moments["m00"])
-            centroid_y = int(moments["m01"] / moments["m00"])
-            
-            # Determine the color of the contour
-            contour_color = get_contour_color(image_array, contour)
-            color_name, hex_color = determine_color(contour_color)
-            color_bgr = (0, 0, 255)  # Default to red (if color_name is 'orange')
-            if color_name == 'red':
-                color_bgr = (0, 0, 255)
-            elif color_name == 'blue':
-                color_bgr = (255, 0, 0)
-            elif color_name == 'green':
-                color_bgr = (0, 255, 0)
-            elif color_name == 'orange':
-                color_bgr = (255,127,36)
+        color_count = count_color_pixels(image_array, contour, color_ranges)
+        dominant_color = determine_color(color_count)
 
-            # Append centroid to the list with its color
-            centroids.append((centroid_x, centroid_y, hex_color))
-            
-            # Draw the contour and centroid in the appropriate color
-            processed_image = cv2.drawContours(processed_image, [contour], -1, color_bgr, 3)
-            cv2.circle(processed_image, (centroid_x, centroid_y), 5, color_bgr, -1)
+        # Wähle die entsprechende BGR-Farbe
+        color_bgr = {
+            'red': (0, 0, 255),
+            'blue': (255, 0, 0),
+            'green': (0, 255, 0),
+            'orange': (0, 165, 255)  # Orange als Fallback
+        }[dominant_color]
 
-    # Save the image with contours and centroids
+        # Zeichne die Konturen und Zentroide
+        M = cv2.moments(contour)
+        if M["m00"] != 0:
+            cx = int(M["m10"] / M["m00"])
+            cy = int(M["m01"] / M["m00"])
+            cv2.drawContours(processed_image, [contour], -1, color_bgr, 3)
+            cv2.circle(processed_image, (cx, cy), 5, color_bgr, -1)
+            centroids.append((cx, cy, color_bgr[2], color_bgr[1], color_bgr[0]))  # Append in BGR format
+
     output_file = os.path.join(outdir, os.path.basename(tiffile))
     PIL.Image.fromarray(processed_image, 'RGB').save(output_file)
     
     return centroids, output_file
 
+
 # Initialize CSV file for storing coordinates
 def initialize_csv_file(csv_file_path, x_col, y_col):
     if not os.path.exists(csv_file_path):
         with open(csv_file_path, 'w') as file:
-            file.write(f"ID,File,Detection method,{x_col},{y_col},georef,template,color\n")
+            file.write(f"ID,File,Detection method,{x_col},{y_col},georef,template,Red,Green,Blue\n")
     return csv_file_path
 
 # Append coordinates to CSV file
@@ -149,9 +146,9 @@ def append_to_csv(csv_file_path, centroids, filename, method, georef, template='
     with open(csv_file_path, 'a', newline='') as file:
         writer = csv.writer(file)
         if last_id == 0:
-            writer.writerow(['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template',  'color', 'georef'])
+            writer.writerow(['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'Red', 'Green', 'Blue', 'georef'])
         for centroid in centroids:
-            writer.writerow([last_id + 1, filename, method, centroid[0], centroid[1], template, centroid[2], georef])
+            writer.writerow([last_id + 1, filename, method, centroid[0], centroid[1], template, centroid[2], centroid[3], centroid[4], georef])
             last_id += 1
 
 def template_matching(image_path, template_path, method=cv2.TM_CCOEFF_NORMED):
@@ -177,3 +174,7 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius):
             append_to_csv(csv_path, centroids, os.path.basename(file), "point_filtering", 0, "none")
         else:
             PIL.Image.fromarray(np.array(PIL.Image.open(file)), 'RGB').save(output_file)
+
+
+# Usage example:
+# main_point_filtering("D:/distribution_digitizer/", "D:/test/output_2024-07-12_08-18-21/", 9, 5)

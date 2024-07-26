@@ -1,11 +1,10 @@
 import cv2
 import PIL
 from PIL import Image
-import os.path
+import os
 import glob
 import numpy as np
 import csv
-import os
 import shutil
 
 def copy_tiff_images(input_dir, output_dir):
@@ -51,6 +50,11 @@ def non_max_suppression_fast(points, overlapThresh):
 
     return points[pick].astype("int")
 
+def hex_to_rgb(hex_color):
+    """ Convert hex color to RGB tuple. """
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
 def point_match(tiffile, file, outputpcdir, point_threshold, template_id, template_name, color, coord_writer, current_id, nms_thresh=0.3):
     img = np.array(PIL.Image.open(tiffile))
     tmp = np.array(PIL.Image.open(file))
@@ -65,15 +69,16 @@ def point_match(tiffile, file, outputpcdir, point_threshold, template_id, templa
 
     nms_points = non_max_suppression_fast(points, nms_thresh)
 
-    color_bgr = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
+    # Convert hex color to RGB format
+    red, green, blue = hex_to_rgb(color)
 
     detected_points = []
     for (x, y, w, h) in nms_points:
         center_x = x + w // 2
         center_y = y + h // 2
         radius = min(w, h) // 4
-        cv2.circle(img, (center_x, center_y), radius, color_bgr, -1, lineType=cv2.LINE_AA)
-        cv2.circle(img, (center_x, center_y), radius, color_bgr, 2, lineType=cv2.LINE_AA)
+        cv2.circle(img, (center_x, center_y), radius, (blue, green, red), -1, lineType=cv2.LINE_AA)
+        cv2.circle(img, (center_x, center_y), radius, (blue, green, red), 2, lineType=cv2.LINE_AA)
         detected_points.append((center_x, center_y))
         if detected_points:
             coord_writer.writerow({
@@ -83,7 +88,9 @@ def point_match(tiffile, file, outputpcdir, point_threshold, template_id, templa
                 'X_WGS84': center_x,
                 'Y_WGS84': center_y,
                 'template': template_name,
-                'color': color,
+                'Red': red,
+                'Green': green,
+                'Blue': blue,
                 'georef': 0
             })
             current_id += 1
@@ -134,7 +141,7 @@ def map_points_matching(workingDir, outDir, point_threshold):
     current_id = get_last_id(coord_csv_path) + 1
 
     with open(coord_csv_path, 'a', newline='') as coord_csvfile:
-        coord_fieldnames = ['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'color', 'georef']
+        coord_fieldnames = ['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'Red', 'Green', 'Blue', 'georef']
         coord_writer = csv.DictWriter(coord_csvfile, fieldnames=coord_fieldnames)
 
         if current_id == 1:
@@ -142,14 +149,20 @@ def map_points_matching(workingDir, outDir, point_threshold):
 
         for file in glob.glob(pointTemplates + '*.tif'):
             template_name = os.path.basename(file).rsplit('.', 1)[0]
+            
+            # Updated color mapping including White for non-matching templates
             if template_name.startswith('a_'):
                 color = '#0000FF'  # Blau
             elif template_name.startswith('b_'):
                 color = '#FF0000'  # Rot
             elif template_name.startswith('c_'):
                 color = '#00FF00'  # Grün
+            elif template_name.startswith('d_'):
+                color = '#FFA500'  # Orange
+            elif template_name.startswith('e_'):
+                color = '#FFFF00'  # Gelb
             else:
-                color = '#000000'  # Schwarz
+                color = '#FFFFFF'  # Weiß
 
             for tiffile in glob.glob(outputTiffDir + '*.tif'):
                 num_points, output_file_path, color_str, current_id = point_match(
@@ -157,4 +170,4 @@ def map_points_matching(workingDir, outDir, point_threshold):
 
 # Usage example:
 #
-# map_points_matching("D:/distribution_digitizer/", "D:/test/output_2024-07-09_10-18-30/", 0.8)
+# map_points_matching("D:/distribution_digitizer/", "D:/test/output_2024-07-12_08-18-21/", 0.75)
