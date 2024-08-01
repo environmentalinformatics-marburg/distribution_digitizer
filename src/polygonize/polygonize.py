@@ -21,13 +21,26 @@ Function 'mainPolygonize_CD': Polygonizes the georeferenced masks containing cen
 Function 'mainPolygonize_PF': Polygonizes the georeferenced masks containing centroids detected by Point Filtering.
 """
 
-
 from osgeo import gdal, ogr, osr
 import os
 import glob
 import sys
 import numpy as np
 import rasterio
+import cv2
+import csv
+
+
+
+
+# Beispielhafte Farbbereiche (HSV) für rote, grüne und blaue Kreise
+color_ranges = [
+    (np.array([0, 70, 50]), np.array([10, 255, 255])),     # Rot
+    (np.array([170, 70, 50]), np.array([180, 255, 255])),  # Rot
+    (np.array([35, 70, 50]), np.array([85, 255, 255])),    # Grün
+    (np.array([100, 70, 50]), np.array([140, 255, 255]))   # Blau
+]
+
 
 def polygonize(input_raster, output_shape, dst_layername):
   """
@@ -119,10 +132,10 @@ def mainPolygonize(workingDir, outDir):
         print("An error occurred in mainPolygonize:", e)
   # End of function
 
-
-def mainPolygonize_CD(workingDir, outDir):
+# Function to execute polygonize function for multiple raster images
+def mainPolygonize_Map_PF(workingDir, outDir):
   """
-  Executes the polygonize function for georeferenced masks containing centroids detected by Circle Detection.
+  Executes the polygonize function for all raster images in the given directory.
 
   Args:
       workingDir (str): Directory containing the input raster images.
@@ -133,11 +146,11 @@ def mainPolygonize_CD(workingDir, outDir):
   """
   try:
 
-    output= outDir + "/polygonize/circleDetection/"
-    #inputdir = outDir +"/rectifying/circleDetection/"
-    inputdir = outDir +"/rectifying/circleDetection/"
+    output= os.path.join(outDir, "polygonize", "maps/")
+    os.makedirs(output, exist_ok=True) 
+    inputdir = os.path.join(outDir, "rectifying", "maps")
     
-    for input_raster in glob.glob(inputdir + "*.tif"):
+    for input_raster in glob.glob(inputdir + "/*.tif"):
         print(input_raster)
         dst_layername = os.path.basename(input_raster)
         print(dst_layername)
@@ -145,8 +158,174 @@ def mainPolygonize_CD(workingDir, outDir):
         print(output_shape)
         polygonize(input_raster, output_shape, dst_layername)
   except Exception as e:
-        print("An error occurred in mainPolygonize_CD:", e)
+        print("An error occurred in mainPolygonize:", e)
   # End of function
+  
+
+
+def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path, output_csv_path):
+        """
+    processes an image to identify specific colored regions, calculates the centroids of these regions, 
+    and stores the results in both a shapefile and a CSV file. The centroids are saved with their 
+    georeferenced positions and color information.
+    Args:
+        image_path (str): The path to the input image to be processed.
+        color_ranges (list): A list of color ranges (in HSV values) that define the colors to be identified in the image.
+        output_shapefile_path (str): The path to the output shapefile where the centroids will be saved.
+        output_csv_path (str): The path to the output CSV file where the centroids and their attributes will be saved..
+
+    Returns:
+        None
+    """
+    # Load image
+    img = cv2.imread(image_path)
+    hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    # Create an empty mask
+    final_mask = np.zeros(img.shape[:2], dtype="uint8")
+
+    for color_range in color_ranges:
+        # Create a mask for each color range
+        lower, upper = color_range
+        mask = cv2.inRange(hsv_img, lower, upper)
+        
+        # Add the mask to the final mask
+        final_mask = cv2.bitwise_or(final_mask, mask)
+
+    # Find contours
+    contours, _ = cv2.findContours(final_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Create a new mask for the centroids
+    centroid_mask = np.zeros_like(img)
+
+    # Lists for centroids coordinates and colors
+    centroids = []
+    colors = []
+    local_coords = []
+
+    # Calculate centroids and draw them as points on the new mask
+    for contour in contours:
+        M = cv2.moments(contour)
+        if M["m00"] != 0:
+            cx = int(M["m10"] / M["m00"])
+            cy = int(M["m01"] / M["m00"])
+            centroids.append((cx, cy))
+            color = img[cy, cx]
+            colors.append(color.tolist())
+            local_coords.append((cx, cy))
+            cv2.circle(centroid_mask, (cx, cy), 3, color.tolist(), -1)
+
+    # Extract georeferenced information
+    dataset = gdal.Open(image_path)
+    geotransform = dataset.GetGeoTransform()
+    spatial_ref = osr.SpatialReference()
+    spatial_ref.ImportFromWkt(dataset.GetProjection())
+
+    # Create shapefile
+    driver = ogr.GetDriverByName("ESRI Shapefile")
+    if os.path.exists(output_shapefile_path):
+        driver.DeleteDataSource(output_shapefile_path)
+    shape_data = driver.CreateDataSource(output_shapefile_path)
+    layer = shape_data.CreateLayer("centroids", spatial_ref, ogr.wkbPoint)
+
+    # Add attribute fields
+    layer.CreateField(ogr.FieldDefn("ID", ogr.OFTInteger))
+    layer.CreateField(ogr.FieldDefn("Red", ogr.OFTInteger))
+    layer.CreateField(ogr.FieldDefn("Green", ogr.OFTInteger))
+    layer.CreateField(ogr.FieldDefn("Blue", ogr.OFTInteger))
+    layer.CreateField(ogr.FieldDefn("Local_X", ogr.OFTInteger))
+    layer.CreateField(ogr.FieldDefn("Local_Y", ogr.OFTInteger))
+
+    # Prepare the CSV file
+    with open(output_csv_path, mode='a', newline='') as csv_file:
+        fieldnames = ['ID', 'Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue']
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        
+        # Save centroids and colors to the shapefile and CSV file
+        for i, (cx, cy) in enumerate(centroids):
+            # Calculate georeferenced coordinates
+            x = geotransform[0] + cx * geotransform[1] + cy * geotransform[2]
+            y = geotransform[3] + cx * geotransform[4] + cy * geotransform[5]
+
+            point = ogr.Geometry(ogr.wkbPoint)
+            point.AddPoint(x, y)
+            
+            feature = ogr.Feature(layer.GetLayerDefn())
+            feature.SetGeometry(point)
+            feature.SetField("ID", i)
+            feature.SetField("Red", colors[i][2])
+            feature.SetField("Green", colors[i][1])
+            feature.SetField("Blue", colors[i][0])
+            feature.SetField("Local_X", local_coords[i][0])
+            feature.SetField("Local_Y", local_coords[i][1])
+            layer.CreateFeature(feature)
+            feature = None
+
+            # Write to the CSV file
+            writer.writerow({
+                'ID': i,
+                'Local_X': local_coords[i][0],
+                'Local_Y': local_coords[i][1],
+                'Real_X': x,
+                'Real_Y': y,
+                'Red': colors[i][2],
+                'Green': colors[i][1],
+                'Blue': colors[i][0]
+            })
+
+    # Close the shapefile
+    shape_data = None
+
+    
+def mainPolygonize_CD(workingDir, outDir):
+    """
+    Executes the polygonize function for georeferenced masks containing centroids detected by Circle Detection.
+
+    Args:
+        workingDir (str): Directory containing the input raster images.
+        outDir (str): Output directory to save the polygonized shapefiles.
+
+    Returns:
+        None
+    """
+    try:
+        output = os.path.join(outDir, "polygonize", "circleDetection")
+        inputdir = os.path.join(outDir, "rectifying", "circleDetection")
+        output_csv_path = os.path.join(outDir, "polygonize", "csvFiles", "centroids_colors.csv")
+
+        # Erstelle das Verzeichnis, falls es noch nicht existiert
+        os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
+
+        # Überprüfe, ob die Datei existiert, und erstelle sie falls nicht
+        if not os.path.isfile(output_csv_path):
+            with open(output_csv_path, 'w', newline='') as csvfile:
+                # Initialisiere den CSV-Schreiber
+                csvwriter = csv.writer(csvfile)
+                # Schreibe die Kopfzeile
+                csvwriter.writerow(['ID', 'Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue'])
+
+        print(f"Die Datei wurde erstellt oder existiert bereits: {output_csv_path}")
+
+        # Schleife durch alle Bilder im Verzeichnis
+        for image_file in os.listdir(inputdir):
+            image_path = os.path.join(inputdir, image_file)
+            if os.path.isfile(image_path):
+                output_shapefile_path = os.path.join(output, f"{os.path.splitext(image_file)[0]}.shp")
+                create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path, output_csv_path)
+                
+    except Exception as e:
+        print(f"Ein Fehler ist aufgetreten: {e}")
+  # End of function
+
+
+#workingDir = "D:/distribution_digitizer/"
+#image_path = "D:/test/output_2024-07-12_08-18-21/rectifying/circleDetection/"
+#output_dir = "D:/test/output_2024-07-12_08-18-21/"
+#mainPolygonize_CD(workingDir, output_dir)
+#output_csv_path = "D:/test/output_2024-07-12_08-18-21/64-2_0069map_1_0_centroids.csv"
+
+
+
 
 
 def mainPolygonize_PF(workingDir, outDir):
