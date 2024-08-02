@@ -320,7 +320,7 @@ def mainPolygonize_CD(workingDir, outDir):
                 # Initialisiere den CSV-Schreiber
                 csvwriter = csv.writer(csvfile)
                 # Schreibe die Kopfzeile
-                csvwriter.writerow(['ID','Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue', 'File])
+                csvwriter.writerow(['ID','Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue', 'File'])
 
         print(f"Die Datei wurde erstellt oder existiert bereits: {output_csv_path}")
 

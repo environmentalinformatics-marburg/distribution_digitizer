@@ -1,3 +1,8 @@
+# Author: Spaska Forteva
+# Date: 2024-08-02
+# Description: This script performs point matching between TIFF images and templates, 
+# applies non-maximum suppression, and saves the results. It also includes a function to copy TIFF images and convert colors.
+
 import cv2
 import PIL
 from PIL import Image
@@ -8,6 +13,7 @@ import csv
 import shutil
 
 def copy_tiff_images(input_dir, output_dir):
+    # Create the output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     for file in os.listdir(input_dir):
         if file.endswith(".tif"):
@@ -56,9 +62,14 @@ def hex_to_rgb(hex_color):
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
 def point_match(tiffile, file, outputpcdir, point_threshold, template_id, template_name, color, coord_writer, current_id, nms_thresh=0.3):
+    print(f"Processing template: {template_name} with color: {color}")  # Debugging-Ausgabe
+    
+    # Laden des Bildes und der Vorlage
     img = np.array(PIL.Image.open(tiffile))
     tmp = np.array(PIL.Image.open(file))
-    w, h, c = tmp.shape
+    w, h = tmp.shape[:2]  # Adjusted to handle grayscale and RGB images
+
+    # Durchführung der Template Matching
     res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
     loc = np.where(res >= point_threshold)
 
@@ -67,20 +78,29 @@ def point_match(tiffile, file, outputpcdir, point_threshold, template_id, templa
         points.append([pt[0], pt[1], w, h])
     points = np.array(points)
 
+    # Durchführung der Non-Maximum Suppression
     nms_points = non_max_suppression_fast(points, nms_thresh)
 
-    # Convert hex color to RGB format
+    # Konvertieren der Hex-Farbe in RGB-Format
     red, green, blue = hex_to_rgb(color)
+    print(f"Converted color for {template_name}: (R: {red}, G: {green}, B: {blue})")  # Debugging-Ausgabe
 
     detected_points = []
     for (x, y, w, h) in nms_points:
         center_x = x + w // 2
         center_y = y + h // 2
         radius = min(w, h) // 4
-        cv2.circle(img, (center_x, center_y), radius, (blue, green, red), -1, lineType=cv2.LINE_AA)
-        cv2.circle(img, (center_x, center_y), radius, (blue, green, red), 2, lineType=cv2.LINE_AA)
+        
+        # Debugging-Ausgabe direkt vor dem Zeichnen
+        print(f"Drawing circle at ({center_x}, {center_y}) with color: (R: {red}, G: {green}, B: {blue})")
+        
+        # Zeichnen des Kreises auf dem Bild
+        cv2.circle(img, (center_x, center_y), radius, (red, green, blue), -1, lineType=cv2.LINE_AA)  # Ausfüllen des Kreises
+        cv2.circle(img, (center_x, center_y), radius, (red, green, blue), 2, lineType=cv2.LINE_AA)   # Rand des Kreises
+        
         detected_points.append((center_x, center_y))
         if detected_points:
+            print(f"Matched at ({center_x}, {center_y}) with color: (R: {red}, G: {green}, B: {blue})")  # Debugging-Ausgabe
             coord_writer.writerow({
                 'ID': current_id,
                 'File': os.path.basename(tiffile),
@@ -119,21 +139,13 @@ def map_points_matching(workingDir, outDir, point_threshold):
     outputTiffDir = ""
     inputTiffDir = ""
     if os.path.exists(outDir):
-        if outDir.endswith("/"):
-            inputTiffDir = outDir + "maps/align/"
-            outputTiffDir = outDir + "maps/pointMatching/"
-        else:
-            inputTiffDir = outDir + "/maps/align/"
-            outputTiffDir = outDir + "/maps/pointMatching/"
+        inputTiffDir = os.path.join(outDir, "maps", "align")
+        outputTiffDir = os.path.join(outDir, "maps", "pointMatching")
     else:
-        if workingDir.endswith("/"):
-            inputTiffDir = workingDir + "data/output/maps/align/"
-            outputTiffDir = workingDir + "data/output/maps/pointMatching/"
-        else:
-            inputTiffDir = workingDir + "/data/output/maps/align/"
-            outputTiffDir = workingDir + "/data/output/maps/pointMatching/"
+        inputTiffDir = os.path.join(workingDir, "data", "output", "maps", "align")
+        outputTiffDir = os.path.join(workingDir, "data", "output", "maps", "pointMatching")
 
-    pointTemplates = workingDir + "/data/input/templates/symbols/"
+    pointTemplates = os.path.join(workingDir, "data", "input/templates/symbols/")
     copy_tiff_images(inputTiffDir, outputTiffDir)
     os.makedirs(outputTiffDir, exist_ok=True)
 
@@ -147,24 +159,26 @@ def map_points_matching(workingDir, outDir, point_threshold):
         if current_id == 1:
             coord_writer.writeheader()
 
-        for file in glob.glob(pointTemplates + '*.tif'):
+        for file in glob.glob(os.path.join(pointTemplates, '*.tif')):
             template_name = os.path.basename(file).rsplit('.', 1)[0]
             
             # Updated color mapping including White for non-matching templates
-            if template_name.startswith('a_'):
-                color = '#0000FF'  # Blau
-            elif template_name.startswith('b_'):
-                color = '#FF0000'  # Rot
+            if template_name.startswith('b_'):
+                color = '#0000FF'  # Blue
+            elif template_name.startswith('a_'):
+                color = '#FF0000'  # Red
             elif template_name.startswith('c_'):
-                color = '#00FF00'  # Grün
+                color = '#00FF00'  # Green
             elif template_name.startswith('d_'):
                 color = '#FFA500'  # Orange
             elif template_name.startswith('e_'):
-                color = '#FFFF00'  # Gelb
+                color = '#FFFF00'  # Yellow
             else:
-                color = '#FFFFFF'  # Weiß
+                color = '#FFFFFF'  # White
 
-            for tiffile in glob.glob(outputTiffDir + '*.tif'):
+            print(f"Processing template: {template_name}, Color: {color}")  # Debugging line to check the template and color
+
+            for tiffile in glob.glob(os.path.join(outputTiffDir, '*.tif')):
                 num_points, output_file_path, color_str, current_id = point_match(
                     tiffile, file, outputTiffDir, point_threshold, 1, template_name, color, coord_writer, current_id)
 

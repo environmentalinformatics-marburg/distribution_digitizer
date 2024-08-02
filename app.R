@@ -1293,8 +1293,8 @@ server <- shinyServer(function(input, output, session) {
       filtered_data <- marker_data[marker_data$Detectionmethod == "point_filtering", ]
       name_on_top = paste0(filtered_data$speciesy)#,": ", filtered_data$File,".png")
       name <- gsub("\\.tiff?$", ".png", filtered_data$File)
-      page <- gsub("\\.tiff?$", ".png", filtered_data$file_name)
-      
+      page <- sub(".*_(\\d{4})map_.*", "\\1.tif", name)
+      page <- sub("\\.tiff?$", ".png", page)
       
       # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
       filtered_data$X <- as.numeric(gsub(",", ".", filtered_data$X))
@@ -1315,9 +1315,9 @@ server <- shinyServer(function(input, output, session) {
               onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
             ),
             popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$search_specie, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
-                            "<img src='/matching_png/", name, "' width='100' height='100'></a>",
-                            "<a href='/pages/", page, "' target='_blank'>",
-                            "<img src='/pages/", page, "' width='100' height='100'></a>")
+                            "<img src='/data/matching_png/", name, "' width='100' height='100'></a>",
+                            "<a href='/data/pages/", page, "' target='_blank'>",
+                            "<img src='/data/pages/", page, "' width='100' height='100'></a>")
           )
       })
       cat("\nSuccessfully executed")
@@ -1359,7 +1359,8 @@ server <- shinyServer(function(input, output, session) {
     # Anpassung der Daten für die Anzeige
     name_on_top <- paste0(filtered_data$species)
     name <- gsub("\\.tiff?$", ".png", filtered_data$File)
-    page <- gsub("\\.tiff?$", ".png", filtered_data$File)
+    page <- sub(".*_(\\d{4})map_.*", "\\1.tif", name)
+    page <- sub("\\.tiff?$", ".png", page)
     
     # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
     marker_data$Real_X <- as.numeric(gsub(",", ".", marker_data$Real_X))
@@ -1387,10 +1388,10 @@ server <- shinyServer(function(input, output, session) {
           popup = ~paste0(
             "<p><b>Specie keyword on the map: ", filtered_data$species, "</b></p>",
             "<p><b>", filtered_data$Title, "</b></p>",
-            "<a href='/matching_png/", name, "' target='_blank'>",
-            "<img src='/matching_png/", name, "' width='100' height='100'></a>",
-            "<a href='/pages/", page, "' target='_blank'>",
-            "<img src='/pages/", page, "' width='100' height='100'></a>"
+            "<a href='/data/matching_png/", name, "' target='_blank'>",
+            "<img src='/data/matching_png/", name, "' width='100' height='100'></a>",
+            "<a href='/data/pages/", page, "' target='_blank'>",
+            "<img src='/data/pages/", page, "' width='100' height='100'></a>"
           )
         )
     })
@@ -1408,8 +1409,12 @@ server <- shinyServer(function(input, output, session) {
       "spatial_final_data.csv"
     },
     content = function(file) {
-      csv_path <- paste0(outDir, "spatial_final_data.csv")
-      file.copy(csv_path, file)
+      csv_path <- paste0(outDir, "/spatial_final_data.csv")
+      if (file.exists(csv_path)) {
+        file.copy(csv_path, file)
+      } else {
+        stop("Die Datei spatial_final_data.csv existiert nicht.")
+      }
     }
     
   )
@@ -1848,7 +1853,7 @@ server <- shinyServer(function(input, output, session) {
       # In diesem Beispiel lesen wir die CSV-Datei
       
       data <- reactive({
-        dd_data <- read.table(csv_path, sep = ";", header = TRUE, check.names = FALSE)
+        dd_data <- read.table(csv_path, sep = ",", header = TRUE, check.names = FALSE)
         
         #print(colnames(my_data))
         return(dd_data)

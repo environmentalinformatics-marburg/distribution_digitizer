@@ -101,9 +101,9 @@ def MainMaskCentroids(workingDir, outDir):
   try:
     ## For output of circle_detection:
     # Define input and output directories
-    inputDir = outDir + "/maps/circleDetection/"
-    outputDir = outDir + "/masking_black/circleDetection/"
-    csv_path = "D:/test/output_2024-07-12_08-18-21/coordinates_transformed.csv"
+    inputDir = os.path.join(outDir,"maps", "circleDetection/")
+    outputDir = os.path.join(outDir,"masking_black", "circleDetection/")
+    csv_path = os.path.join(outDir, "coordinates_transformed.csv")
     # Loop through TIFF files in the input directory
     for file in glob.glob(inputDir + '*.tif'):
         print(file)
