@@ -38,11 +38,14 @@ proj = os.path.join(env, "Library/share/proj/")
 os.environ['PROJ_LIB'] = proj
 
 # Working with the Input GCP points from the csv file and then rearranging them according to the function
-def maskgeoreferencing(input_raster,output_raster,gcp_points):
+def maskgeoreferencing(input_raster, output_raster,gcp_points):
   os.makedirs(output_raster, exist_ok=True) 
   f=pd.read_csv(gcp_points)
   keep_col = ['mapX','mapY','sourceX', 'sourceY', 'enable', 'dX','dY', 'residual']
-  #['mapX','mapY','sourceX', 'sourceY', 'enable', 'dX','dY', 'residual']
+  print("Output Directory:")
+  print(output_raster)
+  print("Input Directory:")
+  print(input_raster)
   new_f = f[keep_col]
   df = new_f.drop(columns=['enable','dX', 'dY', 'residual'])
   col=['mapX','mapY', 'sourceX','sourceY']
@@ -50,7 +53,8 @@ def maskgeoreferencing(input_raster,output_raster,gcp_points):
   modified_df['sourceY'] = modified_df['sourceY']*(-1)
   gcp_list=[]
   # Create a copy of the original file and save it as the output filename:
-  out_file= output_raster + 'geor' + os.path.basename(input_raster) 
+  out_file=  os.path.join(output_raster, os.path.basename(input_raster))
+  print(out_file)
   src_ds = gdal.Open(input_raster)
   format = "GTiff"
   driver = gdal.GetDriverByName(format)  
@@ -74,53 +78,60 @@ def maskgeoreferencing(input_raster,output_raster,gcp_points):
 
 
 def mainmaskgeoreferencingMaps(workingDir, outDir):
-  output_raster= outDir + "/georeferencing/maps/pointFiltering/"
+  output_raster= os.path.join(outDir,"georeferencing", "maps","pointFiltering")
   os.makedirs(output_raster, exist_ok=True) 
-  inputdir = outDir +"/maps/pointFiltering/"
-  g_dir = workingDir + "/data/input/templates/geopoints/"
-  for gcp_points in glob.glob(g_dir + "*.points"):
-    print(gcp_points)
-    for input_raster in glob.glob(inputdir + "*.tif"):
+  inputdir = os.path.join(outDir, "maps", "pointFiltering")
+  g_dir = os.path.join(workingDir,"data", "input", "templates", "geopoints")
+  
+  for gcp_points in glob.glob(g_dir + "/*.points"):
+    for input_raster in glob.glob(inputdir + "/*.tif"):
        maskgeoreferencing(input_raster, output_raster,gcp_points)
 
 def mainmaskgeoreferencingMaps_CD(workingDir, outDir):
-  output_raster= outDir + "/georeferencing/maps/circleDetection/"
+  output_raster = os.path.join(outDir,"georeferencing", "maps","circleDetection")
   os.makedirs(output_raster, exist_ok=True) 
-  inputdir = outDir +"/maps/circleDetection/"
-  g_dir = workingDir + "/data/input/templates/geopoints/"
-  for gcp_points in glob.glob(g_dir + "*.points"):
-    for input_raster in glob.glob(inputdir + "*.tif"):
+  inputdir = os.path.join(outDir,"maps", "circleDetection")
+  print("Output Directory:")
+  print(output_raster)
+  print("Input Directory:")
+  print(inputdir)
+  g_dir = os.path.join(workingDir,"data", "input", "templates", "geopoints")
+  
+  for gcp_points in glob.glob(g_dir + "/*.points"):
+    for input_raster in glob.glob(inputdir + "/*.tif"):
        maskgeoreferencing(input_raster, output_raster,gcp_points)
        
 def mainmaskgeoreferencingMasks(workingDir, outDir):      
-  output_raster= outDir + "/georeferencing/masks/"
+  output_raster= os.path.join(outDir,"georeferencing", "masks")
   os.makedirs(output_raster, exist_ok=True) 
-  inputdir = outDir +"/masking_black/"
+  inputdir = os.path.join(outDir,"masking_black")
+  g_dir = os.path.join(workingDir,"data", "input", "templates", "geopoints")
   
-  #inputdir = workingDir +"/data/output/masking/"
-  g_dir = workingDir + "/data/input/templates/geopoints/"
-  for gcp_points in glob.glob(g_dir + "*.points"):
-    for input_raster in glob.glob(inputdir + "*.tif"):
+  for gcp_points in glob.glob(g_dir + "/*.points"):
+    for input_raster in glob.glob(inputdir + "/*.tif"):
        maskgeoreferencing(input_raster, output_raster,gcp_points)
 
 def mainmaskgeoreferencingMasks_CD(workingDir, outDir):      
-  output_raster= outDir + "/georeferencing/masks/circleDetection/"
+  output_raster= os.path.join(outDir, "georeferencing", "masks", "circleDetection")
   os.makedirs(output_raster, exist_ok=True) 
-  inputdir = outDir +"/masking_black/circleDetection/"
-  
-  #inputdir = workingDir +"/data/output/masking/"
-  g_dir = workingDir + "/data/input/templates/geopoints/"
-  for gcp_points in glob.glob(g_dir + "*.points"):
-    for input_raster in glob.glob(inputdir + "*.tif"):
+  inputdir = os.path.join(outDir, "masking_black", "circleDetection")
+  g_dir = os.path.join(workingDir,"data", "input", "templates", "geopoints")
+  print("Output Directory:")
+  print(output_raster)
+  print("Input Directory:")
+  print(g_dir)
+  for gcp_points in glob.glob(g_dir + "/*.points"):
+    print(gcp_points)
+    for input_raster in glob.glob(inputdir + "/*.tif"):
+       print(input_raster)
        maskgeoreferencing(input_raster, output_raster,gcp_points)
 
 def mainmaskgeoreferencingMasks_PF(workingDir, outDir):      
-  output_raster= outDir + "/georeferencing/masks/pointFiltering/"
+  output_raster= os.path.join(outDir,"georeferencing", "masks", "pointFiltering")
   os.makedirs(output_raster, exist_ok=True) 
-  inputdir = outDir +"/masking_black/pointFiltering/"
+  inputdir = os.path.join(outDir,"masking_black", "pointFiltering")
+  g_dir = workingDir + "/data/input/templates/geopoints"
   
-  #inputdir = workingDir +"/data/output/masking/"
-  g_dir = workingDir + "/data/input/templates/geopoints/"
-  for gcp_points in glob.glob(g_dir + "*.points"):
-    for input_raster in glob.glob(inputdir + "*.tif"):
+  for gcp_points in glob.glob(g_dir + "/*.points"):
+    for input_raster in glob.glob(inputdir + "/*.tif"):
        maskgeoreferencing(input_raster, output_raster,gcp_points)

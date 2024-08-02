@@ -33,18 +33,53 @@ from osgeo import gdal, osr
 import os, glob
 
 def rectifying(input_raster, output_raster):
-  
-  # open source dataset
-  src_ds = gdal.Open(input_raster)
+    # Öffnen des Quell-Datasets
+    src_ds = gdal.Open(input_raster)
+    if src_ds is None:
+        print(f"Fehler beim Öffnen der Eingabedatei: {input_raster}")
+        return
+    
+    # Bestimmen des Ausgabepfads
+    output_raster, file_extension = os.path.splitext(output_raster)
+    dst_path = output_raster + ".tif"
+    
+    # Überprüfen, ob das Zielverzeichnis vorhanden ist, andernfalls erstellen
+    output_dir = os.path.dirname(dst_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    try:
+        # Ausführen der Rektifizierung mit gdal.Warp()
+        gdal.Warp(dst_path, src_ds)
+        print(f"Rektifizierte Datei gespeichert: {dst_path}")
+    except Exception as e:
+        print(f"Fehler bei der Rektifizierung: {e}")
 
-  # define name of output raster
-  output_raster, file_extension = os.path.splitext(output_raster)
-  dst_path = output_raster + "_rectified.tif"
-  
-  # perform rectification using gdal.Warp()
-  gdal.Warp(dst_path, src_ds)
-  
-  
+#input_raster = "D:/test/output_2024-07-12_08-18-21/georeferencing/maps/pointFiltering"
+
+
+def mainRectifying_Map_PF(workingDir, outDir):
+    try:
+        output = os.path.join(outDir, "rectifying", "maps")
+        os.makedirs(output, exist_ok=True) 
+        inputdir = os.path.join(outDir, "georeferencing", "maps", "pointFiltering")
+        print("Input Directory:", inputdir)
+        
+        # Adjusted glob.glob to correctly capture all TIFF files
+        for input_raster in glob.glob(inputdir + "/*.tif"):
+            print("Input TIFF:", input_raster)
+            dst_layername = os.path.basename(input_raster)
+            print("Destination Layer Name:", dst_layername)
+            output_raster = os.path.join(output, dst_layername)
+            print("Output Raster Path:", output_raster)
+            # Assuming rectifying() is a function you have defined elsewhere
+            rectifying(input_raster, output_raster)
+    
+    except Exception as e:
+        print("An error occurred in mainRectifying_Map_PF:", e)
+    # End of function
+
+
 def mainRectifying(workingDir, outDir):
   try:
     output= outDir + "/rectifying/"

@@ -1,40 +1,35 @@
-# ============================================================
-# Script Author: [Spaska Forteva]
-# Created On: 2024-01-10
-# ============================================================
-
-#workingDir="D:/distribution_digitizer_11_01_2024/"
-  
+# Funktion zum Mergen der Daten
 mergeFinalData <- function(workingDir, outDir) {
   tryCatch(
-    # Processing spatial data computing
-    expr = {
-      # Load data from CSV files
-      data2 <- read.csv(paste0(outDir, "/output_final.csv"), sep = ";")
-      data1 <- read.csv(paste0(outDir, "/pageSpeciesData.csv"), sep = ";")
+    {
+      # Pfade zu den CSV-Dateien
+      csv_path1 <- file.path(outDir, "maps", "csvFiles", "coordinates.csv")
+      csv_path2 <- file.path(outDir, "polygonize", "csvFiles", "centroids_colors.csv")
+      output_csv_path <- file.path(outDir, "spatial_final_data.csv")
       
-      # Steps:
+      # CSV-Dateien einlesen
+      df1 <- read.csv(csv_path1, stringsAsFactors = FALSE)
+      df2 <- read.csv(csv_path2, stringsAsFactors = FALSE, sep = ",")
       
-      # Extract the base name from the "map_name" in the first file
-      # Extract the base name from the "map_name" in the first file and remove ".tif" at the end
-      data1$map_name <- sub("\\.tif$", "", basename(data1$map_name))
+      # Farbkombinationen in beiden DataFrames erstellen
+      df1$Color_Combo <- paste(df1$Red, df1$Green, df1$Blue, sep = ",")
+      df2$Color_Combo <- paste(df2$Red, df2$Green, df2$Blue, sep = ",")
       
-      # Extract the part of the filename before the double underscore in the "File" column in the second file
-      data2$File <- sub("__.*", "", data2$File)
+      # Zusammenführen der DataFrames basierend auf 'File' und 'Color_Combo'
+      merged_df <- merge(df2, df1[, c("File", "Color_Combo", "species", "Title")], 
+                         by.x = c("File", "Color_Combo"), by.y = c("File", "Color_Combo"), all.x = TRUE)
       
-      # Steps:
+      # Doppelte Einträge entfernen
+      merged_df <- merged_df[!duplicated(merged_df), ]
       
-      # 1. Merge data from both files based on the "map_name"
-      merged_data <- merge(data2, data1, by.x = "File", by.y = "map_name", all.x = TRUE)
+      # Die 'Color_Combo'-Spalte entfernen, da sie nicht mehr benötigt wird
+      merged_df$Color_Combo <- NULL
       
-      # 2. Add the "species" from the first file as a new column in the second file
-      final_data <- within(merged_data, {
-        species <- ifelse(!is.na(species), species, NA)
-      })
+      # Die neue CSV-Datei schreiben
+      write.csv(merged_df, output_csv_path, row.names = FALSE)
       
-      # Display the result
-      # Save final_data as a new CSV file
-      write.csv2(final_data, file = paste0(outDir, "/spatial_final_data.csv"), row.names = FALSE)
+      print(paste("Output CSV file created at:", output_csv_path))
+      
     }, 
     error = function(e) {
       print(e)
@@ -44,3 +39,8 @@ mergeFinalData <- function(workingDir, outDir) {
     }
   )
 }
+
+# Aufrufen der Funktion mit den angegebenen Arbeitsverzeichnissen
+# workingDir <- "D:/distribution_digitizer"
+# outDir <- "D:/test/output_2024-07-12_08-18-21"
+# mergeFinalData(workingDir, outDir)

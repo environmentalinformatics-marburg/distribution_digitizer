@@ -163,11 +163,18 @@ def mainPolygonize_Map_PF(workingDir, outDir):
   
 
 
+import os
+from osgeo import gdal, ogr, osr
+import cv2
+import numpy as np
+import csv
+
 def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path, output_csv_path):
-        """
-    processes an image to identify specific colored regions, calculates the centroids of these regions, 
+    """
+    Processes an image to identify specific colored regions, calculates the centroids of these regions, 
     and stores the results in both a shapefile and a CSV file. The centroids are saved with their 
     georeferenced positions and color information.
+
     Args:
         image_path (str): The path to the input image to be processed.
         color_ranges (list): A list of color ranges (in HSV values) that define the colors to be identified in the image.
@@ -177,106 +184,117 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
     Returns:
         None
     """
-    # Load image
-    img = cv2.imread(image_path)
-    hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    try:
+        # Load image
+        img = cv2.imread(image_path)
+        hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-    # Create an empty mask
-    final_mask = np.zeros(img.shape[:2], dtype="uint8")
+        # Create an empty mask
+        final_mask = np.zeros(img.shape[:2], dtype="uint8")
 
-    for color_range in color_ranges:
-        # Create a mask for each color range
-        lower, upper = color_range
-        mask = cv2.inRange(hsv_img, lower, upper)
-        
-        # Add the mask to the final mask
-        final_mask = cv2.bitwise_or(final_mask, mask)
+        for color_range in color_ranges:
+            # Create a mask for each color range
+            lower, upper = color_range
+            mask = cv2.inRange(hsv_img, lower, upper)
 
-    # Find contours
-    contours, _ = cv2.findContours(final_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # Add the mask to the final mask
+            final_mask = cv2.bitwise_or(final_mask, mask)
 
-    # Create a new mask for the centroids
-    centroid_mask = np.zeros_like(img)
+        # Find contours
+        contours, _ = cv2.findContours(final_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Lists for centroids coordinates and colors
-    centroids = []
-    colors = []
-    local_coords = []
+        # Create a new mask for the centroids
+        centroid_mask = np.zeros_like(img)
 
-    # Calculate centroids and draw them as points on the new mask
-    for contour in contours:
-        M = cv2.moments(contour)
-        if M["m00"] != 0:
-            cx = int(M["m10"] / M["m00"])
-            cy = int(M["m01"] / M["m00"])
-            centroids.append((cx, cy))
-            color = img[cy, cx]
-            colors.append(color.tolist())
-            local_coords.append((cx, cy))
-            cv2.circle(centroid_mask, (cx, cy), 3, color.tolist(), -1)
+        # Lists for centroids coordinates and colors
+        centroids = []
+        colors = []
+        local_coords = []
 
-    # Extract georeferenced information
-    dataset = gdal.Open(image_path)
-    geotransform = dataset.GetGeoTransform()
-    spatial_ref = osr.SpatialReference()
-    spatial_ref.ImportFromWkt(dataset.GetProjection())
+        # Calculate centroids and draw them as points on the new mask
+        for contour in contours:
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                centroids.append((cx, cy))
+                color = img[cy, cx]
+                colors.append(color.tolist())
+                local_coords.append((cx, cy))
+                cv2.circle(centroid_mask, (cx, cy), 3, color.tolist(), -1)
 
-    # Create shapefile
-    driver = ogr.GetDriverByName("ESRI Shapefile")
-    if os.path.exists(output_shapefile_path):
-        driver.DeleteDataSource(output_shapefile_path)
-    shape_data = driver.CreateDataSource(output_shapefile_path)
-    layer = shape_data.CreateLayer("centroids", spatial_ref, ogr.wkbPoint)
+        # Extract georeferenced information
+        dataset = gdal.Open(image_path)
+        geotransform = dataset.GetGeoTransform()
+        spatial_ref = osr.SpatialReference()
+        spatial_ref.ImportFromWkt(dataset.GetProjection())
 
-    # Add attribute fields
-    layer.CreateField(ogr.FieldDefn("ID", ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn("Red", ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn("Green", ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn("Blue", ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn("Local_X", ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn("Local_Y", ogr.OFTInteger))
+        # Create shapefile
+        driver = ogr.GetDriverByName("ESRI Shapefile")
+        if os.path.exists(output_shapefile_path):
+            driver.DeleteDataSource(output_shapefile_path)
+        shape_data = driver.CreateDataSource(output_shapefile_path)
+        layer = shape_data.CreateLayer("centroids", spatial_ref, ogr.wkbPoint)
 
-    # Prepare the CSV file
-    with open(output_csv_path, mode='a', newline='') as csv_file:
-        fieldnames = ['ID', 'Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue']
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        
-        # Save centroids and colors to the shapefile and CSV file
-        for i, (cx, cy) in enumerate(centroids):
-            # Calculate georeferenced coordinates
-            x = geotransform[0] + cx * geotransform[1] + cy * geotransform[2]
-            y = geotransform[3] + cx * geotransform[4] + cy * geotransform[5]
+        # Add attribute fields
+        layer.CreateField(ogr.FieldDefn("ID", ogr.OFTInteger))
+        layer.CreateField(ogr.FieldDefn("Red", ogr.OFTInteger))
+        layer.CreateField(ogr.FieldDefn("Green", ogr.OFTInteger))
+        layer.CreateField(ogr.FieldDefn("Blue", ogr.OFTInteger))
+        layer.CreateField(ogr.FieldDefn("Local_X", ogr.OFTInteger))
+        layer.CreateField(ogr.FieldDefn("Local_Y", ogr.OFTInteger))
+        layer.CreateField(ogr.FieldDefn("File", ogr.OFTString))
 
-            point = ogr.Geometry(ogr.wkbPoint)
-            point.AddPoint(x, y)
-            
-            feature = ogr.Feature(layer.GetLayerDefn())
-            feature.SetGeometry(point)
-            feature.SetField("ID", i)
-            feature.SetField("Red", colors[i][2])
-            feature.SetField("Green", colors[i][1])
-            feature.SetField("Blue", colors[i][0])
-            feature.SetField("Local_X", local_coords[i][0])
-            feature.SetField("Local_Y", local_coords[i][1])
-            layer.CreateFeature(feature)
-            feature = None
+        # Extract the basename of the TIFF file
+        file_basename = os.path.basename(image_path)
 
-            # Write to the CSV file
-            writer.writerow({
-                'ID': i,
-                'Local_X': local_coords[i][0],
-                'Local_Y': local_coords[i][1],
-                'Real_X': x,
-                'Real_Y': y,
-                'Red': colors[i][2],
-                'Green': colors[i][1],
-                'Blue': colors[i][0]
-            })
+        # Prepare the CSV file
+        with open(output_csv_path, mode='a', newline='') as csv_file:
+            fieldnames = ['ID', 'Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue', 'File']
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
 
-    # Close the shapefile
-    shape_data = None
+            # Save centroids and colors to the shapefile and CSV file
+            for i, (cx, cy) in enumerate(centroids):
+                # Calculate georeferenced coordinates
+                x = geotransform[0] + cx * geotransform[1] + cy * geotransform[2]
+                y = geotransform[3] + cx * geotransform[4] + cy * geotransform[5]
 
+                point = ogr.Geometry(ogr.wkbPoint)
+                point.AddPoint(x, y)
+
+                feature = ogr.Feature(layer.GetLayerDefn())
+                feature.SetGeometry(point)
+                feature.SetField("ID", i)
+                feature.SetField("Red", colors[i][2])
+                feature.SetField("Green", colors[i][1])
+                feature.SetField("Blue", colors[i][0])
+                feature.SetField("Local_X", local_coords[i][0])
+                feature.SetField("Local_Y", local_coords[i][1])
+                feature.SetField("File", file_basename)
+                layer.CreateFeature(feature)
+                feature = None
+
+                # Write to the CSV file
+                writer.writerow({
+                    'ID': i,
+                    'Local_X': local_coords[i][0],
+                    'Local_Y': local_coords[i][1],
+                    'Real_X': x,
+                    'Real_Y': y,
+                    'Red': colors[i][2],
+                    'Green': colors[i][1],
+                    'Blue': colors[i][0],
+                    'File': file_basename
+                })
+
+        # Close the shapefile
+        shape_data = None
     
+    except Exception as e:
+        print(f"An error occurred: {e}")
+ # End of function
+
+
 def mainPolygonize_CD(workingDir, outDir):
     """
     Executes the polygonize function for georeferenced masks containing centroids detected by Circle Detection.
@@ -302,7 +320,7 @@ def mainPolygonize_CD(workingDir, outDir):
                 # Initialisiere den CSV-Schreiber
                 csvwriter = csv.writer(csvfile)
                 # Schreibe die Kopfzeile
-                csvwriter.writerow(['ID', 'Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue'])
+                csvwriter.writerow(['ID','Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue', 'File])
 
         print(f"Die Datei wurde erstellt oder existiert bereits: {output_csv_path}")
 
@@ -319,11 +337,8 @@ def mainPolygonize_CD(workingDir, outDir):
 
 
 #workingDir = "D:/distribution_digitizer/"
-#image_path = "D:/test/output_2024-07-12_08-18-21/rectifying/circleDetection/"
-#output_dir = "D:/test/output_2024-07-12_08-18-21/"
-#mainPolygonize_CD(workingDir, output_dir)
-#output_csv_path = "D:/test/output_2024-07-12_08-18-21/64-2_0069map_1_0_centroids.csv"
-
+#outDir = "D:/test/output_2024-07-12_08-18-21/"
+#mainPolygonize_CD(workingDir, outDir)
 
 
 

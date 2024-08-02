@@ -1208,9 +1208,6 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$listPolygonize, {
     tryCatch({
-      #workingDir="D:/distribution_digitizer/"
-      #outDir="D:/test/output_2024-07-12_08-18-21/"
-      # IMPORTANT not remove!
       config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
       outDir <- config$dataOutputDir
       listShapefiles = list.files(paste0(outDir, "/polygonize/circleDetection/"), full.names = T, pattern = '.shp')
@@ -1230,15 +1227,24 @@ server <- shinyServer(function(input, output, session) {
       })
       
       leaflet_list_PL <- lapply(seq_along(listShapefiles), function(i) {
+        # Read shapefile
+        shape_data <- st_read(listShapefiles[i])
+        
+        # Function to convert RGB to HEX
+        rgb_to_hex <- function(r, g, b) {
+          rgb(r / 255, g / 255, b / 255, maxColorValue = 1)
+        }
+        
         leaflet() %>%
-          addTiles("Test") %>%
-          addProviderTiles("OpenStreetMap.Mapnik") %>%
-          addPolygons(data = st_read(listShapefiles[i]),
-                      fillColor = "blue",
-                      fillOpacity = 0.6,
-                      color = "white",
-                      stroke = TRUE,
-                      weight = 6) %>%
+          addTiles() %>%
+          addCircleMarkers(data = shape_data,
+                           lng = ~st_coordinates(geometry)[,1],  # Längengrad
+                           lat = ~st_coordinates(geometry)[,2],  # Breitengrad
+                           color = ~rgb_to_hex(Red, Green, Blue),  # Farbattribute verwenden
+                           weight = 1,
+                           opacity = 0.9,
+                           fillOpacity = 0.5,
+                           radius = 5) %>%
           addControl(
             htmltools::div(
               p(listShapefiles[i]),
@@ -1247,8 +1253,8 @@ server <- shinyServer(function(input, output, session) {
           ) %>%
           addControl(
             htmltools::div(
-              img(src = paste0("/data/pointFiltering_png/",listPng[i]), width = 200, height = 200),
-              tags$a(href = paste0("/data/pointFiltering_pngs/",listPng[i]), listPng[i], target="_blank"),
+              img(src = paste0("/data/CircleDetection_png/",listPng[i]), width = 200, height = 200),
+              tags$a(href = paste0("/data/CircleDetection_png/",listPng[i]), listPng[i], target="_blank"),
             ),
             position = "bottomleft"
           )
@@ -1262,8 +1268,6 @@ server <- shinyServer(function(input, output, session) {
       shinyalert(text = message, type = "error")
     })
   })
-  
-
   
   ####################
   # 7. Save the outputs #----------------------------------------------------------------------#
@@ -1330,51 +1334,65 @@ server <- shinyServer(function(input, output, session) {
   })
   
   
-  # Spatial View CD
   observeEvent(input$spatialViewCD, {
     # IMPORTANT not remove!
     config <- read.csv(paste0(workingDir,"/config/config.csv"),header = TRUE, sep = ';')
     outDir = config$dataOutputDir
+    
     customMouseover <- JS(
       "function(event) {
-    var layer = event.target;
-    layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
-  }"
+        var layer = event.target;
+        layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
+      }"
     )
+    
+    # Pfad zum Arbeitsverzeichnis und zum Output-Verzeichnis
     #workingDir <- "D:/distribution_digitizer"
-    #outDir <- "D:/test/output_2024-07-12_08-18-21"
-    marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
-    filtered_data <- marker_data[marker_data$Detectionmethod == "circle_detection", ]
-    name_on_top = paste0(filtered_data$speciesy)#,": ", filtered_data$File,".png")
+   # outDir <- "D:/test/output_2024-07-12_08-18-21"
+    
+    # Einlesen der Daten
+    filtered_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ",", header = TRUE)
+    
+    # Filtern der Daten
+    #filtered_data <- marker_data[filtered_data$Detection.method == "circle_detection", ]
+    
+    # Anpassung der Daten für die Anzeige
+    name_on_top <- paste0(filtered_data$species)
     name <- gsub("\\.tiff?$", ".png", filtered_data$File)
-    page <- gsub("\\.tiff?$", ".png", filtered_data$file_name)
-
+    page <- gsub("\\.tiff?$", ".png", filtered_data$File)
     
     # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
-    filtered_data$X <- as.numeric(gsub(",", ".", filtered_data$X))
-    filtered_data$Y <- as.numeric(gsub(",", ".", filtered_data$Y))
+    marker_data$Real_X <- as.numeric(gsub(",", ".", marker_data$Real_X))
+    marker_data$Real_Y <- as.numeric(gsub(",", ".", marker_data$Real_Y))
     
+    # Erstellen der Farben aus den RGB-Werten
+    filtered_data$color <- rgb(filtered_data$Red, filtered_data$Green, filtered_data$Blue, maxColorValue = 255)
+    # Debugging-Ausgabe
+    print(head(filtered_data))
+    print(sapply(filtered_data, class))
     output$mapSpatialViewCD <- renderLeaflet({
       leaflet() %>%
-        addTiles() %>% 
-        addMarkers(
+        addTiles() %>%
+        addCircleMarkers(
           data = filtered_data,
-          lat = ~Y,
-          lng = ~X,
-          label = name_on_top,
+          lat = ~Real_Y,
+          lng = ~Real_X,
+          color = ~color,
+          radius = 2,  # Setzen Sie den Radius hier auf eine kleinere Zahl
+          #label = ~name_on_top,
           labelOptions = labelOptions(
             direction = "auto",
-            noHide = TRUE,
-            onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
+            noHide = TRUE
           ),
-          popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$search_specie, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
-                          "<img src='/matching_png/", name, "' width='100' height='100'></a>",
-                          "<a href='/pages/", page, "' target='_blank'>",
-                          "<img src='/pages/", page, "' width='100' height='100'></a>")
+          popup = ~paste0(
+            "<p><b>Specie keyword on the map: ", filtered_data$species, "</b></p>",
+            "<p><b>", filtered_data$Title, "</b></p>",
+            "<a href='/matching_png/", name, "' target='_blank'>",
+            "<img src='/matching_png/", name, "' width='100' height='100'></a>",
+            "<a href='/pages/", page, "' target='_blank'>",
+            "<img src='/pages/", page, "' width='100' height='100'></a>"
+          )
         )
-      # addLegend(position = "bottomright", colors = "red", labels = "Your Legend Text") %>%
-      # addControl(position = "bottomright", title = "Legend", html = "<div style='background-color: #ffffff; padding: 10px;'>Your Legend Text</div>")
-      
     })
     cat("\nSuccessfully executed")
   })
@@ -1687,21 +1705,21 @@ server <- shinyServer(function(input, output, session) {
         print(" Process georeferencing python script:")
         print(fname)
         source_python(fname)
-        mainmaskgeoreferencingMaps(workingDir, outDir)
+       # mainmaskgeoreferencingMaps(workingDir, outDir)
         mainmaskgeoreferencingMaps_CD(workingDir, outDir)
-        mainmaskgeoreferencingMasks(workingDir, outDir)
+        #mainmaskgeoreferencingMasks(workingDir, outDir)
         mainmaskgeoreferencingMasks_CD(workingDir, outDir)
-        mainmaskgeoreferencingMasks_PF(workingDir, outDir)
+        #mainmaskgeoreferencingMasks_PF(workingDir, outDir)
         # processing rectifying
         
         fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
         print(" Process rectifying python script:")
         print(fname)
         source_python(fname)
-        mainRectifying_Map_PF(workingDir, outDir)
-        mainRectifying(workingDir, outDir)
+        #mainRectifying_Map_PF(workingDir, outDir)
+        #mainRectifying(workingDir, outDir)
         mainRectifying_CD(workingDir, outDir)
-        mainRectifying_PF(workingDir, outDir)
+        #mainRectifying_PF(workingDir, outDir)
         
         findTemplateResult = paste0(outDir, "/georeferencing/masks/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
@@ -1741,10 +1759,10 @@ server <- shinyServer(function(input, output, session) {
         print(" Process polygonizing python script:")
         print(fname)
         source_python(fname)
-        mainPolygonize(workingDir, outDir)
-        mainPolygonize_Map_PF(workingDir, outDir)
+        #mainPolygonize(workingDir, outDir)
+        #mainPolygonize_Map_PF(workingDir, outDir)
         mainPolygonize_CD(workingDir, outDir)
-        mainPolygonize_PF(workingDir, outDir)
+        #mainPolygonize_PF(workingDir, outDir)
         findTemplateResult = paste0(outDir, "/polygonize/circleDetection")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
