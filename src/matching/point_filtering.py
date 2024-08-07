@@ -120,7 +120,6 @@ def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius):
     
     return centroids, output_file
 
-
 # Initialize CSV file for storing coordinates
 def initialize_csv_file(csv_file_path, x_col, y_col):
     if not os.path.exists(csv_file_path):
@@ -142,13 +141,23 @@ def append_to_csv(csv_file_path, centroids, filename, method, georef, template='
             else:
                 last_id = 0
     
+    existing_templates = {}
+    with open(csv_file_path, 'r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            if row['template'] != 'none':
+                key = (int(row['Red']), int(row['Green']), int(row['Blue']))
+                existing_templates[key] = row['template']
+    
     # Open the file in append mode and add the new line
     with open(csv_file_path, 'a', newline='') as file:
         writer = csv.writer(file)
         if last_id == 0:
             writer.writerow(['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'Red', 'Green', 'Blue', 'georef'])
         for centroid in centroids:
-            writer.writerow([last_id + 1, filename, method, centroid[0], centroid[1], template, centroid[2], centroid[3], centroid[4], georef])
+            color_key = (centroid[2], centroid[3], centroid[4])
+            assigned_template = existing_templates.get(color_key, template)
+            writer.writerow([last_id + 1, filename, method, centroid[0], centroid[1], assigned_template, centroid[2], centroid[3], centroid[4], georef])
             last_id += 1
 
 def template_matching(image_path, template_path, method=cv2.TM_CCOEFF_NORMED):

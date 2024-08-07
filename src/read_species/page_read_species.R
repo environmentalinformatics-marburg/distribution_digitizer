@@ -1,16 +1,7 @@
-# ============================================================
-# Script Author: [Spaska Forteva]
-# Created On: 2024-01-10
-# ============================================================
-# Description: R script for reading species data from CSV files, processing it, and saving the results to a new CSV file.
-
 # Required libraries
 library(stringr)
 library(dplyr)
 os <- import("os") 
-
-# Set the working directory
-#workingDir="D:/distribution_digitizer_11_01_2024/"
 
 # Function to read the species
 readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefore, keywordThen, middle) {
@@ -48,11 +39,11 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
   for (i in 1:nrow(filteredData)) {
     print(filteredData)
     pagePath = filteredData[i,"file_name"]
-    if (i< 5000){
+    if (i < 5000) {
       tryCatch({
         pagePath = filteredData[i,"file_name"]
         print(pagePath)
-        speciesData =  filteredData[i,"species"]
+        speciesData = filteredData[i,"species"]
         print(speciesData)
         speciesData <- speciesData[speciesData != ""]
         
@@ -63,7 +54,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
         pageTitleSpecies = find_species_context(pagePath, speciesData, previous_page_path, next_page_path, 
                                                 keywordReadSpecies, keywordBefore, keywordThen, middle)
         print(pageTitleSpecies)
-        #pageTitleSpecies = '0_schistacea_Virachola isocrates isocrates (Fabricius, 1793) e distribution of schistacea'
+        # pageTitleSpecies = '0_schistacea_Virachola isocrates isocrates (Fabricius, 1793) e distribution of schistacea'
         pageTitleSpecies <- gsub("__", "_", pageTitleSpecies)
         # Remove duplicate entries
         if (length(pageTitleSpecies) > 0) {
@@ -86,7 +77,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
         rspecies[is.na(rspecies)] <- "Not found"
         
         # Create a new dataframe with the processed species data
-        new_dataframe <- data.frame(species = rspecies, legend_key = legend_keys,legend_index = legend_indexs, search_specie = search_species, stringsAsFactors = FALSE)
+        new_dataframe <- data.frame(species = rspecies, legend_key = legend_keys, legend_index = legend_indexs, search_specie = search_species, stringsAsFactors = FALSE)
         
         # Add a new column for the file name
         new_dataframe$file_name <- pagePath
@@ -100,42 +91,40 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
         # Save the dataframe to CSV
         if (i == 1) {
           write.table(new_dataframe, file = file.path(outDir, "pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = TRUE, append = TRUE)
-        }
-        else {
+        } else {
           write.table(new_dataframe, file = file.path(outDir, "pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = FALSE, append = TRUE)
         }
+        
+        # Update titles in coordinates.csv
+        update_titles(csv_path = file.path(outDir, "maps", "csvFiles", "coordinates.csv"), pageTitleSpecies)
+        
       }, error = function(e) {
         cat("Error occurred while processing filteredData row:", i, "\n")
         print(pagePath)
         message(e)
-        #  Ausführung fortsetzen, z.B. indem Sie leere Werte oder eine Fehlermeldung in die Ausgabedatei schreiben
+        # Ausführung fortsetzen, z.B. indem Sie leere Werte oder eine Fehlermeldung in die Ausgabedatei schreiben
         continue_execution <- TRUE
-        #if (continue_execution) {
+        # if (continue_execution) {
         # Schreiben Sie Platzhalter in die Datei oder eine Fehlermeldung
         # write.table(..., file = ..., append = TRUE)
-        #}
+        # }
       })
     }
   }
-  update_titles(csv_path=file.path(outDir, "coordinates_transformed.csv"), pageTitleSpecies)
-  update_titles(csv_path=file.path(outDir,"maps", "csvFiles", "coordinates.csv"), pageTitleSpecies)
-  #processCoordinates(coordinatesPath = file.path(outDir,"maps", "csvFiles", "coordinates.csv"), pageSpeciesDataPath=file.path(outDir, "pageSpeciesData.csv"))
+  # update_titles(csv_path=file.path(outDir, "coordinates_transformed.csv"), pageTitleSpecies)
+  
+  # processCoordinates(coordinatesPath = file.path(outDir,"maps", "csvFiles", "coordinates.csv"), pageSpeciesDataPath=file.path(outDir, "pageSpeciesData.csv"))
 }
-
-# Required libraries
-library(dplyr)
-library(stringr)
 
 # Function to update the CSV with titles based on species
 update_titles <- function(csv_path, titles) {
-  
-  coordinates_transformed <- read.csv(csv_path, stringsAsFactors = FALSE)
-  
   # Read the CSV file
   df <- read.csv(csv_path, stringsAsFactors = FALSE)
   
-  # Initialize the Title column
-  df$Title <- NA
+  # Initialize the Title column if it doesn't exist
+  if (!"Title" %in% colnames(df)) {
+    df$Title <- NA
+  }
   
   # Function to match species with titles
   match_titles <- function(species, titles) {
@@ -157,24 +146,14 @@ update_titles <- function(csv_path, titles) {
   df <- df %>% rowwise() %>%
     mutate(Title = match_titles(species, titles))
   
-  # Write the updated CSV file
+  # Write the updated data back to the CSV file
   write.csv(df, csv_path, row.names = FALSE)
   
   cat("Updated CSV file successfully.\n")
 }
 
-# Example usage
-#csv_path <- "D:/test/output_2024-07-12_08-18-21/maps/csvFiles/coordinates.csv"
-#titles <- c("1_3_asiatica_Papilio machaon asiatica Ménétriés, 1855",
-#            "Papilio machaon centralis Stg. - Evans 1932b 198 Himalayas. Baluchistan Upper Urak Ziarat SSS Papilio machaon centralis Staud. — Peile 1937 32 Baluchistan; N.W.")
-
-
-
-
-
 # Function to read and process data
 processCoordinates <- function(coordinatesPath, pageSpeciesDataPath) {
-  
   # Read coordinates.csv and pageSpeciesData.csv
   coordinates <- read.csv(coordinatesPath, stringsAsFactors = FALSE)
   pageSpeciesData <- read.csv(pageSpeciesDataPath, sep = ";", stringsAsFactors = FALSE)
@@ -185,7 +164,6 @@ processCoordinates <- function(coordinatesPath, pageSpeciesDataPath) {
   
   # Loop through each row in coordinates.csv
   for (i in 1:nrow(coordinates)) {
-    
     # Extract relevant information
     map_name <- coordinates[i, "File"]
     species <- coordinates[i, "species"]
@@ -228,6 +206,4 @@ processCoordinates <- function(coordinatesPath, pageSpeciesDataPath) {
 }
 
 # Call the function with specified arguments
-#coordinatesPath <- "D:/test/output_2024-07-12_08-18-21/maps/csvFiles/coordinates.csv"
-#pageSpeciesDataPath <- "D:/test/output_2024-07-12_08-18-21/pageSpeciesData.csv"
-#processCoordinates(coordinatesPath, pageSpeciesDataPath)
+# coordinates

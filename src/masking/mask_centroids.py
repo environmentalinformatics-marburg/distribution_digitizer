@@ -1,16 +1,3 @@
-"""
-File: mask_centroids.py
-Author: Kai Richter
-Date: 2023-11-10
-
-Description: 
-Script for masking the red marked pixels representing centroids detected by Circle Detection and Point Filtering. 
-
-function 'mask_centroids': The red pixels represnting the centroids are masked. The output is the input for georeferencing.
-
-function 'MainMaskCentroids': Functions for looping over all files that should be processed. 
-"""
-
 import numpy as np
 from PIL import Image
 import cv2
@@ -37,10 +24,10 @@ def mask_centroids(tiffile, outdir):
     cv2.imwrite(output_filepath, mask)
     
   except Exception as e:
-        print("An error occurred in mainGeomask:", e)
+        print("An error occurred in mask_centroids:", e)
 
 
-def create_centroid_mask(image_path, output_dir, csv_path):
+def create_centroid_mask(image_path, output_dir, csv_writer):
     # Beispielhafte Farbbereiche (HSV) für rote, grüne und blaue Kreise
     color_ranges = [
         (np.array([0, 70, 50]), np.array([10, 255, 255])),     # Rot
@@ -88,50 +75,38 @@ def create_centroid_mask(image_path, output_dir, csv_path):
     cv2.imwrite(output_path, centroid_mask)
 
     # Schreiben der Zentroiden in die CSV-Datei
-    with open(csv_path, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['ID', 'File', 'X_WGS84', 'Y_WGS84', 'Blue', 'Green', 'Red', 'georef'])
-        for i, (cx, cy, color) in enumerate(centroids):
-            blue, green, red = color
-            
-            writer.writerow([i + 1, os.path.basename(image_path), cx, cy, blue, green, red, 0])
+    for i, (cx, cy, color) in enumerate(centroids):
+        blue, green, red = color
+        csv_writer.writerow([len(centroids), os.path.basename(image_path), cx, cy, blue, green, red, 0])
 
 
 def MainMaskCentroids(workingDir, outDir):
   try:
-    ## For output of circle_detection:
-    # Define input and output directories
-    inputDir = os.path.join(outDir,"maps", "circleDetection/")
-    outputDir = os.path.join(outDir,"masking_black", "circleDetection/")
+    inputDirs = [
+        os.path.join(outDir, "maps", "pointFiltering/"),
+        #os.path.join(outDir, "maps", "pointFiltering/")
+    ]
+    outputDirs = [
+        os.path.join(outDir, "masking_black", "pointFiltering/"),
+        #os.path.join(outDir, "masking_black", "pointFiltering/")
+    ]
     csv_path = os.path.join(outDir, "coordinates_transformed.csv")
-    # Loop through TIFF files in the input directory
-    for file in glob.glob(inputDir + '*.tif'):
-        print(file)
-        if os.path.exists(file):
-             # call the function
-            #mask_centroids(file, outputDir)
-            create_centroid_mask(file, outputDir, csv_path)
-        else:
-          print("Die Datei existiert nicht:", file)
-      
-   
-    ## For output of point_filtering:    
-    # Define input and output directories
-    inputDirPF = outDir + "/maps/pointFiltering/"
-    outputDirPF = outDir + "/masking_black/pointFiltering/"
-   
-    # Loop through TIFF files in the input directory
-    for file in glob.glob(inputDirPF + '*.tif'):
-        print(file)
-        if os.path.exists(file):
-             # call the function
-            create_centroid_mask(file, outputDirPF, csv_path)
-        else:
-          print("Die Datei existiert nicht:", file)
-        # call the function
 
+    with open(csv_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['ID', 'File', 'X_WGS84', 'Y_WGS84', 'Blue', 'Green', 'Red', 'georef'])
+
+        for inputDir, outputDir in zip(inputDirs, outputDirs):
+            # Loop through TIFF files in the input directory
+            for file in glob.glob(inputDir + '*.tif'):
+                print(file)
+                if os.path.exists(file):
+                    # call the function
+                    create_centroid_mask(file, outputDir, writer)
+                else:
+                    print("Die Datei existiert nicht:", file)
   except Exception as e:
         print("An error occurred in MainMaskCentroids:", e)
 
 
-#MainMaskCentroids("C:/Users/user/Documents/MSc_Physische_Geographie/HiWi/distribution_digitizer")
+#MainMaskCentroids("D:/distribution_digitizer/", "D:/test/output_2024-08-06_18-02-17/")

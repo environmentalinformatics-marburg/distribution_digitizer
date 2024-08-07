@@ -156,12 +156,22 @@ def append_to_csv(next_id, csv_file_path, filename, centroids, method, georef):
     - None
     """
     try:
+        existing_templates = {}
+        with open(csv_file_path, 'r') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                if row['template'] != 'none':
+                    key = (int(row['Red']), int(row['Green']), int(row['Blue']))
+                    existing_templates[key] = row['template']
+        
         # Open the file in append mode and add the new lines
         with open(csv_file_path, 'a', newline='') as file:
             writer = csv.writer(file)
             for centroid in centroids:
                 x, y, blue, green, red = centroid
-                writer.writerow([next_id, filename, method, x, y, "none", blue, green, red, 0])
+                color_key = (blue, green, red)
+                assigned_template = existing_templates.get(color_key, 'none')
+                writer.writerow([next_id, filename, method, x, y, assigned_template, blue, green, red, georef])
                 next_id += 1  # Increment the ID for each centroid
     
     except Exception as e:
@@ -227,3 +237,6 @@ def mainCircleDetection(workingDir, outDir, blur, min_dist, threshold_edge, thre
 
     except Exception as e:
         print(f"An error occurred in mainCircleDetection: {e}")
+
+# Usage example:
+# mainCircleDetection("D:/distribution_digitizer/", "D:/test/output_2024-07-12_08-18-21/", 9, 5, 50, 30, 10, 40)

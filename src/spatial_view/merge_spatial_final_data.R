@@ -1,10 +1,13 @@
+# Required libraries
+library(dplyr)
+
 # Funktion zum Mergen der Daten
 mergeFinalData <- function(workingDir, outDir) {
   tryCatch(
     {
       # Pfade zu den CSV-Dateien
       csv_path1 <- file.path(outDir, "maps", "csvFiles", "coordinates.csv")
-      csv_path2 <- file.path(outDir, "polygonize", "csvFiles", "centroids_colors.csv")
+      csv_path2 <- file.path(outDir, "polygonize", "csvFiles", "centroids_colors_pf.csv")
       output_csv_path <- file.path(outDir, "spatial_final_data.csv")
       
       # CSV-Dateien einlesen
@@ -19,11 +22,31 @@ mergeFinalData <- function(workingDir, outDir) {
       merged_df <- merge(df2, df1[, c("File", "Color_Combo", "species", "Title")], 
                          by.x = c("File", "Color_Combo"), by.y = c("File", "Color_Combo"), all.x = TRUE)
       
-      # Doppelte Einträge entfernen
-      merged_df <- merged_df[!duplicated(merged_df), ]
+      # Priorität auf Zeilen mit nicht-leerer Title-Spalte legen und doppelte Einträge entfernen
+      merged_df <- merged_df %>%
+        arrange(File, ID, Local_X, Local_Y, Real_X, Real_Y, Red, Green, Blue, species, desc(!is.na(Title))) %>%
+        distinct(File, ID, Local_X, Local_Y, Real_X, Real_Y, Red, Green, Blue, species, .keep_all = TRUE)
       
       # Die 'Color_Combo'-Spalte entfernen, da sie nicht mehr benötigt wird
       merged_df$Color_Combo <- NULL
+      
+      # Fehlende Spezies und Titel für Dateien ohne bekannte Farbe ergänzen
+      missing_info <- merged_df %>%
+        filter(is.na(species)) %>%
+        group_by(File) %>%
+        summarize(species = paste(unique(na.omit(df1$species[df1$File == File])), collapse = "_"),
+                  Title = paste(unique(na.omit(df1$Title[df1$File == File])), collapse = "; "))
+      
+      merged_df <- merged_df %>%
+        left_join(missing_info, by = "File", suffix = c("", "_y")) %>%
+        mutate(species = ifelse(is.na(species), species_y, species),
+               Title = ifelse(is.na(Title), Title_y, Title)) %>%
+        select(-species_y, -Title_y)
+      
+      # Doppelte Arten entfernen, die durch das Zusammenfügen entstehen können
+      merged_df <- merged_df %>%
+        mutate(species = sapply(strsplit(species, "_"), function(x) paste(unique(x), collapse = "_")),
+               Title = sapply(strsplit(Title, "; "), function(x) paste(unique(x), collapse = "; ")))
       
       # Die neue CSV-Datei schreiben
       write.csv(merged_df, output_csv_path, row.names = FALSE)
@@ -41,6 +64,6 @@ mergeFinalData <- function(workingDir, outDir) {
 }
 
 # Aufrufen der Funktion mit den angegebenen Arbeitsverzeichnissen
-# workingDir <- "D:/distribution_digitizer"
-# outDir <- "D:/test/output_2024-07-12_08-18-21"
-# mergeFinalData(workingDir, outDir)
+#workingDir <- "D:/distribution_digitizer"
+#outDir <- "D:/test/output_2024-08-06_18-02-17/"
+#mergeFinalData(workingDir, outDir)

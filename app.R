@@ -1130,14 +1130,14 @@ server <- shinyServer(function(input, output, session) {
     shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
                closeOnClickOutside = FALSE, animation = TRUE)
     
-    listgeoTiffiles = list.files(paste0(outDir, "/rectifying/"), full.names = T, pattern = paste0('georeferenced',input$siteNumberGeoreferencing))
+    listgeoTiffiles = list.files(paste0(outDir, "/rectifying/circleDetection"), full.names = T, pattern = paste0('.tif',input$siteNumberGeoreferencing))
     if( length(listgeoTiffiles) == 0) {
-      listgeoTiffiles = list.files(paste0(outDir, "/rectifying/"), full.names = T, pattern = '.tif')
+      listgeoTiffiles = list.files(paste0(outDir, "/rectifying/circleDetection"), full.names = T, pattern = '.tif')
     }
     num_leaflet_outputs_GEO <- length(listgeoTiffiles)
     
     # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
-    listPng = list.files(paste0(workingDir, "/www/data/georeferencing_png/"), full.names = F, pattern = paste0('geor', input$siteNumberGeoreferencing))  #print(listPng)
+    listPng = list.files(paste0(workingDir, "/www/data/georeferencing_png/"), full.names = F, pattern = paste0('.png', input$siteNumberGeoreferencing))  #print(listPng)
     
     output$leaflet_outputs_GEO <- renderUI({
       #print( paste('00',input$siteNumberGeoreferencing,'map'))
@@ -1210,7 +1210,7 @@ server <- shinyServer(function(input, output, session) {
     tryCatch({
       config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
       outDir <- config$dataOutputDir
-      listShapefiles = list.files(paste0(outDir, "/polygonize/circleDetection/"), full.names = T, pattern = '.shp')
+      listShapefiles = list.files(paste0(outDir, "/polygonize/pointFiltering/"), full.names = T, pattern = '.shp')
       listShapefiles = grep(input$siteNumberPolygonize, listShapefiles, value= TRUE)
       muster <- "filtered"
       listShapefiles <- grep(paste0("^((?!(", muster, ")).)*$"), listShapefiles, value = TRUE, perl = TRUE)
@@ -1288,33 +1288,32 @@ server <- shinyServer(function(input, output, session) {
         "function(event) { var layer = event.target;
       layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();}"
       )
-      
-      marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
-      filtered_data <- marker_data[marker_data$Detectionmethod == "point_filtering", ]
-      name_on_top = paste0(filtered_data$speciesy)#,": ", filtered_data$File,".png")
-      name <- gsub("\\.tiff?$", ".png", filtered_data$File)
+      marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ",", header = TRUE)
+      #filtered_data <- marker_data[marker_data$Detectionmethod == "point_filtering", ]
+      name_on_top = paste0(marker_data$species)#,": ", filtered_data$File,".png")
+      name <- gsub("\\.tiff?$", ".png", marker_data$File)
       page <- sub(".*_(\\d{4})map_.*", "\\1.tif", name)
       page <- sub("\\.tiff?$", ".png", page)
       
       # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
-      filtered_data$X <- as.numeric(gsub(",", ".", filtered_data$X))
-      filtered_data$Y <- as.numeric(gsub(",", ".", filtered_data$Y))
+      marker_data$Real_X <- as.numeric(gsub(",", ".", marker_data$Real_X))
+      marker_data$Real_Y <- as.numeric(gsub(",", ".", marker_data$Real_Y))
       
       # OpenStreetMap show
       output$mapSpatialViewPF <- renderLeaflet({
         leaflet() %>%
           addTiles() %>%
           addMarkers(
-            data = filtered_data,
-            lat = ~Y,
-            lng = ~X,
+            data = marker_data,
+            lat = ~Real_Y,
+            lng = ~Real_X,
             label = name_on_top,
             labelOptions = labelOptions(
               direction = "auto",
               noHide = TRUE,
               onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
             ),
-            popup = ~paste0("<p><b>specie keyword on the map: ", filtered_data$search_specie, "</b></p><p><b>", filtered_data$species, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
+            popup = ~paste0("<p><b>specie keyword on the map: ", marker_data$species, "</b></p><p><b>", marker_data$Title, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
                             "<img src='/data/matching_png/", name, "' width='100' height='100'></a>",
                             "<a href='/data/pages/", page, "' target='_blank'>",
                             "<img src='/data/pages/", page, "' width='100' height='100'></a>")
@@ -1363,8 +1362,8 @@ server <- shinyServer(function(input, output, session) {
     page <- sub("\\.tiff?$", ".png", page)
     
     # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
-    marker_data$Real_X <- as.numeric(gsub(",", ".", marker_data$Real_X))
-    marker_data$Real_Y <- as.numeric(gsub(",", ".", marker_data$Real_Y))
+    filtered_data$Real_X <- as.numeric(gsub(",", ".", filtered_data$Real_X))
+    filtered_data$Real_Y <- as.numeric(gsub(",", ".", filtered_data$Real_Y))
     
     # Erstellen der Farben aus den RGB-Werten
     filtered_data$color <- rgb(filtered_data$Red, filtered_data$Green, filtered_data$Blue, maxColorValue = 255)
@@ -1380,7 +1379,7 @@ server <- shinyServer(function(input, output, session) {
           lng = ~Real_X,
           color = ~color,
           radius = 2,  # Setzen Sie den Radius hier auf eine kleinere Zahl
-          #label = ~name_on_top,
+          label = ~name_on_top,
           labelOptions = labelOptions(
             direction = "auto",
             noHide = TRUE
@@ -1688,7 +1687,7 @@ server <- shinyServer(function(input, output, session) {
         source_python(fname)
         MainMaskCentroids(workingDir, outDir)
         
-        findTemplateResult = paste0(outDir, "/masking_black/circleDetection/")
+        findTemplateResult = paste0(outDir, "/masking_black/pointFiltering/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Ended on: ", 
@@ -1714,19 +1713,19 @@ server <- shinyServer(function(input, output, session) {
         mainmaskgeoreferencingMaps_CD(workingDir, outDir)
         #mainmaskgeoreferencingMasks(workingDir, outDir)
         mainmaskgeoreferencingMasks_CD(workingDir, outDir)
-        #mainmaskgeoreferencingMasks_PF(workingDir, outDir)
+        mainmaskgeoreferencingMasks_PF(workingDir, outDir)
         # processing rectifying
         
         fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
         print(" Process rectifying python script:")
         print(fname)
         source_python(fname)
-        #mainRectifying_Map_PF(workingDir, outDir)
-        #mainRectifying(workingDir, outDir)
+        mainRectifying_Map_PF(workingDir, outDir)
+        mainRectifying(workingDir, outDir)
         mainRectifying_CD(workingDir, outDir)
-        #mainRectifying_PF(workingDir, outDir)
-        
-        findTemplateResult = paste0(outDir, "/georeferencing/masks/")
+        mainRectifying_PF(workingDir, outDir)
+        #outDir = "D:/test/output_2024-08-05_15-38-45/"
+        findTemplateResult = paste0(outDir, "/georeferencing/maps/circleDetection/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Georeferencing ended on: ", 
@@ -1767,8 +1766,8 @@ server <- shinyServer(function(input, output, session) {
         #mainPolygonize(workingDir, outDir)
         #mainPolygonize_Map_PF(workingDir, outDir)
         mainPolygonize_CD(workingDir, outDir)
-        #mainPolygonize_PF(workingDir, outDir)
-        findTemplateResult = paste0(outDir, "/polygonize/circleDetection")
+        mainPolygonize_PF(workingDir, outDir)
+        findTemplateResult = paste0(outDir, "/polygonize/pointFiltering")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Georeferencing ended on: ", 
