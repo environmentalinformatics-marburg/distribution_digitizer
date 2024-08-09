@@ -1,3 +1,10 @@
+"""
+Author: Spaska Forteva
+Description: This script processes TIFF images to identify and mask 
+centroids based on specific color ranges. 
+It extracts centroid coordinates, saves them as masked images, and logs the details in a CSV file.
+"""
+
 import numpy as np
 from PIL import Image
 import cv2

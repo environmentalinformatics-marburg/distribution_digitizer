@@ -178,7 +178,7 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
                 cy = int(M["m01"] / M["m00"])
                 centroids.append((cx, cy))
                 color = img[cy, cx]
-                colors.append(color.tolist())
+                colors.append([color[2], color[1], color[0]])  # Convert from BGR to RGB
                 local_coords.append((cx, cy))
                 cv2.circle(centroid_mask, (cx, cy), 3, color.tolist(), -1)
 
@@ -224,9 +224,10 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
                 feature = ogr.Feature(layer.GetLayerDefn())
                 feature.SetGeometry(point)
                 feature.SetField("ID", i)
-                feature.SetField("Red", colors[i][2])
-                feature.SetField("Green", colors[i][1])
-                feature.SetField("Blue", colors[i][0])
+                # Ensure that the color channels are integers
+                feature.SetField("Red", int(colors[i][0]))
+                feature.SetField("Green", int(colors[i][1]))
+                feature.SetField("Blue", int(colors[i][2]))
                 feature.SetField("Local_X", local_coords[i][0])
                 feature.SetField("Local_Y", local_coords[i][1])
                 feature.SetField("File", file_basename)

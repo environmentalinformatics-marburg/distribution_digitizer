@@ -2,6 +2,14 @@
 library(tesseract)
 library(stringr)
 
+
+clean_species <- function(species) {
+  species <- gsub("_", "", species)  # Entferne alle Unterstriche
+  species <- trimws(species)         # Entferne führende und nachfolgende Leerzeichen
+  return(species)
+}
+
+
 # Function to read the species
 read_legends <- function(working_dir, out_dir) {
   
@@ -32,8 +40,7 @@ read_legends <- function(working_dir, out_dir) {
       species <- crop_specie(working_dir, out_dir, file_name, map_name, as.integer(records_page$y[1]), as.integer(records_page$h[1]))
       print("Here the specie:")
       print(species)
-      records_page$species <- species
-      write.csv(records_page, records_pages[j], row.names = FALSE)
+
       results <- paste0(results, "<br>", map_name, ";", species)
       
       # Remove leading underscore and split species string into components
@@ -48,6 +55,7 @@ read_legends <- function(working_dir, out_dir) {
       clean_species <- function(species) {
         species <- gsub("\\d", "", species)  # Remove digits
         species <- gsub("S.*", "", species)  # Remove everything after 'S'
+        species <- gsub("_", "", species)
         return(species)
       }
       
@@ -57,7 +65,11 @@ read_legends <- function(working_dir, out_dir) {
       
       # Create a named vector of cleaned species
       names(cleaned_species) <- sapply(species_list, function(x) sub(".*S", "", x))
-      print(names(cleaned_species))
+      
+      print(paste(unique(cleaned_species), collapse = "_"))
+      
+      records_page$species <- paste(unique(cleaned_species), collapse = "_")
+      write.csv(records_page, records_pages[j], row.names = FALSE)
       
       # Subset dataframe for matching records
       df_map_name <- subset(df, grepl(basename(map_name), File))

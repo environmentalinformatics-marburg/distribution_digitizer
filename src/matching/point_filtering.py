@@ -1,3 +1,10 @@
+"""
+Author: Spaska Forteva
+Last modified on 2024-08-09 by Spaska Forteva:
+Description: This script processes images to detect and mask centroids of specific colors (red, blue, green) in TIFF files. 
+It applies various image processing techniques, including color filtering, contour detection, and template matching, and logs the results in a CSV file.
+"""
+
 import cv2
 import PIL
 from PIL import Image
@@ -99,21 +106,25 @@ def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius):
         dominant_color = determine_color(color_count)
 
         # Wähle die entsprechende BGR-Farbe
-        color_bgr = {
-            'red': (0, 0, 255),
-            'blue': (255, 0, 0),
-            'green': (0, 255, 0),
-            'orange': (0, 165, 255)  # Orange als Fallback
-        }[dominant_color]
+        # Richtiges BGR-zu-RGB-Mapping für das Zeichnen
+        if dominant_color == 'red':
+            color_rgb = (0, 0, 255)
+        elif dominant_color == 'blue':
+            color_rgb = (255, 0, 0)
+        elif dominant_color == 'green':
+            color_rgb = (0, 255, 0)
+        else:
+            color_rgb = (255, 165, 0)  # Orange als Fallback
 
         # Zeichne die Konturen und Zentroide
         M = cv2.moments(contour)
         if M["m00"] != 0:
             cx = int(M["m10"] / M["m00"])
             cy = int(M["m01"] / M["m00"])
-            cv2.drawContours(processed_image, [contour], -1, color_bgr, 3)
-            cv2.circle(processed_image, (cx, cy), 5, color_bgr, -1)
-            centroids.append((cx, cy, color_bgr[2], color_bgr[1], color_bgr[0]))  # Append in BGR format
+            cv2.drawContours(processed_image, [contour], -1, color_rgb, 3)
+            cv2.circle(processed_image, (cx, cy), 5, color_rgb, -1)
+            # Stelle sicher, dass die BGR-Werte korrekt in die CSV geschrieben werden
+            centroids.append((cx, cy, color_rgb[2], color_rgb[1], color_rgb[0]))  # Append in RGB format
 
     output_file = os.path.join(outdir, os.path.basename(tiffile))
     PIL.Image.fromarray(processed_image, 'RGB').save(output_file)
@@ -183,7 +194,6 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius):
             append_to_csv(csv_path, centroids, os.path.basename(file), "point_filtering", 0, "none")
         else:
             PIL.Image.fromarray(np.array(PIL.Image.open(file)), 'RGB').save(output_file)
-
 
 # Usage example:
 # main_point_filtering("D:/distribution_digitizer/", "D:/test/output_2024-07-12_08-18-21/", 9, 5)

@@ -239,4 +239,4 @@ def mainCircleDetection(workingDir, outDir, blur, min_dist, threshold_edge, thre
         print(f"An error occurred in mainCircleDetection: {e}")
 
 # Usage example:
-# mainCircleDetection("D:/distribution_digitizer/", "D:/test/output_2024-07-12_08-18-21/", 9, 5, 50, 30, 10, 40)
+#mainCircleDetection("D:/distribution_digitizer/", "D:/test/output_2024-08-09_11-10-51/", 9, 5, 50, 30, 10, 40)

@@ -41,7 +41,7 @@ mergeFinalData <- function(workingDir, outDir) {
         left_join(missing_info, by = "File", suffix = c("", "_y")) %>%
         mutate(species = ifelse(is.na(species), species_y, species),
                Title = ifelse(is.na(Title), Title_y, Title)) %>%
-        select(-species_y, -Title_y)
+        dplyr::select(-species_y, -Title_y)  # Verwende dplyr::select
       
       # Doppelte Arten entfernen, die durch das Zusammenfügen entstehen können
       merged_df <- merged_df %>%
@@ -65,5 +65,5 @@ mergeFinalData <- function(workingDir, outDir) {
 
 # Aufrufen der Funktion mit den angegebenen Arbeitsverzeichnissen
 #workingDir <- "D:/distribution_digitizer"
-#outDir <- "D:/test/output_2024-08-06_18-02-17/"
+#outDir <- "D:/test/output_2024-08-07_15-46-48//"
 #mergeFinalData(workingDir, outDir)

@@ -1804,15 +1804,15 @@ server <- shinyServer(function(input, output, session) {
         # Processing spatial data computing
        
         expr = {
-          fname=paste0(workingDir, "/", "src/extract_coordinates/poly_to_point.py")
-          source_python(fname)
-          main_circle_detection(workingDir, outDir)
-          main_point_filtering(workingDir, outDir)
+          #fname=paste0(workingDir, "/", "src/extract_coordinates/poly_to_point.py")
+          #source_python(fname)
+          #main_circle_detection(workingDir, outDir)
+          #main_point_filtering(workingDir, outDir)
           
-          fname=paste0(workingDir, "/", "src/extract_coordinates/extract_coords.py")
-          source_python(fname)
-          main_circle_detection(workingDir, outDir)
-          main_point_filtering(workingDir, outDir)
+          #fname=paste0(workingDir, "/", "src/extract_coordinates/extract_coords.py")
+          #source_python(fname)
+          #main_circle_detection(workingDir, outDir)
+          #main_point_filtering(workingDir, outDir)
           
           # prepare pages as png for the spatia view
           convertTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/data/pages/"))

@@ -60,17 +60,17 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
                       search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
     #print("HHH")
     
-    print("if aktuelle")
+    #print("if aktuelle")
     print(specie_content)
     if (len(specie_content) > 3):
 
       all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
       continue
     
-    print("if2 prev")
+    #print("if2 prev")
     print(specie_content)
     if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
-      print("if1")
+      #print("if1")
       #print(previous_page_path)
       specie_content = find_specie_context(previous_page_path,
                           search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
@@ -91,8 +91,8 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
         continue
       
       
-    print(specie_content)    
-    print("if4 get_lines_last_check")
+    #print(specie_content)    
+    #print("if4 get_lines_last_check")
     #if(len(specie_content) == 0):
     #  print("if3")
     #  specie_content = find_specie_context_RegExReduce(page_path,
@@ -155,7 +155,7 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
   """
   try:
     _result = ""  # Initialize the result variable
-    
+    print("find_specie_context")
     # Load the image from the specified file path
     image = Image.open(page_path)
   
@@ -189,13 +189,13 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
         ###
         #print(f"Found '\"' and 'distribution' in: {line}")
         continue
-      if re.search(r"^\s*.*\b" + "type locality" + r"\b", line):
+     # if re.search(r"^\s*.*\b" + "type locality" + r"\b", line):
         #print(f"Found '\"' and 'distribution' in: {line}")
-        continue
+        #continue
       if re.search(r"^\s*\bdistribution\b", line):
           continue
-      if re.search(r"^\s*\btype locality\b", line):
-          continue
+      #if re.search(r"^\s*\btype locality\b", line):
+          #continue
       if re.search(r"\bdistribution\b", line):
           continue
       if "distribution" in line:
@@ -211,6 +211,9 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
         if line.startswith("[") or line.startswith("]"):
           line = line[1:]
         _result = line
+        print("214")
+        print( _result )
+        print("214")
         ###  
         if year_pattern.search(line):
           _result = line
@@ -218,7 +221,7 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
             index_left = extracted_data['text'].index(line.split()[0])
             maxPos = max(extracted_data['left'])
             if int(extracted_data['left'][index_left]) > (int(maxPos/4)/10):
-              #print(f"Spacie {search_specie} was FOUND in this line: {line} in the middle")
+              print(f"Spacie {search_specie} was FOUND in this line: {line} in the middle")
               _result = line
               if keyword_page_Specie is None: return _result
             else: return '' # Important when the spacie is not finded on this page, but is on the previous page
@@ -234,9 +237,9 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
               if keyword_page_Specie in temp_line:
                 #print(f"The spacie {search_specie} was FOUND in this line: {line} in the middle and Keyword: {keyword_page_Specie}")
                 return line # search_specie in the line and the line and in middle and and regEx year and has keyword
-            #print(_result) 
+
             return _result # search_specie in the line and the line and in middle and regEx year
-          #print(_result) 
+
           return _result # search_specie in the line and regEx year
     #if(len(_result) == 0):
     #  _result = find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
@@ -255,7 +258,7 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
 def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
   
   try:
-    #print("regEx")
+    print("regEx")
     _result = ""  # Initialize the result variable
   
     # Regular expression for a four-digit year
@@ -312,7 +315,7 @@ def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page
             return _result # search_specie in the line and the line and in middle and regEx year
          
           return _result # search_specie in the line and regEx year
-          
+    print(_result)      
     return _result
   except Exception as e:
       print("An error occurred during find_specie_context_RegEx processing:")
@@ -325,7 +328,7 @@ def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page
 # Function to find species context with a given keyword
 def find_specie_context_RegExReduce(page_path, search_specie):
   try:
-    #print("regExRed")
+    print("RegExReduce")
     image = Image.open(page_path)
   
     # Extract text from the image
@@ -367,6 +370,7 @@ def find_specie_context_RegExReduce(page_path, search_specie):
           return temp_result + year
         else:
           continue
+    print(_result)
     return _result
 
   except Exception as e:
@@ -475,7 +479,7 @@ def get_lines_last_check(image_path, keyword):
                  
         if(len(lines_with_keyword) > 0):
             result_string = ' SSS '.join(lines_with_keyword)
-  
+        print(result_string)
         return result_string
     
     except Exception as e:

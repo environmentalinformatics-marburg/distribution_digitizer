@@ -37,14 +37,14 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
   # Import the Python script for species reading
   source_python(paste0(workingDir, "/src/read_species/page_crop_species.py"))
   for (i in 1:nrow(filteredData)) {
-    print(filteredData)
+    #print(filteredData)
     pagePath = filteredData[i,"file_name"]
     if (i < 5000) {
       tryCatch({
         pagePath = filteredData[i,"file_name"]
-        print(pagePath)
+        #print(pagePath)
         speciesData = filteredData[i,"species"]
-        print(speciesData)
+        #print(speciesData)
         speciesData <- speciesData[speciesData != ""]
         
         previous_page_path = filteredData[i,"previous_page_path"]
@@ -53,9 +53,10 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
         # Call the Python function for species identification
         pageTitleSpecies = find_species_context(pagePath, speciesData, previous_page_path, next_page_path, 
                                                 keywordReadSpecies, keywordBefore, keywordThen, middle)
-        print(pageTitleSpecies)
+      
         # pageTitleSpecies = '0_schistacea_Virachola isocrates isocrates (Fabricius, 1793) e distribution of schistacea'
         pageTitleSpecies <- gsub("__", "_", pageTitleSpecies)
+       
         # Remove duplicate entries
         if (length(pageTitleSpecies) > 0) {
           splitted_results <- unique(pageTitleSpecies)
@@ -66,7 +67,10 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
           legend_indexs <- sapply(splitted_results, function(x) as.numeric(x[2]))
           search_species <- sapply(splitted_results, function(x) x[3])
           rspecies <- sapply(splitted_results, function(x) x[4])
+          print(search_species)
           print(rspecies)
+          # Update titles in coordinates.csv
+          update_titles(csv_path = file.path(outDir, "maps", "csvFiles", "coordinates.csv"), search_species, rspecies)
         } else { 
           # Set all vectors to NA if there's only one entry
           legend_keys <- NA
@@ -95,9 +99,6 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
           write.table(new_dataframe, file = file.path(outDir, "pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = FALSE, append = TRUE)
         }
         
-        # Update titles in coordinates.csv
-        update_titles(csv_path = file.path(outDir, "maps", "csvFiles", "coordinates.csv"), pageTitleSpecies)
-        
       }, error = function(e) {
         cat("Error occurred while processing filteredData row:", i, "\n")
         print(pagePath)
@@ -116,8 +117,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
   # processCoordinates(coordinatesPath = file.path(outDir,"maps", "csvFiles", "coordinates.csv"), pageSpeciesDataPath=file.path(outDir, "pageSpeciesData.csv"))
 }
 
-# Function to update the CSV with titles based on species
-update_titles <- function(csv_path, titles) {
+update_titles <- function(csv_path, species_list, titles_list) {
   # Read the CSV file
   df <- read.csv(csv_path, stringsAsFactors = FALSE)
   
@@ -126,31 +126,48 @@ update_titles <- function(csv_path, titles) {
     df$Title <- NA
   }
   
-  # Function to match species with titles
-  match_titles <- function(species, titles) {
-    # Split species by underscore
-    species_list <- str_split(species, "_")[[1]]
-    # If species_list has only one species
-    if (length(species_list) == 1) {
-      matched_titles <- titles[sapply(titles, function(title) grepl(species_list, title))]
-      if (length(matched_titles) > 0) {
-        return(paste(matched_titles, collapse = "; "))
+  # Loop through each species in the species_list
+  for (species in species_list) {
+    matching_titles <- NULL
+    
+    # Search for the species in each title in titles_list
+    for (title in titles_list) {
+      if (grepl(species, title)) {
+        matching_titles <- c(matching_titles, title)
       }
-    } else {
-      return(paste(titles, collapse = "; "))
     }
-    return(NA)
+    
+    # If matching titles are found, update the Title column
+    if (!is.null(matching_titles)) {
+      df$Title <- ifelse(df$species == species, 
+                         paste(df$Title[which(df$species == species)], 
+                               paste(matching_titles, collapse = "; "), 
+                               sep = "; "), 
+                         df$Title)
+    }
   }
   
-  # Update the Title column based on species
-  df <- df %>% rowwise() %>%
-    mutate(Title = match_titles(species, titles))
+  # Remove any leading or trailing semicolons and whitespace from the Title column
+  df$Title <- trimws(gsub("^;\\s*|\\s*;$", "", df$Title))
   
   # Write the updated data back to the CSV file
   write.csv(df, csv_path, row.names = FALSE)
   
-  cat("Updated CSV file successfully.\n")
+  cat("Updated CSV file successfully for species:", paste(species_list, collapse = ", "), "\n")
 }
+
+
+# Beispielaufruf:
+# Angenommen, du möchtest die Titel für mehrere Spezies aktualisieren:
+# species_list <- c("baltistana", "balucha", "pallida")
+# titles_list <- c("Title for baltistana", "Title for balucha", "Title for pallida")
+# update_titles("path/to/your/csv_file.csv", species_list, titles_list)
+
+# Beispielaufruf:
+# Angenommen, du möchtest den Titel "Syla Title" für alle Zeilen mit dem `species` "syla" aktualisieren:
+# update_titles("path/to/your/csv_file.csv", "syla", "Syla Title")
+
+
 
 # Function to read and process data
 processCoordinates <- function(coordinatesPath, pageSpeciesDataPath) {
@@ -205,5 +222,6 @@ processCoordinates <- function(coordinatesPath, pageSpeciesDataPath) {
   cat("Updated coordinates.csv successfully.\n")
 }
 
+#species = readPageSpecies("D:/distribution_digitizer/", "D:/test/output_2024-08-07_15-46-48/", "Range", 0, 2, 1)
 # Call the function with specified arguments
 # coordinates
