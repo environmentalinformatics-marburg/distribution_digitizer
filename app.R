@@ -1130,9 +1130,9 @@ server <- shinyServer(function(input, output, session) {
     shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
                closeOnClickOutside = FALSE, animation = TRUE)
     
-    listgeoTiffiles = list.files(paste0(outDir, "/rectifying/circleDetection"), full.names = T, pattern = paste0('.tif',input$siteNumberGeoreferencing))
+    listgeoTiffiles = list.files(paste0(outDir, "/rectifying/pointFiltering"), full.names = T, pattern = paste0('.tif',input$siteNumberGeoreferencing))
     if( length(listgeoTiffiles) == 0) {
-      listgeoTiffiles = list.files(paste0(outDir, "/rectifying/circleDetection"), full.names = T, pattern = '.tif')
+      listgeoTiffiles = list.files(paste0(outDir, "/rectifying/pointFiltering"), full.names = T, pattern = '.tif')
     }
     num_leaflet_outputs_GEO <- length(listgeoTiffiles)
     
@@ -1275,7 +1275,7 @@ server <- shinyServer(function(input, output, session) {
   
   # Start
   observeEvent(input$startSpatialDataComputing, {
-    # call the function for filtering
+    # call the function for filteringg
     manageProcessFlow("spatial_data_computing", "spatial", "spatial")
   })
   
@@ -1288,7 +1288,7 @@ server <- shinyServer(function(input, output, session) {
         "function(event) { var layer = event.target;
       layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();}"
       )
-      marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ",", header = TRUE)
+      marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
       #filtered_data <- marker_data[marker_data$Detectionmethod == "point_filtering", ]
       name_on_top = paste0(marker_data$species)#,": ", filtered_data$File,".png")
       name <- gsub("\\.tiff?$", ".png", marker_data$File)
@@ -1350,7 +1350,7 @@ server <- shinyServer(function(input, output, session) {
    # outDir <- "D:/test/output_2024-07-12_08-18-21"
     
     # Einlesen der Daten
-    filtered_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ",", header = TRUE)
+    filtered_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
     
     # Filtern der Daten
     #filtered_data <- marker_data[filtered_data$Detection.method == "circle_detection", ]

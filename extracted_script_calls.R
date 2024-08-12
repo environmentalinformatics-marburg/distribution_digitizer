@@ -1,8 +1,9 @@
 
 library(reticulate)
+
 library(tesseract)
 workingDir = "D:/distribution_digitizer/"
-outDir = "D:/test/output_2024-08-09_14-39-27/"
+outDir = "D:/test/output_2024-08-12_15-21-09/"
 config <- read.csv(paste0(workingDir,"/config/config.csv"),header = TRUE, sep = ';')
 outDir = config$dataOutputDir
 
@@ -25,21 +26,12 @@ print(fname)
 source_python(fname)
 align_images_directory(workingDir, outDir)
 
-cat("\nSuccessfully executed")
-findTemplateResult = paste0(outDir, "/maps/align/")
-files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-countFiles = paste0(length(files),"")
-
 # point_matching
 fname=paste0(workingDir, "/", "src/matching/point_matching.py")
 print(" Processing point python script:")
 print(fname)
 source_python(fname)
 map_points_matching(workingDir, outDir, 0.7)
-findTemplateResult = paste0(outDir, "/maps/pointMatching/")
-print(findTemplateResult)
-cat("\nSuccessfully executed")
-
 
 #point_filtering
 fname=paste0(workingDir, "/", "src/matching/point_filtering.py")
@@ -50,11 +42,6 @@ source_python(fname)
 source_python(fname2)
 main_point_filtering(workingDir, outDir, 5, 9)
 
-cat("\nSuccessfully executed")
-# convert the tif images to png and save in www
-findTemplateResult = paste0(outDir, "/maps/pointFiltering/")
-files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-countFiles <- paste0(length(files), "")
 
 
 # circle_detection
@@ -98,7 +85,7 @@ source_python(fname)
 MainMaskCentroids(workingDir, outDir)
 
 
-# Croping
+# Cropping
 fname <- paste0(workingDir, "/", "src/read_species/map_read_species.R")
 print("Croping the species names from the map botton R script:")
 print(fname)
@@ -107,8 +94,7 @@ species <- read_legends(workingDir, outDir)
 cat("\nSuccessfully executed")
 
 
-
-# Read page species
+# read Titles
 fname <- paste0(workingDir, "/", "src/read_species/page_read_species.R")
 print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ", outDir, " directory"))
 source(fname)
@@ -128,9 +114,9 @@ print(" Process georeferencing python script:")
 print(fname)
 source_python(fname)
 # mainmaskgeoreferencingMaps(workingDir, outDir)
-mainmaskgeoreferencingMaps_CD(workingDir, outDir)
+#mainmaskgeoreferencingMaps_CD(workingDir, outDir)
 #mainmaskgeoreferencingMasks(workingDir, outDir)
-mainmaskgeoreferencingMasks_CD(workingDir, outDir)
+#mainmaskgeoreferencingMasks_CD(workingDir, outDir)
 mainmaskgeoreferencingMasks_PF(workingDir, outDir)
 # processing rectifying
 
@@ -138,14 +124,14 @@ fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
 print(" Process rectifying python script:")
 print(fname)
 source_python(fname)
-mainRectifying_Map_PF(workingDir, outDir)
-mainRectifying(workingDir, outDir)
-mainRectifying_CD(workingDir, outDir)
+#mainRectifying_Map_PF(workingDir, outDir)
+#mainRectifying(workingDir, outDir)
+#mainRectifying_CD(workingDir, outDir)
 mainRectifying_PF(workingDir, outDir)
 #outDir = "D:/test/output_2024-08-05_15-38-45/"
-findTemplateResult = paste0(outDir, "/georeferencing/maps/circleDetection/")
-files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-countFiles <- paste0(length(files), "")
+#findTemplateResult = paste0(outDir, "/georeferencing/maps/circleDetection/")
+#files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+#countFiles <- paste0(length(files), "")
 
 
 
@@ -156,14 +142,11 @@ print(fname)
 source_python(fname)
 #mainPolygonize(workingDir, outDir)
 #mainPolygonize_Map_PF(workingDir, outDir)
-mainPolygonize_CD(workingDir, outDir)
+#mainPolygonize_CD(workingDir, outDir)
 mainPolygonize_PF(workingDir, outDir)
-findTemplateResult = paste0(outDir, "/polygonize/pointFiltering")
-files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-countFiles <- paste0(length(files), "")
+
 
 # merge_spatial
-convertTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/data/pages/"))
 source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
 mergeFinalData(workingDir, outDir)
 

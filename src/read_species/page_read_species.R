@@ -33,7 +33,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
   
   # Select non-duplicated rows
   filteredData <- combined_data[!duplicated_rows, ]
-  
+  indexNumberMap = 0
   # Import the Python script for species reading
   source_python(paste0(workingDir, "/src/read_species/page_crop_species.py"))
   for (i in 1:nrow(filteredData)) {
