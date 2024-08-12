@@ -3,7 +3,7 @@ library(reticulate)
 
 library(tesseract)
 workingDir = "D:/distribution_digitizer/"
-outDir = "D:/test/output_2024-08-12_15-21-09/"
+outDir = "D:/test/map_1/"
 config <- read.csv(paste0(workingDir,"/config/config.csv"),header = TRUE, sep = ';')
 outDir = config$dataOutputDir
 
@@ -150,4 +150,57 @@ mainPolygonize_PF(workingDir, outDir)
 source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
 mergeFinalData(workingDir, outDir)
 
+
+# Funktion zum Kombinieren der spatial_final_data.csv Dateien und Hinzufügen einer fortlaufenden ID-Spalte
+combineAllMaps <- function(outDir1, outDir2, outputDir) {
+  tryCatch(
+    {
+      # Pfade zu den CSV-Dateien
+      csv_path1 <- file.path(outDir1, "spatial_final_data.csv")
+      csv_path2 <- file.path(outDir2, "spatial_final_data.csv")
+      output_csv_path <- file.path(outputDir, "final_all_maps.csv")
+      
+      # CSV-Dateien einlesen
+      df1 <- read.csv2(csv_path1, stringsAsFactors = FALSE)
+      df2 <- read.csv2(csv_path2, stringsAsFactors = FALSE)
+      
+      # Beide DataFrames zusammenfügen (einfaches Anhängen)
+      combined_df <- bind_rows(df1, df2)
+      
+      # Fortlaufende ID-Spalte hinzufügen
+      combined_df <- combined_df %>%
+        mutate(ID = row_number())
+      
+      # ID-Spalte an die erste Stelle verschieben
+      combined_df <- combined_df %>%
+        dplyr::select(ID, everything())
+      
+      # Die neue CSV-Datei schreiben
+      write.csv2(combined_df, output_csv_path, row.names = FALSE)
+      
+      print(paste("Final combined CSV file with ID created at:", output_csv_path))
+      
+    }, 
+    error = function(e) {
+      print(e)
+    },
+    finally = {
+      cat("\nSuccessfully executed")
+    }
+  )
+}
+
+# Beispiel für den Aufruf der Funktion
+# outDir1 <- "D:/test/output_2024-08-07_15-46-48"
+# outDir2 <- "D:/test/output_2024-08-08_12-30-25"
+# outputDir <- "D:/test/final_output"
+# combineAllMaps(outDir1, outDir2, outputDir)
+
+
+# Aufrufen der Funktion mit den angegebenen Arbeitsverzeichnissen
+# Beispiel: 
+outDir1 <- "D:/test/output_2024-08-12_15-21-09/"
+outDir2 <- "D:/test/map_1/"
+outputDir <- "D:/test/"
+combineAllMaps(outDir1, outDir2, outputDir)
 
