@@ -56,7 +56,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
       
         # pageTitleSpecies = '0_schistacea_Virachola isocrates isocrates (Fabricius, 1793) e distribution of schistacea'
         pageTitleSpecies <- gsub("__", "_", pageTitleSpecies)
-       
+        indexNumberMap = indexNumberMap +1
         # Remove duplicate entries
         if (length(pageTitleSpecies) > 0) {
           splitted_results <- unique(pageTitleSpecies)
@@ -67,6 +67,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
           legend_indexs <- sapply(splitted_results, function(x) as.numeric(x[2]))
           search_species <- sapply(splitted_results, function(x) x[3])
           rspecies <- sapply(splitted_results, function(x) x[4])
+          print(indexNumberMap)
           print(search_species)
           print(rspecies)
           # Update titles in coordinates.csv

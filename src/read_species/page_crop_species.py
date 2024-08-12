@@ -28,7 +28,7 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
   
   # Map legends
   legend1 = 'distribution'
-  legend2 = 'locality'
+  #legend2 = 'locality'
   
   # return result
   all_results = []
@@ -47,11 +47,11 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
       flag = 1
       leg1Index = leg1Index+1
       legI = leg1Index
-    if(legend2 in search_specie):
-      search_specie = search_specie.replace(legend2, "")
-      flag = 2
-      leg2Index = leg2Index+1
-      legI = leg2Index
+    #if(legend2 in search_specie):
+    #  search_specie = search_specie.replace(legend2, "")
+    #  flag = 2
+    #  leg2Index = leg2Index+1
+    #  legI = leg2Index
     #print(search_specie) 
     
     
@@ -60,17 +60,17 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
                       search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
     #print("HHH")
     
-    #print("if aktuelle")
+    print("if aktuelle")
     print(specie_content)
     if (len(specie_content) > 3):
 
       all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
       continue
     
-    #print("if2 prev")
-    print(specie_content)
+    # print("if2 prev")
+    # print(specie_content)
     if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
-      #print("if1")
+      print("if1")
       #print(previous_page_path)
       specie_content = find_specie_context(previous_page_path,
                           search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
@@ -80,9 +80,9 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
       
       
     #print(specie_content) 
-    #print("if3 next")
+    # print("if3 next")
     if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
-      #print("if3")
+      print("if3")
       #print(next_page_path)
       specie_content = find_specie_context(next_page_path,
                            search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
@@ -102,16 +102,16 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
      #   continue
     if(len(specie_content) == 0):
       specie_content = get_lines_last_check(page_path,search_specie)
-      
+      #print("hhh")
       if(len(specie_content) > 5):
-        #print(specie_content)
+        print(specie_content)
         all_results.append((str(flag)+ "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
         continue
     
     #print(specie_content)    
-    #print("if5 pre get_lines_last_check")  
+    print("if5 pre get_lines_last_check")  
     if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
-      #print("if1")
+      print("if1")
       #print(previous_page_path)
       specie_content = get_lines_last_check(previous_page_path,
                           search_specie)
@@ -121,9 +121,9 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
       
       
     #print(specie_content)    
-    #print("if6 next get_lines_last_check")
+    print("if6 next get_lines_last_check")
     if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
-      #print("if3")
+      print("if6")
       #print(next_page_path)
       specie_content = get_lines_last_check(next_page_path,
                            search_specie)
@@ -155,7 +155,7 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
   """
   try:
     _result = ""  # Initialize the result variable
-    print("find_specie_context")
+
     # Load the image from the specified file path
     image = Image.open(page_path)
   
@@ -168,9 +168,9 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
     # Split the text into lines
     lines = extracted_text.split('\n')
     legend1 = 'distribution'
-    legend2 = 'locality'
+    # legend2 = 'locality'
     # Regular expression for a four-digit year
-   # year_pattern = re.compile(r'\(\D*\d{4}\)')
+    # year_pattern = re.compile(r'\(\D*\d{4}\)')
     #year_pattern = re.compile(r'\b(?:\(\D*\d{4}\)|\d{4})\b')
     year_pattern = re.compile(r'\b\d{4}\b')
     # Remove unnecessary characters from the search_specie
@@ -186,22 +186,28 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
       if re.search(r"^\s*\bdistribution\b", line):
         continue
       if re.search(r"^\s*\".*\b" + legend1 + r"\b", line) or (":" in line) or ("|" in line and not line.startswith("\"")):
-        ###
-        #print(f"Found '\"' and 'distribution' in: {line}")
         continue
-     # if re.search(r"^\s*.*\b" + "type locality" + r"\b", line):
-        #print(f"Found '\"' and 'distribution' in: {line}")
-        #continue
+      if re.search(r"^\s*.*\b" + "type locality" + r"\b", line):
+        continue
       if re.search(r"^\s*\bdistribution\b", line):
-          continue
-      #if re.search(r"^\s*\btype locality\b", line):
-          #continue
+        continue
+      if re.search(r"^\s*\btype locality\b", line):
+        continue
       if re.search(r"\bdistribution\b", line):
-          continue
+        continue
       if "distribution" in line:
-          continue
-      
-      
+        continue
+      if re.search(r"\blocality of\b", line):  # Skip lines containing "locality of"
+        continue
+      if re.search(r"\blocality\b", line, re.IGNORECASE):
+        continue
+      if re.search(r"\blocality of\b", line, re.IGNORECASE):  # Skip lines containing "locality of"
+        continue
+      if re.search(r"\btype locality\b", line, re.IGNORECASE):
+        continue
+      if re.search(r"\btype locality of\b", line, re.IGNORECASE):  # Skip lines containing "type locality of"
+        continue
+        
       if search_specie in line:
         line = line.replace('|', '') 
         line = line.replace("\\", "")
@@ -211,9 +217,13 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
         if line.startswith("[") or line.startswith("]"):
           line = line[1:]
         _result = line
-        print("214")
-        print( _result )
-        print("214")
+              
+        if re.search(r"\blocality\b", line, re.IGNORECASE):
+          print(f"Originalwwww line: {_result}")
+        print(f"Original line: {_result}")
+        #print("214")
+        #print( _result )
+        #print("214")
         ###  
         if year_pattern.search(line):
           _result = line
@@ -268,7 +278,7 @@ def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page
     # Remove unnecessary characters from the search_specie
     search_specie = search_specie.strip(' ,.?!()[]{}_"\';')
     legend1 = 'distribution'
-    legend2 = 'locality'
+    #legend2 = 'locality'
     # Initialize temp_line
     temp_line = ""
     
@@ -343,7 +353,7 @@ def find_specie_context_RegExReduce(page_path, search_specie):
     search_specie = search_specie.strip(' ,.?!()[]{}_"\';')
     _result = ""
     legend1 = 'distribution'
-    legend2 = 'locality'
+    #legend2 = 'locality'
     # Iterate through each line and search for the keyword_page_Specie
     for line_num, line in enumerate(lines, start=0):
       if re.search(r"^\s*.*\b" + legend1 + r"\b", line):# or ("." in line) or (":" in line):
@@ -389,7 +399,7 @@ def get_lines_last_check(image_path, keyword):
         """
         keyword = keyword.strip(' ,.?!()[]{}_"\';')
         legend1 = 'distribution'
-        legend2 = 'locality'
+        #legend2 = 'locality'
         
         # Use pytesseract to extract text from the image
         extracted_text = pytesseract.image_to_string(image_path)
@@ -408,7 +418,15 @@ def get_lines_last_check(image_path, keyword):
                 re.search(r"\bdistribution\b", line) or
                 "distribution" in line):
                 continue
-            
+            if re.search(r"\blocality\b", line, re.IGNORECASE):
+              continue
+            if re.search(r"\blocality of\b", line, re.IGNORECASE):  # Skip lines containing "locality of"
+              continue
+            if re.search(r"\btype locality\b", line, re.IGNORECASE):
+              continue
+            if re.search(r"\btype locality of\b", line, re.IGNORECASE):  # Skip lines containing "type locality of"
+              continue
+        
             keyword_pos = line.lower().find(keyword.lower())
             index_keyword = 0
             

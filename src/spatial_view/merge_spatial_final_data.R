@@ -1,4 +1,3 @@
-# Required libraries
 library(dplyr)
 
 # Funktion zum Mergen der Daten
@@ -14,6 +13,11 @@ mergeFinalData <- function(workingDir, outDir) {
       df1 <- read.csv(csv_path1, stringsAsFactors = FALSE)
       df2 <- read.csv(csv_path2, stringsAsFactors = FALSE, sep = ",")
       
+      # Filter anwenden: Nur Einträge mit Detection.method == "point_matching"
+      df1 <- df1 %>% filter(Detection.method == "point_matching")
+      # NA aus Title-Spalten in df1 entfernen
+      df1$Title <- gsub("^NA;\\s*", "", df1$Title)
+      
       # Farbkombinationen in beiden DataFrames erstellen
       df1$Color_Combo <- paste(df1$Red, df1$Green, df1$Blue, sep = ",")
       df2$Color_Combo <- paste(df2$Red, df2$Green, df2$Blue, sep = ",")
@@ -27,15 +31,20 @@ mergeFinalData <- function(workingDir, outDir) {
         arrange(File, ID, Local_X, Local_Y, Real_X, Real_Y, Red, Green, Blue, species, desc(!is.na(Title))) %>%
         distinct(File, ID, Local_X, Local_Y, Real_X, Real_Y, Red, Green, Blue, species, .keep_all = TRUE)
       
+      # NA aus Title-Spalten entfernen
+      merged_df$Title <- gsub("^NA;\\s*", "", merged_df$Title)
+      
       # Die 'Color_Combo'-Spalte entfernen, da sie nicht mehr benötigt wird
       merged_df$Color_Combo <- NULL
       
       # Fehlende Spezies und Titel für Dateien ohne bekannte Farbe ergänzen
-      missing_info <- merged_df %>%
-        filter(is.na(species)) %>%
+      missing_info <- df1 %>%
+        filter(File %in% merged_df$File) %>%
         group_by(File) %>%
-        summarize(species = paste(unique(na.omit(df1$species[df1$File == File])), collapse = "_"),
-                  Title = paste(unique(na.omit(df1$Title[df1$File == File])), collapse = "; "))
+        summarize(
+          species = paste(unique(na.omit(species)), collapse = "_"),
+          Title = paste(unique(na.omit(Title)), collapse = "; ")
+        )
       
       merged_df <- merged_df %>%
         left_join(missing_info, by = "File", suffix = c("", "_y")) %>%
@@ -49,7 +58,7 @@ mergeFinalData <- function(workingDir, outDir) {
                Title = sapply(strsplit(Title, "; "), function(x) paste(unique(x), collapse = "; ")))
       
       # Die neue CSV-Datei schreiben
-      write.csv(merged_df, output_csv_path, row.names = FALSE)
+      write.csv2(merged_df, output_csv_path, row.names = FALSE)
       
       print(paste("Output CSV file created at:", output_csv_path))
       
