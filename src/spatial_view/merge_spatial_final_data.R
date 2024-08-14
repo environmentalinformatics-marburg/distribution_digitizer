@@ -59,7 +59,7 @@ mergeFinalData <- function(workingDir, outDir) {
       
       # Neue Spalte 'Gattungsname' hinzufügen, die nur das erste Wort aus dem 'Title' enthält
       merged_df <- merged_df %>%
-        mutate(Gattungsname = sapply(strsplit(Title, " "), `[`, 1))
+        mutate(genus = sapply(strsplit(Title, " "), `[`, 1))
       
       # Die neue CSV-Datei schreiben
       write.csv2(merged_df, output_csv_path, row.names = FALSE)
