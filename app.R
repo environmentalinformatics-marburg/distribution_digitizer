@@ -389,6 +389,7 @@ body <- dashboardBody(
                  h3(strong(shinyfields2$head, style = "color:black")),
                  p(shinyfields2$inf1, style = "color:black"),
                  fluidRow(column(8, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.2, min = 0, max = 1, step = 0.05))),
+                 fluidRow(column(8, numericInput("matchingType", label = shinyfields2$matchingType, value = 1, min = 1, max = 2, step = 1))),
                  p(shinyfields2$inf2, style = "color:black"), 
                  # Start map matching
                  fluidRow(column(3,actionButton("templateMatching",  label = shinyfields2$start1, style="color:#FFFFFF;background:#999999"))),
@@ -1466,7 +1467,7 @@ server <- shinyServer(function(input, output, session) {
         print("Threshold:")
         print(input$threshold_for_TM)
         print(outDir)
-        main_template_matching(workingDir, outDir, input$threshold_for_TM, config$sNumberPosition)
+        main_template_matching(workingDir, outDir, input$threshold_for_TM, config$sNumberPosition, input$matchingType)
         findTemplateResult = paste0(outDir, "/maps/matching/")
         
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
@@ -1852,7 +1853,7 @@ server <- shinyServer(function(input, output, session) {
       # In diesem Beispiel lesen wir die CSV-Datei
       
       data <- reactive({
-        dd_data <- read.table(csv_path, sep = ",", header = TRUE, check.names = FALSE)
+        dd_data <- read.table(csv_path, sep = ";", header = TRUE, check.names = FALSE)
         
         #print(colnames(my_data))
         return(dd_data)
