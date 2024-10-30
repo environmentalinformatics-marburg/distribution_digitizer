@@ -108,7 +108,7 @@ def find_page_number(image, page_position):
 
 
 # Function to match template and process the result
-def match_template_tiff(previous_page_path, next_page_path, current_page_path, 
+def match_template(previous_page_path, next_page_path, current_page_path, 
                         template_map_file, output_dir, output_page_records, 
                         records, threshold, page_position):
     """
@@ -188,7 +188,7 @@ def match_template_tiff(previous_page_path, next_page_path, current_page_path,
         print("An error occurred in match_template_tiff:", e)
 
 
-def match_template_images(previous_page_path, next_page_path, current_page_path, 
+def match_template_contours(previous_page_path, next_page_path, current_page_path, 
                           template_map_file, output_dir, output_page_records, 
                           records, threshold, page_position):
     try:
@@ -238,8 +238,12 @@ def match_template_images(previous_page_path, next_page_path, current_page_path,
                 if (x < px + pw and x + w > px and y < py + ph and y + h > py):
                     return True
             return False
+          
+        count = 0
+        threshold_last = str(threshold).split(".")
         # Durchlaufe alle gefundenen Konturen
         for idx, contour in enumerate(contours):
+            count += 1
             x, y, w, h = cv2.boundingRect(contour)
             size = w * h * (2.54 / 400) * (2.54 / 400)  # Berechnung der Kartengröße
             
@@ -259,11 +263,17 @@ def match_template_images(previous_page_path, next_page_path, current_page_path,
                     csvwriter.writerows(rows_records)
 
                 # Speichere die extrahierte Karte
-                img_map_path = f"{page_number}_{os.path.basename(current_page_path).rsplit('.', 1)[0]}_{idx}"
+                #img_map_path = f"{page_number}_{os.path.basename(current_page_path).rsplit('.', 1)[0]}_{idx}"
+                img_map_path = (str(page_number) + '-' + str(threshold_last[1]) + '_' +
+                                os.path.basename(current_page_path).rsplit('.', 1)[0] + 
+                                os.path.basename(template_map_file).rsplit('.', 1)[0] + '_' + str(count))
+                                
                 cv2.imwrite(os.path.join(output_dir, img_map_path + '.tif'), imgc[y:y+h, x:x+w])
-
+  
+                
+                
                 # Zeichne ein Rechteck um den gefundenen Bereich
-                cv2.rectangle(imgc, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                #cv2.rectangle(imgc, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
                 # Speichere die Seitenaufzeichnung
                 csv_path = os.path.join(output_page_records, img_map_path + '.csv')
@@ -272,11 +282,12 @@ def match_template_images(previous_page_path, next_page_path, current_page_path,
                     pageCsvwriter.writerow(fields_page_record)  # Diese Header-Liste sollte definiert sein
                     rows = [[str(page_number), previous_page_path, next_page_path, current_page_path, os.path.join(output_dir, img_map_path + '.tif'), x, y, w, h, size, threshold, (time.time() - start_time)]]
                     pageCsvwriter.writerows(rows)
+            
 
         # Speichere das Bild mit den gezeichneten Rechtecken
-        final_output_path = os.path.join(output_dir, 'matches_' + os.path.basename(current_page_path))
-        cv2.imwrite(final_output_path, imgc)
-        print(f"Image with drawn matches saved at {final_output_path}")
+        #final_output_path = os.path.join(output_dir, 'matches_' + os.path.basename(current_page_path))
+        #cv2.imwrite(final_output_path, imgc)
+        #print(f"Image with drawn matches saved at {final_output_path}")
 
     except Exception as e:
         print("An error occurred in match_template_images:", e)
@@ -297,7 +308,7 @@ def match_template_images(previous_page_path, next_page_path, current_page_path,
 
 #working_dir="D:/distribution_digitizer"
 # Function to perform the main template matching in a loop
-def main_template_matching(working_dir, outDir, threshold, page_position, modi):
+def main_template_matching(working_dir, outDir, threshold, page_position, matchingType):
   """
   Perform the main template matching process.
 
@@ -375,19 +386,19 @@ def main_template_matching(working_dir, outDir, threshold, page_position, modi):
             "threshold": threshold,
             "page_position": page_position
           }
-          if modi == 1:
-            match_template_tiff(**params)
-          elif modi == 2:
-            match_template_images(**params)
+          if matchingType == 1:
+            match_template(**params)
+          elif matchingType == 2:
+            match_template_contours(**params)
   except Exception as e:
         print("An error occurred in main_template_matching:", e)
+        
 #img = "D:/distribution_digitizer_11_01_2024//data/input/pages/0059.tif"      
 #test = find_page_number(img,1)
 #print(test)
 
 #working_dir="D:/distribution_digitizer"
 #outDir="D:/test/output_2024-10-04_11-57-39/"
-#main_template_matching(working_dir, outDir,  0.2, 2, 1)
+#main_template_matching(working_dir, outDir,  0.2, 2, 2)
 
-# Function to perform the main template matching in a loop
-#main_template_matching(working_dir, 0.2, 1)
+
