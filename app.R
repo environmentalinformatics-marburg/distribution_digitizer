@@ -291,7 +291,8 @@ body <- dashboardBody(
             fluidRow(selectInput("pFormat", label = "Image iiFormat of the Scanned Sites", c("tif" = 1, "png" = 2, "jpg" = 3), selected = config$pFormat)),
             # Page color
             fluidRow(selectInput("pColor", label = "Page Color", c("black white" = 1, "color" = 2), selected = config$pColor)),
-            
+            # allprintedPages
+            fluidRow(textInput("allPrintedPages", label = "Please provide the number of scanned images:", value = config$allPrintedPages)),
             fluidRow(selectInput("numberSitesPrint", label = "Number of Book Sites per One Print", c("One site per scan" = 1, "Two sites per scan" = 2), selected = config$numberSitesPrint)),
             
           )
@@ -302,13 +303,16 @@ body <- dashboardBody(
           wellPanel(
             h3(strong(" Additional specific configuration input fields", style = "color:black")),
             # allprintedPages
-            fluidRow(textInput("allPrintedPages", label = "Please provide the number of scanned images:", value = config$allPrintedPages)),
+            fluidRow(selectInput("mapCaptureType", label = "Select map capture type: points or contours.",  c("points" = 1, "countors" = 2), selected = config$mapCaptureType)),
             
             # site number position
-            fluidRow(selectInput("sNumberPosition", label = "Please indicate whether the page number is positioned at the top or bottom of the page.", c("top" = 1, "botom" = 2), selected = config$sNumberPosition)),
+            fluidRow(selectInput("sNumberPosition", label = "Indicate whether the page number is positioned at the top or bottom of the page.", c("top" = 1, "botom" = 2), selected = config$sNumberPosition)),
+            
+            # Is the term "species name" listed on the map?
+            fluidRow(selectInput("speciesOnMap", label = "Is there a species name listed on the map?", c( "No" = 0, "Yes" = 1 ), selected = config$speciesOnMap)),
             
             # Is the term "species name" inclusive of special patterns such as year, parentheses, or symbols?
-            fluidRow(selectInput("middle", label = "Is the term shifted to the right, indented?", c( "No" = 0, "Yes" = 1 ), selected = config$middle)),
+            fluidRow(selectInput("middle", label = "Is the term-species shifted to the right, indented?", c( "No" = 0, "Yes" = 1 ), selected = config$middle)),
             
             fluidRow(selectInput("regExYear", label = "Does the term contain a regular expression like a year?", c( "No" = 0, "Yes" = 1), selected = config$regExYear)),# keayword to read species data
             
@@ -707,8 +711,10 @@ server <- shinyServer(function(input, output, session) {
                       dataInputDir= input$dataInputDir,
                       dataOutputDir = outDir,
                       numberSitesPrint = input$numberSitesPrint,
+                      mapCaptureType = input$mapCaptureType,
                       allPrintedPages = input$allPrintedPages,
                       sNumberPosition = input$sNumberPosition,
+                      speciesOnMap = input$speciesOnMap,
                       middle = input$middle,
                       regExYear = input$regExYear,
                       keywordReadSpecies = input$keywordReadSpecies,
@@ -1541,17 +1547,17 @@ server <- shinyServer(function(input, output, session) {
     
     if(processing == "pageReadRpecies" ){
       tryCatch({
-        
         # Read page species
         fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
         print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ", outDir," directory"))
         source(fname)
         if(length(config$keywordReadSpecies) > 0) {
-          species = readPageSpecies(workingDir, outDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
+            species = readPageSpecies(workingDir, outDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle, input$speciesOnMap)
         }
         else{
-          species = readPageSpecies(workingDir, outDir, 'None', config$keywordBefore, config$keywordThen, config$middle)
+          species = readPageSpecies(workingDir, outDir, 'None', config$keywordBefore, config$keywordThen, config$middle, input$speciesOnMap)
         }
+        
         cat("\nSuccessfully executed")
         findTemplateResult <- paste0(outDir, "/maps/align/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)

@@ -4,7 +4,15 @@ library(dplyr)
 os <- import("os") 
 
 # Function to read the species
-readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefore, keywordThen, middle) {
+readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefore, keywordThen, middle, speciesOnMap ) {
+  
+  workingDir = "D:/distribution_digitizer"
+  outDir = "D:/test/output_2024-10-04_11-57-39/"
+  keywordReadSpecies = "Type"
+  keywordBefore = 0
+  keywordThen = 2
+  middle = 0
+  
   # Set the path to the folder containing CSV files
   folder_path <- paste0(outDir, "/pagerecords/")
   
@@ -43,10 +51,14 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
       tryCatch({
         pagePath = filteredData[i,"file_name"]
         #print(pagePath)
-        speciesData = filteredData[i,"species"]
-        #print(speciesData)
-        speciesData <- speciesData[speciesData != ""]
         
+        if(speciesOnMap == 1){
+          speciesData = filteredData[i,"species"]
+          #print(speciesData)
+          speciesData <- speciesData[speciesData != ""]
+        } else {
+          speciesData = ""
+        }
         previous_page_path = filteredData[i,"previous_page_path"]
         next_page_path = filteredData[i,"next_page_path"]
         
