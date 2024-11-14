@@ -4,15 +4,7 @@ library(dplyr)
 os <- import("os") 
 
 # Function to read the species
-readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefore, keywordThen, middle, speciesOnMap ) {
-  
-  workingDir = "D:/distribution_digitizer"
-  outDir = "D:/test/output_2024-10-04_11-57-39/"
-  keywordReadSpecies = "Type"
-  keywordBefore = 0
-  keywordThen = 2
-  middle = 0
-  
+readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefore, keywordThen, middle) {
   # Set the path to the folder containing CSV files
   folder_path <- paste0(outDir, "/pagerecords/")
   
@@ -51,21 +43,17 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
       tryCatch({
         pagePath = filteredData[i,"file_name"]
         #print(pagePath)
+        speciesData = filteredData[i,"species"]
+        #print(speciesData)
+        speciesData <- speciesData[speciesData != ""]
         
-        if(speciesOnMap == 1){
-          speciesData = filteredData[i,"species"]
-          #print(speciesData)
-          speciesData <- speciesData[speciesData != ""]
-        } else {
-          speciesData = ""
-        }
         previous_page_path = filteredData[i,"previous_page_path"]
         next_page_path = filteredData[i,"next_page_path"]
         
         # Call the Python function for species identification
         pageTitleSpecies = find_species_context(pagePath, speciesData, previous_page_path, next_page_path, 
                                                 keywordReadSpecies, keywordBefore, keywordThen, middle)
-      
+        
         # pageTitleSpecies = '0_schistacea_Virachola isocrates isocrates (Fabricius, 1793) e distribution of schistacea'
         pageTitleSpecies <- gsub("__", "_", pageTitleSpecies)
         indexNumberMap = indexNumberMap +1

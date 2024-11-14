@@ -58,12 +58,15 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
     # Start search
     specie_content = find_specie_context(page_path,
                       search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
-
-    # print("if aktuelle")
+    #print("HHH")
+    
+    print("if aktuelle")
     print(specie_content)
     if (len(specie_content) > 3):
+
       all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
       continue
+    
     # print("if2 prev")
     # print(specie_content)
     if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):

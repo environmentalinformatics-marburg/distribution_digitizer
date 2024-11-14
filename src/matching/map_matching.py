@@ -243,7 +243,7 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
         threshold_last = str(threshold).split(".")
         # Durchlaufe alle gefundenen Konturen
         for idx, contour in enumerate(contours):
-            count += 1
+            
             x, y, w, h = cv2.boundingRect(contour)
             size = w * h * (2.54 / 400) * (2.54 / 400)  # Berechnung der Kartengröße
             
@@ -269,7 +269,7 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
                                 os.path.basename(template_map_file).rsplit('.', 1)[0] + '_' + str(count))
                                 
                 cv2.imwrite(os.path.join(output_dir, img_map_path + '.tif'), imgc[y:y+h, x:x+w])
-  
+                count += 1
                 
                 
                 # Zeichne ein Rechteck um den gefundenen Bereich
