@@ -286,14 +286,13 @@ body <- dashboardBody(
                                value = config$dataInputDir),   verbatimTextOutput("message"),),
             # Data output directory
             fluidRow(textInput("dataOutputDir", label = "Please write the path to the output environment of the distribution digitizer", value = config$dataOutputDir)),
-            # numberSitesPrint
             # format
             fluidRow(selectInput("pFormat", label = "Image iiFormat of the Scanned Sites", c("tif" = 1, "png" = 2, "jpg" = 3), selected = config$pFormat)),
             # Page color
             fluidRow(selectInput("pColor", label = "Page Color", c("black white" = 1, "color" = 2), selected = config$pColor)),
             # allprintedPages
             fluidRow(textInput("allPrintedPages", label = "Please provide the number of scanned images:", value = config$allPrintedPages)),
-            fluidRow(selectInput("numberSitesPrint", label = "Number of Book Sites per One Print", c("One site per scan" = 1, "Two sites per scan" = 2), selected = config$numberSitesPrint)),
+            #fluidRow(selectInput("numberSitesPrint", label = "Number of Book Sites per One Print", c("One site per scan" = 1, "Two sites per scan" = 2), selected = config$numberSitesPrint)),
             
           )
         ),
@@ -302,17 +301,25 @@ body <- dashboardBody(
           width = 6, # Zum Beispiel die Hälfte der Breite des Containers
           wellPanel(
             h3(strong(" Additional specific configuration input fields", style = "color:black")),
-            # allprintedPages
+            
+            # mapCaptureType
             fluidRow(selectInput("mapCaptureType", label = "Select map capture type: points or contours.",  c("points" = 1, "countors" = 2), selected = config$mapCaptureType)),
             
             # site number position
             fluidRow(selectInput("sNumberPosition", label = "Indicate whether the page number is positioned at the top or bottom of the page.", c("top" = 1, "botom" = 2), selected = config$sNumberPosition)),
             
-            # Is the term "species name" listed on the map?
+            # Is the term "species name" listed on the map (bottom)?
             fluidRow(selectInput("speciesOnMap", label = "Is there a species name listed on the map?", c( "No" = 0, "Yes" = 1 ), selected = config$speciesOnMap)),
             
-            # Is the term "species name" inclusive of special patterns such as year, parentheses, or symbols?
-            fluidRow(selectInput("middle", label = "Is the term-species shifted to the right, indented?", c( "No" = 0, "Yes" = 1 ), selected = config$middle)),
+            # Select which is the type of matching: template or contours
+            fluidRow(column(8, selectInput("matchingType", label = shinyfields2$matchingType,  c("Template matching" = 1, "Countor matching" = 2), selected = config$matchingType))),
+            
+            # Select species is approximately at the same level in the book as the map
+            fluidRow(column(8, selectInput("approximatelySpecieMap", label = "Could you check if the title/term of the species is approximately at the same level in the book as the map?",  c("Yes" = 1, "Now" = 2), selected = config$approximatelySpecieMap))),
+            
+            
+            # Is the term "species name" on the page inclusive of special patterns such as year, parentheses, or symbols?
+            fluidRow(selectInput("middle", label = "Is the term-species shifted to the middle, indented?", c( "No" = 0, "Yes" = 1 ), selected = config$middle)),
             
             fluidRow(selectInput("regExYear", label = "Does the term contain a regular expression like a year?", c( "No" = 0, "Yes" = 1), selected = config$regExYear)),# keayword to read species data
             
@@ -393,7 +400,6 @@ body <- dashboardBody(
                  h3(strong(shinyfields2$head, style = "color:black")),
                  p(shinyfields2$inf1, style = "color:black"),
                  fluidRow(column(8, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.2, min = 0, max = 1, step = 0.05))),
-                 fluidRow(column(8, numericInput("matchingType", label = shinyfields2$matchingType, value = 1, min = 1, max = 2, step = 1))),
                  p(shinyfields2$inf2, style = "color:black"), 
                  # Start map matching
                  fluidRow(column(3,actionButton("templateMatching",  label = shinyfields2$start1, style="color:#FFFFFF;background:#999999"))),
@@ -404,6 +410,7 @@ body <- dashboardBody(
                  p(shinyfields2$inf3, style = "color:black"),
                  fluidRow(column(3, actionButton("alignMaps",  label = shinyfields2$start2, style="color:#FFFFFF;background:#999999"))),
                ),
+               # speciesOnMap
                wellPanel(  
                  # maps species 
                  h3(shinyfields2$head_species, style = "color:black"),
@@ -710,11 +717,13 @@ server <- shinyServer(function(input, output, session) {
                       pYear = input$pYear,
                       dataInputDir= input$dataInputDir,
                       dataOutputDir = outDir,
-                      numberSitesPrint = input$numberSitesPrint,
-                      mapCaptureType = input$mapCaptureType,
                       allPrintedPages = input$allPrintedPages,
                       sNumberPosition = input$sNumberPosition,
+                      # special config data, in relation with the book Moths of Europe
+                      mapCaptureType = input$mapCaptureType,
                       speciesOnMap = input$speciesOnMap,
+                      matchingType = input$matchingType,
+                      approximatelySpecieMap = input$approximatelySpecieMap,
                       middle = input$middle,
                       regExYear = input$regExYear,
                       keywordReadSpecies = input$keywordReadSpecies,
@@ -1471,9 +1480,10 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         print("Threshold:")
-        print(input$threshold_for_TM)
+        print(config$threshold_for_TM)
+        print(config$matchingType)
         print(outDir)
-        main_template_matching(workingDir, outDir, input$threshold_for_TM, config$sNumberPosition, input$matchingType)
+        main_template_matching(workingDir, outDir, input$threshold_for_TM, config$sNumberPosition, config$matchingType)
         findTemplateResult = paste0(outDir, "/maps/matching/")
         
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
@@ -1552,10 +1562,10 @@ server <- shinyServer(function(input, output, session) {
         print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ", outDir," directory"))
         source(fname)
         if(length(config$keywordReadSpecies) > 0) {
-            species = readPageSpecies(workingDir, outDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle, input$speciesOnMap)
+            species = readPageSpecies(workingDir, outDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle, config$speciesOnMap, config$regExYear)
         }
         else{
-          species = readPageSpecies(workingDir, outDir, 'None', config$keywordBefore, config$keywordThen, config$middle, input$speciesOnMap)
+          species = readPageSpecies(workingDir, outDir, 'None', config$keywordBefore, config$keywordThen, config$middle, config$speciesOnMap, config$regExYear)
         }
         
         cat("\nSuccessfully executed")

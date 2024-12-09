@@ -158,17 +158,6 @@ update_titles <- function(csv_path, species_list, titles_list) {
 }
 
 
-# Beispielaufruf:
-# Angenommen, du möchtest die Titel für mehrere Spezies aktualisieren:
-# species_list <- c("baltistana", "balucha", "pallida")
-# titles_list <- c("Title for baltistana", "Title for balucha", "Title for pallida")
-# update_titles("path/to/your/csv_file.csv", species_list, titles_list)
-
-# Beispielaufruf:
-# Angenommen, du möchtest den Titel "Syla Title" für alle Zeilen mit dem `species` "syla" aktualisieren:
-# update_titles("path/to/your/csv_file.csv", "syla", "Syla Title")
-
-
 
 # Function to read and process data
 processCoordinates <- function(coordinatesPath, pageSpeciesDataPath) {
