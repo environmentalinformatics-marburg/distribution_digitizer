@@ -2,8 +2,8 @@
 library(reticulate)
 
 library(tesseract)
-workingDir = "D:/distribution_digitizer/"
-outDir = "D:/test/map_1/"
+workingDir = "D:/dd/distribution_digitizer/"
+outDir = "D:/test/output_2025-01-21_09-19-54/"
 config <- read.csv(paste0(workingDir,"/config/config.csv"),header = TRUE, sep = ';')
 outDir = config$dataOutputDir
 

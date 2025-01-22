@@ -231,10 +231,11 @@ header <- dashboardHeader(
       menuItem("Maps Matching", tabName = "tab2"),
       menuItem("Points Matching", tabName = "tab3"),
       menuItem("Masking", tabName = "tab4" ),
-      menuItem("Georeferencing", tabName = "tab5" ),
-      menuItem("Polygonize", tabName = "tab6" ),
-      menuItem("Spatial View", tabName = "tab7" ),
-      menuItem("Download", tabName = "tab8" )
+      menuItem("Read Spacies", tabName = "tab5" ),
+      menuItem("Georeferencing", tabName = "tab6" ),
+      menuItem("Polygonize", tabName = "tab7" ),
+      menuItem("Spatial View", tabName = "tab8" ),
+      menuItem("Download", tabName = "tab9" )
     )
   )
 )
@@ -315,7 +316,7 @@ body <- dashboardBody(
             fluidRow(column(8, selectInput("matchingType", label = shinyfields2$matchingType,  c("Template matching" = 1, "Countor matching" = 2), selected = config$matchingType))),
             
             # Select species is approximately at the same level in the book as the map
-            fluidRow(column(8, selectInput("approximatelySpecieMap", label = "Could you check if the title/term of the species is approximately at the same level in the book as the map?",  c("Yes" = 1, "Now" = 2), selected = config$approximatelySpecieMap))),
+            fluidRow(column(8, selectInput("approximatelySpecieMap", label = "Could you check if the title/term of the species is approximately at the same level in the book as the map?",  c("Yes" = 1, "No" = 2), selected = config$approximatelySpecieMap))),
             
             
             # Is the term "species name" on the page inclusive of special patterns such as year, parentheses, or symbols?
@@ -392,7 +393,7 @@ body <- dashboardBody(
       fluidRow(column(3,textInput("siteNumberMapsMatching", label=shinyfields6$input, value = ''))),
       actionButton("listMapsMatching",  label = "List maps"),
       actionButton("listAlign",  label = "List aligned maps"),
-      actionButton("listCropped",  label = "List cropped maps"),
+     # actionButton("listCropped",  label = "List cropped maps"),
       fluidRow(
         column(4,
                wellPanel(
@@ -409,25 +410,12 @@ body <- dashboardBody(
                  h3(shinyfields2$head_sub, style = "color:black"),
                  p(shinyfields2$inf3, style = "color:black"),
                  fluidRow(column(3, actionButton("alignMaps",  label = shinyfields2$start2, style="color:#FFFFFF;background:#999999"))),
-               ),
-               # speciesOnMap
-               wellPanel(  
-                 # maps species 
-                 h3(shinyfields2$head_species, style = "color:black"),
-                 p(shinyfields2$inf4, style = "color:black"),
-                 fluidRow(column(3, actionButton("mapReadRpecies",  label = shinyfields2$start3, style="color:#FFFFFF;background:#999999"))),
-               ),
-               wellPanel(  
-                 # page species
-                 h3(shinyfields2$head_page_species, style = "color:black"),
-                 p(shinyfields2$inf5, style = "color:black"),
-                 fluidRow(column(3, actionButton("pageReadRpecies",  label = shinyfields2$start4, style="color:#FFFFFF;background:#999999"))),
                )
         ), # col 4
         column(8,
                uiOutput('listMaps', style="width:30%;float:left"),
                uiOutput('listAlign', style="width:30%;float:left"),
-               uiOutput('listCropped', style="width:30%;float:left")
+               #uiOutput('listCropped', style="width:30%;float:left")
         )
       ) # END fluid Row
     ),  # END tabItem 2
@@ -539,9 +527,39 @@ body <- dashboardBody(
       ) # END fluid Row
     ),  # END tabItem 4
     
-    # Tab 5 Georeferencing  FILES=shinyfields_georeferensing & shinyfields_georef_coords_from_csv_file.csv #-------------------------------------------------
+    
+    # Tab 5 Read Spezies #----------------------------------------------------------------------
     tabItem(
-      tabName = "tab5",  
+      tabName = "tab5",
+      # which site become overview
+      fluidRow(column(3,textInput("siteNumberMapsMatching", label=shinyfields6$input, value = ''))),
+      actionButton("listCropped",  label = "List cropped maps"),
+      fluidRow(
+        column(4,
+               # speciesOnMap
+               wellPanel(  
+                 # maps species 
+                 h3(shinyfields2$head_species, style = "color:black"),
+                 p(shinyfields2$inf4, style = "color:black"),
+                 fluidRow(column(3, actionButton("mapReadRpecies",  label = shinyfields2$start3, style="color:#FFFFFF;background:#999999"))),
+               ),
+               wellPanel(  
+                 # page species
+                 h3(shinyfields2$head_page_species, style = "color:black"),
+                 p(shinyfields2$inf5, style = "color:black"),
+                 fluidRow(column(3, actionButton("pageReadRpecies",  label = shinyfields2$start4, style="color:#FFFFFF;background:#999999"))),
+               )
+        ), # col 4
+        #column(8,
+        #       uiOutput('listCropped', style="width:30%;float:left")
+        # )
+      ) # END fluid Row
+    ),  # END tabItem 5
+    
+    
+    # Tab 6 Georeferencing  FILES=shinyfields_georeferensing & shinyfields_georef_coords_from_csv_file.csv #-------------------------------------------------
+    tabItem(
+      tabName = "tab6",  
       wellPanel(
         h3(strong(shinyfields6$head, style = "color:black")),
         p(shinyfields6$inf1, style = "color:black"),
@@ -565,11 +583,11 @@ body <- dashboardBody(
         actionButton("georef_coords_from_csv", label = shinyfields8$lab1, style="color:#FFFFFF;background:#999999")
       )
       # END fluid Row
-    ),# END tabItem 5
+    ),# END tabItem 6
     
-    # Tab 6 Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
+    # Tab 7 Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
     tabItem(
-      tabName = "tab6", 
+      tabName = "tab7", 
       wellPanel(
         h3(strong(shinyfields7$head, style = "color:black")),
         p(shinyfields7$inf1, style = "color:black"),
@@ -584,11 +602,11 @@ body <- dashboardBody(
       wellPanel( 
         uiOutput("leaflet_outputs_PL")
       )
-    ),  # END tabItem 6
+    ),  # END tabItem 7
     
-    # 7. Spatial data view #----------------------------------------------------------------------
+    # Tab 8 Spatial data view #----------------------------------------------------------------------
     tabItem(
-      tabName = "tab7", 
+      tabName = "tab8", 
       # wellPanel(
       #  h3(strong("Save the outputs in csv file", style = "color:black")),
       #  p("hier kommt noch mehr Text", style = "color:black"),
@@ -611,10 +629,10 @@ body <- dashboardBody(
         leafletOutput("mapSpatialViewPF"),
         verbatimTextOutput("hoverInfo3")
       )
-    ),  # END tabItem 6
+    ),  # END tabItem 8
     
     tabItem(
-      tabName = "tab8",
+      tabName = "tab9",
       actionButton("viewCSV",  label ="Overview spatial final data", style="color:#FFFFFF;background:#999999"),
 
       wellPanel( 
@@ -1562,10 +1580,9 @@ server <- shinyServer(function(input, output, session) {
         print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ", outDir," directory"))
         source(fname)
         if(length(config$keywordReadSpecies) > 0) {
-            species = readPageSpecies(workingDir, outDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle, config$speciesOnMap, config$regExYear)
-        }
-        else{
-          species = readPageSpecies(workingDir, outDir, 'None', config$keywordBefore, config$keywordThen, config$middle, config$speciesOnMap, config$regExYear)
+          species <- readPageSpecies(workingDir, outDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
+        } else {
+          species <- readPageSpecies(workingDir, outDir, 'None', config$keywordBefore, config$keywordThen, config$middle)
         }
         
         cat("\nSuccessfully executed")
