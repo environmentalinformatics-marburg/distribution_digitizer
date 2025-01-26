@@ -12,10 +12,53 @@ import matplotlib.pyplot as plt
 from PIL import Image 
 import os
 import traceback
-os.environ['TESSDATA_PREFIX'] = "C:/Program Files/Tesseract-OCR/tessdata/"
 
+def read_config(file_path, key):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        headers = lines[0].strip().split(';')
+        values = lines[1].strip().split(';')
+        config = dict(zip(headers, values))
+        return config.get(key, None)
+
+
+# Use a global variable to track if TESSDATA_PREFIX is already set
+tessdata_prefix_set = False
+
+def set_tessdata_prefix_once(workingDir, key="tesserAct"):
+    """Sets the TESSDATA_PREFIX environment variable only once."""
+    global tessdata_prefix_set
+    if not tessdata_prefix_set:
+        config_file_path = os.path.join(workingDir, "config", "config.csv")
+        try:
+            # Read the config file
+            with open(config_file_path, 'r') as config_file:
+                lines = config_file.readlines()
+                headers = lines[0].strip().split(';')
+                values = lines[1].strip().split(';')
+                config = dict(zip(headers, values))
+                
+                # Extract the TESSDATA path
+                tessdata_path = config.get(key)
+                
+                if tessdata_path and os.path.exists(tessdata_path):
+                    os.environ['TESSDATA_PREFIX'] = tessdata_path
+                    print(f"TESSDATA_PREFIX set to: {tessdata_path}")
+                    tessdata_prefix_set = True  # Mark as set
+                else:
+                    print(f"Invalid TESSDATA_PREFIX path: {tessdata_path}")
+                    raise FileNotFoundError(f"TESSDATA_PREFIX path does not exist: {tessdata_path}")
+        except Exception as e:
+            print(f"Failed to set TESSDATA_PREFIX: {e}")
+            raise
+    else:
+        print("TESSDATA_PREFIX is already set. Skipping redundant setup.")
+
+      
 # Function to find species context with a keyword
-def find_species_context(page_path="", words_to_find="", previous_page_path=None, next_page_path=None, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
+def find_species_context(workingDir="", page_path="", words_to_find="", previous_page_path=None, next_page_path=None, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
+
+  set_tessdata_prefix_once(workingDir, key="tesserAct")
   # Load the image
   image = Image.open(page_path)
   
@@ -58,19 +101,17 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
     # Start search
     specie_content = find_specie_context(page_path,
                       search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
-    #print("HHH")
-    
+
     print("if aktuelle")
     print(specie_content)
     if (len(specie_content) > 3):
 
       all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
       continue
-    
-    # print("if2 prev")
+
     # print(specie_content)
     if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
-      print("if1")
+      print("if 1")
       #print(previous_page_path)
       specie_content = find_specie_context(previous_page_path,
                           search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
@@ -78,9 +119,6 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
         all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
         continue
       
-      
-    #print(specie_content) 
-    # print("if3 next")
     if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
       print("if3")
       #print(next_page_path)
@@ -90,16 +128,6 @@ def find_species_context(page_path="", words_to_find="", previous_page_path=None
         all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
         continue
       
-      
-    #print(specie_content)    
-    #print("if4 get_lines_last_check")
-    #if(len(specie_content) == 0):
-    #  print("if3")
-    #  specie_content = find_specie_context_RegExReduce(page_path,
-                          #search_specie)
-    #  if(specie_content is not None):
-     #   all_results.append((str(flag) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
-     #   continue
     if(len(specie_content) == 0):
       specie_content = get_lines_last_check(page_path,search_specie)
       #print("hhh")

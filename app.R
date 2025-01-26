@@ -73,9 +73,11 @@ if(!require(reticulate)){
   library(reticulate)
 }
 library(shinyalert)
-library(reticulate)
-library(tesseract)
 
+if(!require(tesseract)){
+  install.packages("tesseract",dependencies = T)
+  library(tesseract)
+}
 if(!require(leaflet)){
   install.packages("leaflet",dependencies = T)
   library(leaflet)
@@ -269,6 +271,8 @@ body <- dashboardBody(
             fluidRow(textInput("author", label = "Please write the author of the book.", value = config$autor)),
             # Publication Year: Specify the year the book was published.
             fluidRow(textInput("pYear", label = "Publication Year", value = config$pYear)),
+            # Directory Tesseract
+            fluidRow(textInput("tesserAct", label = "Please write the path to the Tesseract", value = config$tesserAct)),
             # Data input directory
             fluidRow(textInput("dataInputDir", p("Please write the path to the inputs.",br(),
                                                  "This input directory should contain two folders:",br(),
@@ -733,6 +737,7 @@ server <- shinyServer(function(input, output, session) {
                       title = input$title,
                       autor = input$author,
                       pYear = input$pYear,
+                      tesserAct = input$tesserAct,
                       dataInputDir= input$dataInputDir,
                       dataOutputDir = outDir,
                       allPrintedPages = input$allPrintedPages,
@@ -2109,7 +2114,7 @@ server <- shinyServer(function(input, output, session) {
           # Check if the current directory is "georeferencing"
           if (dir_name == "georeferencing") {
             # Define subdirectory names for "maps"
-            sub_directory_names <- c("maps", "mask")  # Add your subdirectory names here
+            sub_directory_names <- c("maps", "masks")  # Add your subdirectory names here
             
             # Iterate over subdirectory names and create them within "georeferencing"
             for (sub_dir_name in sub_directory_names) {

@@ -25,12 +25,6 @@ import pytesseract
 from pytesseract import Output
 import re
 
-import cv2
-import numpy as np
-import os
-import csv
-import time
-from PIL import Image
 
 start_time = time.time()
 

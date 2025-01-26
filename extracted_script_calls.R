@@ -16,7 +16,7 @@ source_python(fname)
 print("Threshold:")
 print(2)
 print(outDir)
-main_template_matching(workingDir, outDir, 0.2, config$sNumberPosition)
+main_template_matching(workingDir, outDir, 0.2, config$sNumberPosition, config$matchingType)
 
 
 # align

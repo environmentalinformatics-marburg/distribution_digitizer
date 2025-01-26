@@ -51,7 +51,7 @@ readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefor
         next_page_path = filteredData[i,"next_page_path"]
         
         # Call the Python function for species identification
-        pageTitleSpecies = find_species_context(pagePath, speciesData, previous_page_path, next_page_path, 
+        pageTitleSpecies = find_species_context(workingDir, pagePath, speciesData, previous_page_path, next_page_path, 
                                                 keywordReadSpecies, keywordBefore, keywordThen, middle)
         
         # pageTitleSpecies = '0_schistacea_Virachola isocrates isocrates (Fabricius, 1793) e distribution of schistacea'
