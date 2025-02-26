@@ -307,7 +307,7 @@ body <- dashboardBody(
                  # submit action button
                  h3(strong(shinyfields2$head, style = "color:black")),
                  p(shinyfields2$inf1, style = "color:black"),
-                 fluidRow(column(8, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.2, min = 0, max = 1, step = 0.05))),
+                 fluidRow(column(8, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.18, min = 0, max = 1, step = 0.05))),
                  p(shinyfields2$inf2, style = "color:black"), 
                  # Start map matching
                  fluidRow(column(3,actionButton("templateMatching",  label = shinyfields2$start1, style="color:#FFFFFF;background:#999999"))),
@@ -348,7 +348,7 @@ body <- dashboardBody(
                  h4(shinyfields3$head_sub, style = "color:black"),
                  p(shinyfields3$inf3, style = "color:black"),
                  # Threshold for point matching
-                 fluidRow(column(8,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.87, min = 0, max = 1, step = 0.05))),
+                 fluidRow(column(8,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.75, min = 0, max = 1, step = 0.05))),
                  p(shinyfields3$inf4, style = "color:black"),
                  fluidRow(column(3, actionButton("pointMatching",  label = shinyfields3$lab, style="color:#FFFFFF;background:#999999"))),
                ),
@@ -524,18 +524,19 @@ body <- dashboardBody(
         # which site become overview
         #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
         
-        actionButton("spatialViewCD",  label = "Start View circle detection",),
-        leafletOutput("mapSpatialViewCD"),
-        verbatimTextOutput("hoverInfo")
-      ),
-      wellPanel(
-        # which site become overview
-        #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
-        
         actionButton("spatialViewPF",  label = "Start View point detection",),
         leafletOutput("mapSpatialViewPF"),
         verbatimTextOutput("hoverInfo3")
-      )
+      ),
+     # wellPanel(
+        # which site become overview
+        #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
+        
+        #actionButton("spatialViewCD",  label = "Start View circle detection",),
+        #leafletOutput("mapSpatialViewCD"),
+        #verbatimTextOutput("hoverInfo")
+      #)
+
     ),  # END tabItem 8
     
     tabItem(
@@ -717,12 +718,12 @@ server <- shinyServer(function(input, output, session) {
     if(input$siteNumberMapsMatching != ''){
       #print(input$siteNumberMapsMatching)
       output$listMaps = renderUI({
-        prepareImageView("/matching_png/", input$siteNumberMapsMatching)
+        prepareImageView("/data/matching_png/", input$siteNumberMapsMatching)
       })
     }
     else{
       output$listMaps = renderUI({
-        prepareImageView("/matching_png/", '.png')
+        prepareImageView("/data/matching_png/", '.png')
       })
     }
   })
@@ -844,12 +845,12 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listMapsMatching2, {
     if(input$siteNumberPointsMatching != ''){
       output$listMapsMatching2 = renderUI({
-        prepareImageView("/matching_png/", input$siteNumberPointsMatching)
+        prepareImageView("/data/matching_png/", input$siteNumberPointsMatching)
       })
     }
     else{
       output$listMapsMatching2 = renderUI({
-        prepareImageView("/matching_png/", '.png')
+        prepareImageView("/data/matching_png/", '.png')
       })
     }
   })
@@ -1092,8 +1093,8 @@ server <- shinyServer(function(input, output, session) {
           ) %>%
           addControl(
             htmltools::div(
-              img(src = paste0("/data/CircleDetection_png/",listPng[i]), width = 200, height = 200),
-              tags$a(href = paste0("/data/CircleDetection_png/",listPng[i]), listPng[i], target="_blank"),
+              img(src = paste0("/data/pointFiltering_png/",listPng[i]), width = 200, height = 200),
+              tags$a(href = paste0("/data/matching_png/",listPng[i]), listPng[i], target="_blank"),
             ),
             position = "bottomleft"
           )
@@ -1152,7 +1153,7 @@ server <- shinyServer(function(input, output, session) {
               noHide = TRUE,
               onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
             ),
-            popup = ~paste0("<p><b>specie keyword on the map: ", marker_data$species, "</b></p><p><b>", marker_data$Title, "</b></p><a href='/matching_png/", name, "' target='_blank'>",
+            popup = ~paste0("<p><b>specie keyword on the map: ", marker_data$species, "</b></p><p><b>", marker_data$Title, "</b></p><a href='/data/matching_png/", name, "' target='_blank'>",
                             "<img src='/data/matching_png/", name, "' width='100' height='100'></a>",
                             "<a href='/data/pages/", page, "' target='_blank'>",
                             "<img src='/data/pages/", page, "' width='100' height='100'></a>")
@@ -1183,10 +1184,6 @@ server <- shinyServer(function(input, output, session) {
         layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();
       }"
     )
-    
-    # Pfad zum Arbeitsverzeichnis und zum Output-Verzeichnis
-    #workingDir <- "D:/distribution_digitizer"
-   # outDir <- "D:/test/output_2024-07-12_08-18-21"
     
     # Einlesen der Daten
     filtered_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
@@ -1548,10 +1545,10 @@ server <- shinyServer(function(input, output, session) {
         print(" Process georeferencing python script:")
         print(fname)
         source_python(fname)
-       # mainmaskgeoreferencingMaps(workingDir, outDir)
-        mainmaskgeoreferencingMaps_CD(workingDir, outDir)
+        #mainmaskgeoreferencingMaps(workingDir, outDir)
+        #mainmaskgeoreferencingMaps_CD(workingDir, outDir)
         #mainmaskgeoreferencingMasks(workingDir, outDir)
-        mainmaskgeoreferencingMasks_CD(workingDir, outDir)
+        #mainmaskgeoreferencingMasks_CD(workingDir, outDir)
         mainmaskgeoreferencingMasks_PF(workingDir, outDir)
         # processing rectifying
         

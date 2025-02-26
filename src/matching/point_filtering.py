@@ -114,7 +114,7 @@ def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius):
         elif dominant_color == 'green':
             color_rgb = (0, 255, 0)
         else:
-            color_rgb = (255, 165, 0)  # Orange als Fallback
+            color_rgb = (255, 0, 0)  # Orange als Fallback
 
         # Zeichne die Konturen und Zentroide
         M = cv2.moments(contour)

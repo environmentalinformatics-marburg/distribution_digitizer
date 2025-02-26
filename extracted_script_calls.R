@@ -2,8 +2,8 @@
 library(reticulate)
 
 library(tesseract)
-workingDir = "D:/dd/distribution_digitizer/"
-outDir = "D:/test/output_2025-01-21_09-19-54/"
+workingDir = "D:/distribution_digitizer/"
+outDir = "D:/test/output_2025-02-26_18-04-46/"
 config <- read.csv(paste0(workingDir,"/config/config.csv"),header = TRUE, sep = ';')
 outDir = config$dataOutputDir
 
@@ -16,7 +16,7 @@ source_python(fname)
 print("Threshold:")
 print(2)
 print(outDir)
-main_template_matching(workingDir, outDir, 0.2, config$sNumberPosition, config$matchingType)
+main_template_matching(workingDir, outDir, 0.18, config$sNumberPosition, config$matchingType)
 
 
 # align

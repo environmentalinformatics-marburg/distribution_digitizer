@@ -84,22 +84,6 @@ def find_page_number(image, page_position):
   #print(result)    
   # Return 0 if no suitable number is found
   return result
-  #while True:
-   # cv2.imshow("Sheep", croped_image)
-  #  cv2.waitKey(0)
-  #  sys.exit() # to exit from all the processes
- 
-#  cv2.destroyAllWindows() 
-        
-
-
-
-# Example usage
-# Assuming croped_image is your image (Image) or its path
-#current_page_path = "D:/distribution_digitizer/data/input/pages/0064.tif" 
-#image = cv2.imread(image_path)
-#result = find_page_number(current_page_path, page_position=1)
-
 
 # Function to match template and process the result
 def match_template(previous_page_path, next_page_path, current_page_path, 
@@ -124,21 +108,24 @@ def match_template(previous_page_path, next_page_path, current_page_path,
         res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
         loc = np.where(res >= threshold)
         
-        # Define lists to store X and Y coordinates
-        lspointY = []
-        lspointX = []
+        # Define lists to store already saved coordinates
+        saved_maps = []
         
         count = 0
         font = cv2.FONT_HERSHEY_SIMPLEX
         page_number = find_page_number(current_page_path, page_position)
     
         for pt in zip(*loc[::-1]):
-            # Check if the coordinates are already in the list
-            if pt[0] not in lspointY and pt[1] not in lspointX:
+            x, y = pt[0], pt[1]
+            
+            # Überprüfe, ob die neue Karte zu nah an einer bereits gespeicherten Karte ist
+            too_close = any(abs(y - sy) < (h / 2) for sx, sy in saved_maps)
+            
+            if not too_close:
                 size = w * h * (2.54/400) * (2.54/400)
                 
                 # Save record details into the main records CSV file
-                rows_records = [[str(page_number), previous_page_path, next_page_path, current_page_path, pt[0], pt[1], w, h, size, threshold, (time.time() - start_time)]]
+                rows_records = [[str(page_number), previous_page_path, next_page_path, current_page_path, x, y, w, h, size, threshold, (time.time() - start_time)]]
                 
                 # Write the record into the CSV file
                 is_empty = os.stat(records).st_size == 0
@@ -154,33 +141,25 @@ def match_template(previous_page_path, next_page_path, current_page_path,
                                 os.path.basename(current_page_path).rsplit('.', 1)[0] + 
                                 os.path.basename(template_map_file).rsplit('.', 1)[0] + '_' + str(count))
                 
-                cv2.imwrite(output_dir + img_map_path + '.tif', imgc[pt[1]:(pt[1] + h), pt[0]:(pt[0] + w), :])
+                cv2.imwrite(output_dir + img_map_path + '.tif', imgc[y:(y + h), x:(x + w), :])
                 
                 # Draw a rectangle around the matched region on the original image
-                cv2.rectangle(imgc, pt, (pt[0] + w, pt[1] + h), (0, 255, 0), 2)  # Green rectangle with 2 px thickness
+                cv2.rectangle(imgc, pt, (pt[0] + w, pt[1] + h), (0, 255, 0), 2)
                 
                 # Save the page record
-                rows = [[str(page_number), previous_page_path, next_page_path, current_page_path, output_dir + img_map_path + '.tif', pt[0], pt[1], w, h, size, threshold, (time.time() - start_time)]]
+                rows = [[str(page_number), previous_page_path, next_page_path, current_page_path, output_dir + img_map_path + '.tif', x, y, w, h, size, threshold, (time.time() - start_time)]]
                 csv_path = output_page_records + img_map_path + '.csv'
                 with open(csv_path, 'w', newline='') as page_record:
                     pageCsvwriter = csv.writer(page_record)
                     pageCsvwriter.writerow(fields_page_record)
                     pageCsvwriter.writerows(rows)
                 
-                # Append the coordinates to avoid duplicates
-                lspointX.extend(range(pt[1], pt[1] + h))
-                lspointY.extend(range(pt[0], pt[0] + w))
-                
+                # Speichere die Koordinaten der neuen Karte
+                saved_maps.append((x, y))
                 count += 1
-    
-        # For Tests - Save the image with the drawn rectangles
-        #final_output_path = os.path.join(output_dir, 'matches_' + os.path.basename(current_page_path))
-        #cv2.imwrite(final_output_path, imgc)
-        #print(f"Image with drawn matches saved at {final_output_path}")
     
     except Exception as e:
         print("An error occurred in match_template_tiff:", e)
-
 
 def match_template_contours(previous_page_path, next_page_path, current_page_path, 
                           template_map_file, output_dir, output_page_records, 
@@ -387,12 +366,9 @@ def main_template_matching(working_dir, outDir, threshold, page_position, matchi
   except Exception as e:
         print("An error occurred in main_template_matching:", e)
         
-#img = "D:/distribution_digitizer_11_01_2024//data/input/pages/0059.tif"      
-#test = find_page_number(img,1)
-#print(test)
 
 #working_dir="D:/distribution_digitizer"
-#outDir="D:/test/output_2024-10-04_11-57-39/"
+#outDir="D:/test/output_2025-02-18_14-27-23/"
 #main_template_matching(working_dir, outDir,  0.2, 2, 2)
 
 
