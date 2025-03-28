@@ -1,15 +1,25 @@
 
-library(reticulate)
+#######
+# Load Required Libraries and Define Paths
+#######
 
+library(reticulate)
 library(tesseract)
+library(dplyr)
+library(stringr)
+library(leaflet)
+library(readr)
+
 workingDir = "D:/distribution_digitizer/"
 outDir = "D:/test/output_2025-03-04_15-42-16_map_2_all/"
-config <- read.csv(paste0(workingDir,"/config/config.csv"),header = TRUE, sep = ';')
+config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
 
 
+#######
+# Run Template Matching
+#######
 
-fname=paste0(workingDir, "/", "src/matching/map_matching.py")
-
+fname = paste0(workingDir, "/src/matching/map_matching.py")
 print("The processing template matching python script:")
 print(fname)
 source_python(fname)
@@ -19,81 +29,104 @@ print(outDir)
 main_template_matching(workingDir, outDir, 0.18, config$sNumberPosition, config$matchingType)
 
 
-# align
-fname=paste0(workingDir, "/", "src/matching/map_align.py")
+#######
+# Align Images
+#######
+
+fname = paste0(workingDir, "/src/matching/map_align.py")
 print("Processing align python script:")
 print(fname)
 source_python(fname)
 align_images_directory(workingDir, outDir)
 
-# point_matching
-fname=paste0(workingDir, "/", "src/matching/point_matching.py")
-print(" Processing point python script:")
+
+#######
+# Point Matching
+#######
+
+fname = paste0(workingDir, "/src/matching/point_matching.py")
+print("Processing point python script:")
 print(fname)
 source_python(fname)
 map_points_matching(workingDir, outDir, 0.75)
 
-#point_filtering
-fname=paste0(workingDir, "/", "src/matching/point_filtering.py")
-fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
-print(" Process pixel filtering  python script:")
+
+#######
+# Point Filtering
+#######
+
+fname = paste0(workingDir, "/src/matching/point_filtering.py")
+fname2 = paste0(workingDir, "/src/matching/coords_to_csv.py")
+print("Processing point filtering python script:")
 print(fname)
 source_python(fname)
 source_python(fname2)
 main_point_filtering(workingDir, outDir, 5, 9)
 
 
+#######
+# Circle Detection
+#######
 
-# circle_detection
-fname=paste0(workingDir, "/", "src/matching/circle_detection.py")
-#fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
+fname = paste0(workingDir, "/src/matching/circle_detection.py")
 print("Processing circle detection python script:")
 print(fname)
 source_python(fname)
-#source_python(fname2)
-print(outDir)
+
+# Circle detection parameters
 gaussian <- 9L
 minDist <- 5L
 thresholdEdge <- 50L
 thresholdCircles <- 30L
 minRadius <- 10L
 maxRadius <- 40L
-# Aufruf der Funktion
+
 mainCircleDetection(workingDir, outDir, gaussian, minDist, thresholdEdge, thresholdCircles, minRadius, maxRadius)
 
 
-# masking
-fname=paste0(workingDir, "/", "src/masking/masking.py")
-print(" Process masking normale python script:")
+#######
+# Create Geomasks
+#######
+
+# Normal mask
+fname = paste0(workingDir, "/src/masking/masking.py")
+print("Processing normal masking python script:")
 print(fname)
 source_python(fname)
 mainGeomask(workingDir, outDir, 5L)
 
-fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
-print(" Process masking black python script:")
+# Black mask
+fname = paste0(workingDir, "/src/masking/creating_masks.py")
+print("Processing black masking python script:")
 print(fname)
 source_python(fname)
 mainGeomaskB(workingDir, outDir, 5L)
 
-# mask_centroids
-fname=paste0(workingDir, "/", "src/masking/mask_centroids.py")
-print(" Process masking Centroids python script:")
+# Mask Centroids
+fname = paste0(workingDir, "/src/masking/mask_centroids.py")
+print("Processing masking centroids python script:")
 print(fname)
 source_python(fname)
 MainMaskCentroids(workingDir, outDir)
 
 
-# Cropping
-fname <- paste0(workingDir, "/", "src/read_species/map_read_species.R")
-print("Croping the species names from the map botton R script:")
+#######
+# Crop Species Names from Map
+#######
+
+fname <- paste0(workingDir, "/src/read_species/map_read_species.R")
+print("Cropping the species names from the map using R script:")
 print(fname)
 source(fname)
 species <- read_legends(workingDir, outDir)
 cat("\nSuccessfully executed")
 
 
-# read Titles
-fname <- paste0(workingDir, "/", "src/read_species/page_read_species.R")
+#######
+# Read Page Titles and Species Info
+#######
+
+fname <- paste0(workingDir, "/src/read_species/page_read_species.R")
 print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ", outDir, " directory"))
 source(fname)
 
@@ -104,65 +137,62 @@ if (length(config$keywordReadSpecies) > 0) {
 }
 
 
+#######
+# Georeferencing
+#######
 
-
-# processing georeferencing
-fname=paste0(workingDir, "/", "src/georeferencing/mask_georeferencing.py")
-print(" Process georeferencing python script:")
+fname = paste0(workingDir, "/src/georeferencing/mask_georeferencing.py")
+print("Processing georeferencing python script:")
 print(fname)
 source_python(fname)
-# mainmaskgeoreferencingMaps(workingDir, outDir)
-#mainmaskgeoreferencingMaps_CD(workingDir, outDir)
-#mainmaskgeoreferencingMasks(workingDir, outDir)
-#mainmaskgeoreferencingMasks_CD(workingDir, outDir)
 mainmaskgeoreferencingMasks_PF(workingDir, outDir)
-# processing rectifying
 
-fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
-print(" Process rectifying python script:")
+
+#######
+# Rectifying
+#######
+
+fname = paste0(workingDir, "/src/polygonize/rectifying.py")
+print("Processing rectifying python script:")
 print(fname)
 source_python(fname)
-#mainRectifying_Map_PF(workingDir, outDir)
-#mainRectifying(workingDir, outDir)
-#mainRectifying_CD(workingDir, outDir)
 mainRectifying_PF(workingDir, outDir)
-#outDir = "D:/test/output_2024-08-05_15-38-45/"
-#findTemplateResult = paste0(outDir, "/georeferencing/maps/circleDetection/")
-#files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-#countFiles <- paste0(length(files), "")
 
 
+#######
+# Polygonizing
+#######
 
-# processing polygonize
-fname=paste0(workingDir, "/", "src/polygonize/polygonize.py")
-print(" Process polygonizing python script:")
+fname = paste0(workingDir, "/src/polygonize/polygonize.py")
+print("Processing polygonizing python script:")
 print(fname)
 source_python(fname)
-#mainPolygonize(workingDir, outDir)
-#mainPolygonize_Map_PF(workingDir, outDir)
-#mainPolygonize_CD(workingDir, outDir)
 mainPolygonize_PF(workingDir, outDir)
 
 
 
+###############################################################################
 
-################################## ########################################################
-library(dplyr)
-library(stringr)
+#######
+# Merge_spatial
+#######
 
-# merge_spatial
 source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
 mergeFinalData(workingDir, outDir)
+
+
+#######
+# Save pagerecords.csv"
+#######
 
 # Datei einlesen
 spatial_final_data_path <- file.path(outDir, "spatial_final_data.csv")
 spatial_final_data <- read.csv2(spatial_final_data_path, stringsAsFactors = FALSE, sep = ";")
 
-library(dplyr)
-
 # Alle CSV-Dateien im Verzeichnis finden
 csv_files <- list.files(file.path(outDir,"pagerecords"), pattern = "\\.csv$", full.names = TRUE)
 outputFile <- file.path(outDir,"pagerecords.csv")
+
 # Leere Liste zum Speichern der DataFrames
 data_list <- list()
 
@@ -195,8 +225,11 @@ if (length(data_list) > 0) {
   print("⚠️ Keine CSV-Dateien gefunden oder alle Dateien waren leer.")
 }
 
-# Pakete
-library(dplyr)
+
+#######
+# Add Real_X and Real_Y 
+# in spatial_final_data_with_realXY.csv
+#######
 
 # Einlesen der Dateien
 df_spatial <- read.csv(file.path(outDir,"spatial_final_data.csv"), sep = ";", header = TRUE)
@@ -233,8 +266,14 @@ df_spatial$Local_Y <- matches[4, ]
 write.csv2(df_spatial, file.path(outDir,"spatial_final_data_with_realXY.csv"), row.names = FALSE, sep = ";")
 
 
+#######
+# Merge pagerecords.csv 
+# and spatial_final_data_with_realXY.csv  
+# to spatial_final_data_with_new_pagerecordsFiles.csv
+#######
+
 combined_df <- read.csv(file.path(outDir,"pagerecords.csv"), stringsAsFactors = FALSE, sep = ",")
-spatial_df <- read.csv(file.path(outDir, "spatial_final_data.csv"), stringsAsFactors = FALSE, sep = ";")
+spatial_df <- read.csv(file.path(outDir, "spatial_final_data_with_realXY.csv"), stringsAsFactors = FALSE, sep = ";")
 outputFile <- file.path(outDir, "spatial_final_data_with_new_pagerecordsFiles.csv")
 # Falls die Spaltennamen Leerzeichen enthalten, diese trimmen
 colnames(combined_df) <- trimws(colnames(combined_df))
@@ -286,7 +325,14 @@ write.table(spatial_df, file = outputFile, sep = ";", row.names = FALSE, quote =
 cat("Die Datei wurde erfolgreich aktualisiert und gespeichert unter:", outputFile)
 
 
-# Funktion zum Kombinieren der spatial_final_data.csv Dateien und Hinzufügen einer fortlaufenden ID-Spalte
+
+#######
+# Funktion 
+# zum Kombinieren der 
+# spatial_final_data_with_new_pagerecordsFiles.csv von map1 und map2 
+# Dateien und Hinzufügen einer fortlaufenden ID-Spalte
+#######
+
 combineAllMaps <- function(outDir1, outDir2, outputDir) {
   tryCatch(
     {
@@ -331,24 +377,20 @@ combineAllMaps <- function(outDir1, outDir2, outputDir) {
 
 
 # Aufrufen der Funktion mit den angegebenen Arbeitsverzeichnissen
-# Beispiel: 
 outDir1 <- "D:/test/output_2025-03-04_15-42-16_map_2_all/"
 outDir2 <- "D:/test/output_2025-03-03_09-22-03_map_1/"
 outputDir <- "D:/test/"
 combineAllMaps(outDir1, outDir2, outputDir)
 
 
-# CSV-Datei einlesen; read.csv2 nutzt standardmäßig ";" als Trennzeichen und "," als Dezimaltrennzeichen
+#######
+# Sortieren
+#######
+
 data <- read.csv2("D:/test/final_all_maps.csv", stringsAsFactors = FALSE)
-
-
-
 
 # Funktion zum Extrahieren der Nummer vor "map"
 data$file_map <- as.integer(sub("^0*", "", sapply(strsplit(sub("map.*", "", data$File), "_"), `[`, 2)))
-
-
-
 
 # Sortieren: Zuerst nach "file_map" und danach nach "File"
 data_sortiert <- data[order(data$file_map, data$File), ]
@@ -356,7 +398,6 @@ data_sortiert <- data[order(data$file_map, data$File), ]
 # Ergebnis als CSV-Datei speichern
 write.csv2(data_sortiert, "D:/test/ergebnis_datei_sortiert.csv", row.names = FALSE)
 
-# CSV-Datei einlesen (read.csv2 nutzt ";" als Trenner und "," als Dezimaltrennzeichen)
 data <- read.csv2("D:/test/ergebnis_datei_sortiert.csv", stringsAsFactors = FALSE)
 
 data_sortiert <- data[order(data$file_map, data$File), ]
@@ -374,9 +415,12 @@ data_unique <- data_selected[!duplicated(data_selected$File), ]
 write.csv2(data_unique, "D:/test/ergebnis_datei_sortiert_title_map_file.csv", row.names = FALSE)
 
 
+#######
 # diese Funktion ist geschrieben worden, weil es einige Maps gib es,
 # bei dennen weder Punkte, noch species gefunden worden sind, 
 # trozdem um die Information transparent zu behalten, dass diese maps gefunden worden sind
+#######
+
 mergeAllCSVFiles <- function(inputDir, outputFile) {
   tryCatch(
     {
@@ -429,4 +473,30 @@ mergeAllCSVFiles <- function(inputDir, outputFile) {
 }
 
 mergeAllCSVFiles(paste0(outDir,"pagerecords/"), paste0(outDir, "/pageregords_all.csv"))
+
+
+#######
+# Visualisation
+#######
+
+# Daten einlesen (mit Komma als Dezimaltrennzeichen!)
+df <- read_delim(file.path(outDir,"spatial_final_data_with_realXY.csv"), delim = ";", locale = locale(decimal_mark = ","))
+
+# Optional: Farb-Spalte mit RGB in HEX umrechnen
+df$Color <- rgb(df$Red / 255, df$Green / 255, df$Blue / 255)
+
+# Karte rendern
+leaflet(df) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    lng = ~Real_X,
+    lat = ~Real_Y,
+    color = ~Color,
+    radius = 6,
+    fillOpacity = 0.7,
+    stroke = TRUE,
+    popup = ~paste0("<b>Art:</b> ", species, "<br>",
+                    "<b>Datei:</b> ", File, "<br>",
+                    "<b>Koordinaten:</b> ", Real_X, ", ", Real_Y)
+  )
 
