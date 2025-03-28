@@ -1,7 +1,9 @@
 # Author: Spaska Forteva
 # Date: 2024-08-02
+# Update 2025-02-28 (Fehler in py_call_impl(callable, call_args$unnamed, call_args$named) Line 70-78
 # Description: This script performs point matching between TIFF images and templates, 
 # applies non-maximum suppression, and saves the results. It also includes a function to copy TIFF images and convert colors.
+
 
 import cv2
 import PIL
@@ -13,7 +15,7 @@ import csv
 import shutil
 
 def copy_tiff_images(input_dir, output_dir):
-    # Create the output directory if it doesn't exist
+    # Create the output directory if it does not exist
     os.makedirs(output_dir, exist_ok=True)
     for file in os.listdir(input_dir):
         if file.endswith(".tif"):
@@ -62,14 +64,15 @@ def hex_to_rgb(hex_color):
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
 def point_match(tiffile, file, outputpcdir, point_threshold, template_id, template_name, color, coord_writer, current_id, nms_thresh=0.3):
-    print(f"Processing template: {template_name} with color: {color}")  # Debugging-Ausgabe
+    print(f"Processing template: {template_name} with color: {color}")  # Debugging output
     
-    # Laden des Bildes und der Vorlage
+    # Load the image and the template
     img = np.array(PIL.Image.open(tiffile))
     tmp = np.array(PIL.Image.open(file))
+    
     w, h = tmp.shape[:2]  # Adjusted to handle grayscale and RGB images
 
-    # Durchführung der Template Matching
+    # Perform template matching
     res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
     loc = np.where(res >= point_threshold)
 
@@ -78,12 +81,12 @@ def point_match(tiffile, file, outputpcdir, point_threshold, template_id, templa
         points.append([pt[0], pt[1], w, h])
     points = np.array(points)
 
-    # Durchführung der Non-Maximum Suppression
+    # Apply non-maximum suppression
     nms_points = non_max_suppression_fast(points, nms_thresh)
 
-    # Konvertieren der Hex-Farbe in RGB-Format
+    # Convert hex color to RGB format
     red, green, blue = hex_to_rgb(color)
-    print(f"Converted color for {template_name}: (R: {red}, G: {green}, B: {blue})")  # Debugging-Ausgabe
+    print(f"Converted color for {template_name}: (R: {red}, G: {green}, B: {blue})")  # Debugging output
 
     detected_points = []
     for (x, y, w, h) in nms_points:
@@ -91,16 +94,16 @@ def point_match(tiffile, file, outputpcdir, point_threshold, template_id, templa
         center_y = y + h // 2
         radius = min(w, h) // 4
         
-        # Debugging-Ausgabe direkt vor dem Zeichnen
-        print(f"Drawing circle at ({center_x}, {center_y}) with color: (R: {red}, G: {green}, B: {blue})")
+        # Debugging output just before drawing
+        #print(f"Drawing circle at ({center_x}, {center_y}) with color: (R: {red}, G: {green}, B: {blue})")
         
-        # Zeichnen des Kreises auf dem Bild
-        cv2.circle(img, (center_x, center_y), radius, (red, green, blue), -1, lineType=cv2.LINE_AA)  # Ausfüllen des Kreises
-        cv2.circle(img, (center_x, center_y), radius, (red, green, blue), 2, lineType=cv2.LINE_AA)   # Rand des Kreises
+        # Draw the circle on the image
+        cv2.circle(img, (center_x, center_y), radius, (red, green, blue), -1, lineType=cv2.LINE_AA)  # Fill the circle
+        cv2.circle(img, (center_x, center_y), radius, (red, green, blue), 2, lineType=cv2.LINE_AA)   # Outline the circle
         
         detected_points.append((center_x, center_y))
         if detected_points:
-            print(f"Matched at ({center_x}, {center_y}) with color: (R: {red}, G: {green}, B: {blue})")  # Debugging-Ausgabe
+            print(f"Matched at ({center_x}, {center_y}) with color: (R: {red}, G: {green}, B: {blue})")  # Debugging output
             coord_writer.writerow({
                 'ID': current_id,
                 'File': os.path.basename(tiffile),
@@ -114,16 +117,32 @@ def point_match(tiffile, file, outputpcdir, point_threshold, template_id, templa
                 'georef': 0
             })
             current_id += 1
+        else:
+            print(f"No points finding")  # Debugging output
+            coord_writer.writerow({
+                'ID': current_id,
+                'File': os.path.basename(tiffile),
+                'Detection method': 'point_matching',
+                'X_WGS84': 0,
+                'Y_WGS84': 0,
+                'template': template_name,
+                'Red': 0,
+                'Green': 0,
+                'Blue': 0,
+                'georef': 0
+            })
+            current_id += 1
 
+    # save the image in "pointMatching"
+    base_name = os.path.basename(tiffile).rsplit('.', 1)[0]
+    new_file_name = f"{base_name}.tif"
+    output_file_path = os.path.join(outputpcdir, new_file_name)
+    PIL.Image.fromarray(img).save(output_file_path)
+    
     if detected_points:
-        base_name = os.path.basename(tiffile).rsplit('.', 1)[0]
-        new_file_name = f"{base_name}.tif"
-        output_file_path = os.path.join(outputpcdir, new_file_name)
-        PIL.Image.fromarray(img).save(output_file_path)
-
         return len(detected_points), output_file_path, color, current_id
-
-    return 0, "", color, current_id
+ 
+    return 0, output_file_path, color, current_id
 
 def get_last_id(csv_path):
     try:
@@ -161,20 +180,20 @@ def map_points_matching(workingDir, outDir, point_threshold):
 
         for file in glob.glob(os.path.join(pointTemplates, '*.tif')):
             template_name = os.path.basename(file).rsplit('.', 1)[0]
-            
-            # Updated color mapping including White for non-matching templates
+            color = "#000000"
+            # Updated color mapping including white for non-matching templates
             if template_name.startswith('b_'):
                 color = '#0000FF'  # Blue
             elif template_name.startswith('a_'):
                 color = '#FF0000'  # Red
             elif template_name.startswith('c_'):
                 color = '#00FF00'  # Green
-            elif template_name.startswith('d_'):
-                color = '#FFA500'  # Orange
-            elif template_name.startswith('e_'):
-                color = '#FFFF00'  # Yellow
-            else:
-                color = '#FFFFFF'  # White
+            #elif template_name.startswith('d_'):
+            #    color = '#FFA500'  # Orange
+           # elif template_name.startswith('e_'):
+            #    color = '#FFFF00'  # Yellow
+           # else:
+            #    color = '#FFFFFF'  # White
 
             print(f"Processing template: {template_name}, Color: {color}")  # Debugging line to check the template and color
 

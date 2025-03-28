@@ -969,10 +969,10 @@ server <- shinyServer(function(input, output, session) {
     message=paste0("Process ", "Georeferencing", " is started on: ")
     shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
                closeOnClickOutside = FALSE, animation = TRUE)
-    
-    listgeoTiffiles = list.files(paste0(outDir, "/rectifying/pointFiltering"), full.names = T, pattern = paste0('.tif',input$siteNumberGeoreferencing))
+    #outDir <- "D:/test/output_2025-03-27_12-30-59/"
+    listgeoTiffiles = list.files(paste0(outDir, "/rectifying/maps"), full.names = T, pattern = paste0('.tif',input$siteNumberGeoreferencing))
     if( length(listgeoTiffiles) == 0) {
-      listgeoTiffiles = list.files(paste0(outDir, "/rectifying/pointFiltering"), full.names = T, pattern = '.tif')
+      listgeoTiffiles = list.files(paste0(outDir, "/rectifying/maps"), full.names = T, pattern = '.tif')
     }
     num_leaflet_outputs_GEO <- length(listgeoTiffiles)
     
@@ -1078,8 +1078,8 @@ server <- shinyServer(function(input, output, session) {
         leaflet() %>%
           addTiles() %>%
           addCircleMarkers(data = shape_data,
-                           lng = ~st_coordinates(geometry)[,1],  # Längengrad
-                           lat = ~st_coordinates(geometry)[,2],  # Breitengrad
+                          # lng = ~st_coordinates(geometry)[,1],  # Längengrad
+                          # lat = ~st_coordinates(geometry)[,2],  # Breitengrad
                            color = ~rgb_to_hex(Red, Green, Blue),  # Farbattribute verwenden
                            weight = 1,
                            opacity = 0.9,
@@ -1128,7 +1128,7 @@ server <- shinyServer(function(input, output, session) {
         "function(event) { var layer = event.target;
       layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();}"
       )
-      marker_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
+      marker_data <- read.csv(paste0(outDir, "/spatial_final_data_with_realXY.csv"), sep = ";", header = TRUE)
       #filtered_data <- marker_data[marker_data$Detectionmethod == "point_filtering", ]
       name_on_top = paste0(marker_data$species)#,": ", filtered_data$File,".png")
       name <- gsub("\\.tiff?$", ".png", marker_data$File)
@@ -1556,12 +1556,13 @@ server <- shinyServer(function(input, output, session) {
         print(" Process rectifying python script:")
         print(fname)
         source_python(fname)
+        mainmaskgeoreferencingMaps(workingDir, outDir)
         mainRectifying_Map_PF(workingDir, outDir)
         mainRectifying(workingDir, outDir)
         mainRectifying_CD(workingDir, outDir)
         mainRectifying_PF(workingDir, outDir)
         #outDir = "D:/test/output_2024-08-05_15-38-45/"
-        findTemplateResult = paste0(outDir, "/georeferencing/maps/circleDetection/")
+        findTemplateResult = paste0(outDir, "/georeferencing/maps/pointFiltering/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Georeferencing ended on: ", 

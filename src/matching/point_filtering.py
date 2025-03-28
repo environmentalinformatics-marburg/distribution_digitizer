@@ -114,7 +114,7 @@ def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius):
         elif dominant_color == 'green':
             color_rgb = (0, 255, 0)
         else:
-            color_rgb = (255, 0, 0)  # Orange als Fallback
+            color_rgb = (0, 0, 255)  # red
 
         # Zeichne die Konturen und Zentroide
         M = cv2.moments(contour)
@@ -125,7 +125,7 @@ def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius):
             cv2.circle(processed_image, (cx, cy), 5, color_rgb, -1)
             # Stelle sicher, dass die BGR-Werte korrekt in die CSV geschrieben werden
             centroids.append((cx, cy, color_rgb[2], color_rgb[1], color_rgb[0]))  # Append in RGB format
-
+    
     output_file = os.path.join(outdir, os.path.basename(tiffile))
     PIL.Image.fromarray(processed_image, 'RGB').save(output_file)
     
@@ -168,6 +168,8 @@ def append_to_csv(csv_file_path, centroids, filename, method, georef, template='
         for centroid in centroids:
             color_key = (centroid[2], centroid[3], centroid[4])
             assigned_template = existing_templates.get(color_key, template)
+            if (assigned_template == "none"):
+              assigned_template = 'b_1'
             writer.writerow([last_id + 1, filename, method, centroid[0], centroid[1], assigned_template, centroid[2], centroid[3], centroid[4], georef])
             last_id += 1
 
