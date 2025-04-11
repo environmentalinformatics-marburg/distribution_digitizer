@@ -11,7 +11,7 @@ library(leaflet)
 library(readr)
 
 workingDir = "D:/distribution_digitizer/"
-outDir = "D:/test/output_2025-03-04_15-42-16_map_2_all/"
+outDir = "D:/test/output_2025-03-03_09-22-03_map_1/"
 config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
 
 
@@ -174,7 +174,7 @@ mainPolygonize_PF(workingDir, outDir)
 ###############################################################################
 
 #######
-# Merge_spatial
+# Merge save spatial
 #######
 
 source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
@@ -189,7 +189,7 @@ mergeFinalData(workingDir, outDir)
 spatial_final_data_path <- file.path(outDir, "spatial_final_data.csv")
 spatial_final_data <- read.csv2(spatial_final_data_path, stringsAsFactors = FALSE, sep = ";")
 
-# Alle CSV-Dateien im Verzeichnis finden
+# Alle CSV-Dateien im Verzeichnis pagerecords einlesen save as pagerecords.csv
 csv_files <- list.files(file.path(outDir,"pagerecords"), pattern = "\\.csv$", full.names = TRUE)
 outputFile <- file.path(outDir,"pagerecords.csv")
 
