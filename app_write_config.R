@@ -480,7 +480,11 @@ server <- shinyServer(function(input, output, session) {
       cat("An error occurred during prepare_base_output processing:\n")
       print(e)
     })
+    # Letzte Zeile im try-Block – nach erfolgreichem Speichern
+    stopApp(paste0(workingDir,"/config/config.csv"))
   }
+  
+
 })
 
 shinyApp(ui, server)
