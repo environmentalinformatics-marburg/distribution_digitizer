@@ -89,7 +89,7 @@ if(!require(raster)){
 }
 
 library(sf)
-
+Sys.setenv(TESSDATA_PREFIX = "C:/Program Files/Tesseract-OCR/tessdata")
 
 # Global variables
 processEventNumber = 0
@@ -1655,6 +1655,8 @@ server <- shinyServer(function(input, output, session) {
           convertTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/data/pages/"))
           source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
           mergeFinalData(workingDir, outDir)
+          spatialFinalData(outDir)
+          spatialRealCoordinats(outDir)
         },
         error = function(e) {
           messageOnClose = e$message
