@@ -28,29 +28,30 @@ git clone https://github.com/YourUsername/distribution_digitizer.git
 Note: If you downloaded the ZIP, your folder may be called distribution_digitizer-main. Adjust paths accordingly.
 
 
-## 📁 Folder Structure (after extraction or cloning)
-
-```plaintext
 distribution_digitizer/
 ├── app_start.R               # Main launcher script (R)
-├── start_Digitizer.bat       # Batch file for launching the app
-├── shiny_apps/               # All Shiny GUI scripts
+├── start_Digitizer.bat       # Batch file to start the program
+├── shiny_apps/               # All Shiny-based GUI scripts
 │   ├── app_mode_selector.R
 │   ├── app_write_config.R
 │   ├── app_main_dialog.R
-├── src/                      # Python and utility R scripts
-│   └── (image matching, alignment, etc.)
-├── config/                   # Static configuration files (CSV)
-│   └── config.csv
+├── src/                      # Python and helper R scripts
+│   └── (template matching, alignment, point detection, etc.)
+├── config/                   # Static configuration files (CSV format)
+│   ├── config.csv
+│   └── ...
 ├── data/
-│   └── input/                # Book scans, points, templates
-│       └── templates/
-│           ├── *.tif
-│           ├── *.points
-│           └── ...
-```
+│   └── input/                # Book-specific input files
+│       ├── pages/            # Scanned TIFF images of the book pages (e.g., 0066.tif)
+│       └── templates/        # Template-related resources
+│           ├── maps/         # Cropped map templates (*.tif) – should match maps from the current book
+│           ├── geopoints/    # Coordinate files (*.points) – used for identifying positions on maps
+│           ├── symbols/      # Templates for different point markers used for species identification
+│           └── align_ref/    # Reference maps used for aligning found templates to improve orientation
 
----
+⚠️ This folder structure is essential for the correct functioning of the program.
+
+Additional information about template file naming conventions for maps and points will follow in the next section. Please make sure to place your files in the correct subfolders and use naming schemes that correspond to the scanned book being processed.
 
 ## 📦 R Package Installation
 
