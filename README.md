@@ -23,11 +23,23 @@ Ensure the following software is installed:
 
 ---
 
-## Clone the Repository
+## 📥 Clone the Repository
+
+You can clone the project from GitHub using:
+
+```bash
 git clone https://github.com/YourUsername/distribution_digitizer.git
-Note: If you downloaded the ZIP, your folder may be called distribution_digitizer-main. Adjust paths accordingly.
+```
 
+> 💡 If you downloaded the ZIP archive instead of cloning, the folder will likely be named `distribution_digitizer-main`. In this case, make sure to adjust all folder paths accordingly in the instructions and scripts.
 
+---
+
+## 📁 Folder Structure After Cloning
+
+Below is the expected structure of the project directory. This structure is **essential** for the correct functioning of the Distribution Digitizer:
+
+````plaintext
 distribution_digitizer/
 ├── app_start.R               # Main launcher script (R)
 ├── start_Digitizer.bat       # Batch file to start the program
@@ -45,14 +57,12 @@ distribution_digitizer/
 │       ├── pages/            # Scanned TIFF images of the book pages (e.g., 0066.tif)
 │       └── templates/        # Template-related resources
 │           ├── maps/         # Cropped map templates (*.tif) – should match maps from the current book
-│           ├── geopoints/    # Coordinate files (*.points) – used for identifying positions on maps
-│           ├── symbols/      # Templates for different point markers used for species identification
-│           └── align_ref/    # Reference maps used for aligning found templates to improve orientation
+│           ├── geopoints/    # Coordinate files (*.points) – define positions on maps
+│           ├── symbols/      # Templates for different species point markers used in the book
+│           └── align_ref/    # Reference maps for post-matching alignment and orientation adjustment
+````
 
-⚠️ This folder structure is essential for the correct functioning of the program.
-
-Additional information about template file naming conventions for maps and points will follow in the next section. Please make sure to place your files in the correct subfolders and use naming schemes that correspond to the scanned book being processed.
----
+> ⚠️ Make sure that your templates and point files reflect the actual structure and content of the scanned book. For reliable matching, file names must correspond to the map and symbol types actually used.
 
 
 ## 📦 R Package Installation
