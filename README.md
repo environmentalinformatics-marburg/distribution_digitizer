@@ -52,6 +52,8 @@ distribution_digitizer/
 ⚠️ This folder structure is essential for the correct functioning of the program.
 
 Additional information about template file naming conventions for maps and points will follow in the next section. Please make sure to place your files in the correct subfolders and use naming schemes that correspond to the scanned book being processed.
+---
+
 
 ## 📦 R Package Installation
 
