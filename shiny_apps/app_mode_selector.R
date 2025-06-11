@@ -1,5 +1,6 @@
 # app_mode_selector.R
 
+
 library(shiny)
 library(shinyjs)
 
@@ -40,6 +41,7 @@ default_output <- get_last_output_dir()
 
 ui <- fluidPage(
   useShinyjs(),
+  actionButton("show_guide", "❓ Installation Guide"),
   titlePanel("Distribution Digitizer – Mode Selection"),
   fluidRow(
     column(6,
@@ -104,6 +106,16 @@ server <- function(input, output, session) {
       shinyjs::disable("start_main")
       config_visible(TRUE)
     }
+  })
+  md_path <- file.path(config$workingDir, "README.md")
+  observeEvent(input$show_guide, {
+    showModal(modalDialog(
+      title = "Installation Guide",
+      size = "l",
+      easyClose = TRUE,
+      footer = NULL,
+      tagList(includeMarkdown(md_path))
+    ))
   })
   
   observeEvent(input$saveConfig, {

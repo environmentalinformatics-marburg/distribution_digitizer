@@ -11,14 +11,6 @@
 # ============================================================
 library(shinyjs)  # ganz oben laden
 
-required_packages <- c("shiny", "shinydashboard", "magick", "grid", "rdrop2",
-                       "shinyFiles", "reticulate", "tesseract", "leaflet", 
-                       "raster", "sf", "shinyalert")
-
-new_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
-if(length(new_packages)) install.packages(new_packages)
-lapply(required_packages, require, character.only = TRUE)
-
 # ============================================================
 # Global Settings and Configuration
 # ============================================================
