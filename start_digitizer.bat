@@ -15,7 +15,7 @@ echo.
 echo The user guide has been opened in README.pdf.
 echo Please read it carefully before continuing.
 echo.
-echo Default values are suggested below. 
+echo Default values are suggested below.
 echo Press ENTER to accept the default, or type your custom path.
 echo.
 
@@ -25,12 +25,12 @@ set DEFAULT_TESSERACT=C:/Program Files/Tesseract-OCR
 
 REM === Prompt for Python ===
 echo Python path [Default: %DEFAULT_PYTHON%]:
-set /p PYTHON_PATH=Path to python.exe: 
+set /p PYTHON_PATH=Path to python.exe:
 if "%PYTHON_PATH%"=="" set PYTHON_PATH=%DEFAULT_PYTHON%
 
 REM === Prompt for Tesseract ===
 echo Tesseract folder path [Default: %DEFAULT_TESSERACT%]:
-set /p TESS_PATH=Path to Tesseract folder: 
+set /p TESS_PATH=Path to Tesseract folder:
 if "%TESS_PATH%"=="" set TESS_PATH=%DEFAULT_TESSERACT%
 
 REM === Clean up potential quotes or trailing spaces ===
