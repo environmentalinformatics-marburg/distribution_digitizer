@@ -48,6 +48,13 @@ echo   Tesseract: %TESS_PATH%
 echo   Directory: %SCRIPT_DIR%
 echo.
 
+REM === Write dynamic start_config.csv ===
+(
+  echo input=
+  echo output=
+  echo actualscript=1
+) > "%SCRIPT_DIR%\start_config.csv"
+
 REM Launch the R script with arguments
 Rscript app_start.R "%PYTHON_PATH%" "%SCRIPT_DIR%" "%TESS_PATH%"
 

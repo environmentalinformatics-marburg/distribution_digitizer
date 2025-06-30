@@ -26,33 +26,35 @@ def read_config(file_path, key):
 tessdata_prefix_set = False
 
 def set_tessdata_prefix_once(workingDir, key="tesserAct"):
-    """Sets the TESSDATA_PREFIX environment variable only once."""
     global tessdata_prefix_set
     if not tessdata_prefix_set:
         config_file_path = os.path.join(workingDir, "config", "config.csv")
         try:
-            # Read the config file
             with open(config_file_path, 'r') as config_file:
                 lines = config_file.readlines()
                 headers = lines[0].strip().split(';')
                 values = lines[1].strip().split(';')
                 config = dict(zip(headers, values))
-                
-                # Extract the TESSDATA path
-                tessdata_path = config.get(key)
-                
-                if tessdata_path and os.path.exists(tessdata_path):
-                    os.environ['TESSDATA_PREFIX'] = tessdata_path
-                    print(f"TESSDATA_PREFIX set to: {tessdata_path}")
-                    tessdata_prefix_set = True  # Mark as set
+                print(config_file_path)
+                tess_path = config.get(key)
+
+                if tess_path and os.path.exists(tess_path):
+                    os.environ['TESSDATA_PREFIX'] = tess_path
+
+                    # WICHTIG: Setze Pfad zu tesseract.exe explizit
+                    import pytesseract
+                    pytesseract.pytesseract.tesseract_cmd = os.path.join(tess_path, "..", "tesseract.exe")
+
+                    print(f"TESSDATA_PREFIX set to: {tess_path}")
+                    print(f"tesseract_cmd set to: {pytesseract.pytesseract.tesseract_cmd}")
+                    tessdata_prefix_set = True
                 else:
-                    print(f"Invalid TESSDATA_PREFIX path: {tessdata_path}")
-                    raise FileNotFoundError(f"TESSDATA_PREFIX path does not exist: {tessdata_path}")
+                    raise FileNotFoundError(f"Tesseract path invalid or does not exist: {tess_path}")
         except Exception as e:
             print(f"Failed to set TESSDATA_PREFIX: {e}")
             raise
     else:
-        print("TESSDATA_PREFIX is already set. Skipping redundant setup.")
+        print("TESSDATA_PREFIX is already set.")
 
       
 # Function to find species context with a keyword

@@ -93,24 +93,36 @@ Sys.setenv(TESSDATA_PREFIX = "C:/Program Files/Tesseract-OCR/tessdata")
 
 # Global variables
 processEventNumber = 0
+# ==========================
+# Read start_config.csv instead of using commandArgs
+# ==========================
+config_path <- "start_config.csv"
+if (!file.exists(config_path)) {
+  stop("❌ 'start_config.csv' not found. Cannot continue.")
+}
 
-# Input variables
-# host
-options(shiny.host = '127.0.0.1')
-# port
-options(shiny.port = 8888)
+lines <- readLines(config_path)
+config <- setNames(sub(".*=", "", lines), sub("=.*", "", lines))
 
-# Change the max uploaf size
-options(shiny.maxRequestSize=100*1024^2)
-tempImage="temp.png"
-scale =20
-rescale= (100/scale)
+if (is.null(config["input"]) || is.null(config["output"])) {
+  stop("❌ Missing 'input' or 'output' entry in start_config.csv")
+}
 
-workingDir <- getwd()
-print("Working directory 1:")
-print(workingDir)
-outDir <- ""
-inputDir = paste0(workingDir,"/data/input/")
+workingDir <- normalizePath(config["input"], winslash = "/", mustWork = TRUE)
+outDir <- normalizePath(config["output"], winslash = "/", mustWork = TRUE)
+
+cat("📁 Received working directory:", workingDir, "\n")
+cat("📁 Received output directory:", outDir, "\n")
+
+# ==========================
+# Weitere Initialisierung
+# ==========================
+setwd(workingDir)  # falls du auf relative Pfade angewiesen bist
+inputDir <- file.path(workingDir, "data/input/")
+tempImage <- "temp.png"
+scale <- 20
+rescale <- 100 / scale
+
 
 #read config fields from config.csv in .../distribution_digitizer/config directory
 fileFullPath = (paste0(workingDir,'/config/config.csv'))

@@ -37,7 +37,7 @@ read_legends <- function(working_dir, out_dir) {
     
     if (!is.na(records_page$y[1]) && !is.na(records_page$h[1])) {
       # Extract species information
-      species <- crop_specie(working_dir, out_dir, file_name, map_name, as.integer(records_page$y[1]), as.integer(records_page$h[1]))
+      species <- crop_specie(working_dir, out_dir, file_name, map_name,  as.integer(records_page$y[1]), as.integer(records_page$h[1]))
       print("Here the specie:")
       print(species)
 

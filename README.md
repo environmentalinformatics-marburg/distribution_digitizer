@@ -1,9 +1,3 @@
-This software is currently under development.
-If you use it, please cite it as
-
-Venkatesh M, Forteva S and Zeuss D (2021) Distribution digitizer: Software for digitizing species distributions from analogue maps. Version 0.0.1 https://github.com/environmentalinformatics-marburg/distribution_digitizer_students
-
-
 
 # 📦 Installation Guide – Distribution Digitizer
 
@@ -11,9 +5,21 @@ This guide explains how to install and prepare the **Distribution Digitizer** pr
 
 ---
 
+## 📚 Citation
+
+This software is currently under development.  
+If you use it, please cite:
+
+**Venkatesh M, Forteva S, Zeuss D (2021)**  
+*Distribution digitizer: Software for digitizing species distributions from analogue maps.*  
+Version 0.0.1  
+[https://github.com/environmentalinformatics-marburg/distribution_digitizer_students](https://github.com/environmentalinformatics-marburg/distribution_digitizer_students)
+
+---
+
 ## ✅ Prerequisites
 
-Ensure the following software is installed:
+Ensure the following software are installed:
 
 - [R](https://cran.r-project.org/)
 - [RStudio](https://posit.co/download/rstudio-desktop/)
@@ -56,14 +62,15 @@ distribution_digitizer/
 │   └── input/                # Book-specific input files
 │       ├── pages/            # Scanned TIFF images of the book pages (e.g., 0066.tif)
 │       └── templates/        # Template-related resources
-│           ├── maps/         # Cropped map templates (*.tif) – should match maps from the current book
-│           ├── geopoints/    # Coordinate files (*.points) – define positions on maps
-│           ├── symbols/      # Templates for different species point markers used in the book
-│           └── align_ref/    # Reference maps for post-matching alignment and orientation adjustment
+│           ├── maps/         # Cropped map templates (*.tif)
+│           ├── geopoints/    # Coordinate files (*.points)
+│           ├── symbols/      # Templates for different species point markers
+│           └── align_ref/    # Reference maps for alignment/orientation
 ````
 
 > ⚠️ Make sure that your templates and point files reflect the actual structure and content of the scanned book. For reliable matching, file names must correspond to the map and symbol types actually used.
 
+---
 
 ## 📦 R Package Installation
 
@@ -72,11 +79,15 @@ Open **RStudio as Administrator** and run:
 ```r
 install.packages(c(
   "shiny", "shinydashboard", "magick", "grid", "shinyFiles", 
-  "reticulate", "tesseract", "leaflet", "raster", "sf", "shinyalert", "shinyjs"
+  "reticulate", "tesseract", "leaflet", "raster", "sf", 
+  "shinyalert", "shinyjs", "rdrop2"
 ))
 ```
 
-> ⚠️ If `rdrop2` is missing or fails, it is not required and can be commented out in the script.
+> ⚠️ `rdrop2` is optional. If it fails, you can comment it out in the script.
+
+These packages are used in the app and expected to be preinstalled:
+
 
 ---
 
@@ -88,22 +99,22 @@ In RStudio, run (only once):
 # Load reticulate first
 library(reticulate)
 
-# Install Python packages (only needed once)
-# If you are using Miniconda (recommended):
+# Install Python packages (Miniconda recommended)
 reticulate::py_install(packages = c(
   "opencv-python", "pillow", "pandas", "GDAL", 
   "imutils", "rasterio", "geopandas"
 ), pip = TRUE)
-
 ```
 
-If you do not use Miniconda, specify the system Python path:
+If you do not use Miniconda, specify the system Python path manually:
 
-# Point to your system-installed Python manually if needed
 ```r
 use_python("C:/Path/To/python.exe")
 ```
-Use Sys.which("python") to get the exact path.
+
+Use `Sys.which("python")` to find your path.
+
+---
 
 ## ▶️ Starting the Application
 
@@ -123,10 +134,6 @@ This will run all configuration dialogs and launch the main app.
 
 ---
 
+## ℹ️ More Information
 
-# More installation and usage
-
-https://environmentalinformatics-marburg.github.io/distribution_digitizer_webpage
-
-
-
+[https://environmentalinformatics-marburg.github.io/distribution_digitizer_webpage](https://environmentalinformatics-marburg.github.io/distribution_digitizer_webpage)

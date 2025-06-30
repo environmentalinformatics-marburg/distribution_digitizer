@@ -102,14 +102,24 @@ def match_symbol(image, symbols):
 
     return best_match if highest_score > 0.5 else 'none'
 
-def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h):
+def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, attempt=1):
     """
     Extract species names from a page image and associate them with map symbols.
+    If nothing is found, retry with thresholding (max 3 attempts).
     """
     try:
-        # Read the image and convert it to RGB
         image = cv2.imread(path_to_page)
-        rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # Preprocessing je nach Versuch
+        if attempt == 1:
+            print("[INFO] Versuch 1: Originalbild")
+            rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        else:
+            print(f"[INFO] Versuch {attempt}: mit Thresholding")
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.GaussianBlur(gray, (3, 3), 0)
+            _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            rgb = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB)
 
         legend1 = 'distribution'
         d = pytesseract.image_to_data(rgb, output_type=Output.DICT)
@@ -117,59 +127,48 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h):
         specie = ''
         double_specie = ''
 
-        # Load symbol templates
         symbols = load_symbols(os.path.join(working_dir, "data", "input", "templates", "symbols/"))
          
         for i in range(n_boxes - 2):
-            # Extract OCR data
             (x1, y1, w1, h1, c1) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i], d['conf'][i])
             text = d['text'][i].lstrip()
             pre = d['text'][i + 1].lstrip()
 
-            # Check if the text is close enough to "distribution"
             if levenshtein_ratio(text, legend1) > 80:
                 if pre == 'of':
                     if abs(y1 - (y + h)) < h:
-                        if double_specie != d['text'][i + 2].lstrip():
-                            double_specie = d['text'][i + 2].lstrip()
-                            
-                            # Crop the area where the symbol is expected
+                        candidate = d['text'][i + 2].lstrip()
+                        if double_specie != candidate:
+                            double_specie = candidate
                             symbol_crop = image[y1:y1 + h1 + 3, x1 - 100:x1]
                             gray_symbol_crop = cv2.cvtColor(symbol_crop, cv2.COLOR_BGR2GRAY)
-                            symbol_crop_path = os.path.join(out_dir, f"symbol_crop_{i}.tif")
-                            
-                            # Match the cropped area with symbol templates
                             matched_symbol = match_symbol(gray_symbol_crop, symbols)
-                            
-                            # Clean up the matched symbol name
                             matched_symbol = re.sub(r'\d+_', '', matched_symbol)
-                            specie += "_" + d['text'][i + 2].lstrip() + "S" + matched_symbol
+                            specie += "_" + candidate + "S" + matched_symbol
                             print(specie)
-                        else:
-                            continue
 
-        # Remove any non-alphanumeric characters from the species string
         specie = re.sub(r"[^\w\s]", "", specie)
+
+        # Falls nichts gefunden: rekursiver Fallback (max 3 Versuche)
+        if specie == '' and attempt < 3:
+            print(f"[RETRY] Kein Ergebnis, versuche OCR erneut (Versuch {attempt+1}) ...")
+            return crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, attempt + 1)
 
         if specie == '':
             specie = 'notfounddistribution'
 
-        align_map = ""
-        map_new_name = ""
+        if out_dir.endswith("/"):
+            out_dir = out_dir.rstrip("/")
+        if working_dir.endswith("/"):
+            working_dir = working_dir.rstrip("/")
 
-        # Determine the output paths based on the directory structure
         if os.path.exists(out_dir):
-            if out_dir.endswith("/"):
-                out_dir = out_dir.rstrip("/")
             align_map = os.path.join(out_dir, "maps/align/", os.path.basename(path_to_map))
             map_new_name = os.path.join(out_dir, "maps/readSpecies/", os.path.basename(path_to_map).rsplit('.', 1)[0] + "_" + specie + ".tif")
         else:
-            if working_dir.endswith("/"):
-                working_dir = working_dir.rstrip("/")
             align_map = os.path.join(working_dir, "data/output/maps/align/", os.path.basename(path_to_map))
             map_new_name = os.path.join(working_dir, "data/output/maps/readSpecies/", os.path.basename(path_to_map).rsplit('.', 1)[0] + "_" + specie + ".tif")
 
-        # Copy the aligned map to the new location with the species name appended
         if os.path.isfile(align_map):
             shutil.copy(align_map, map_new_name)
         else:

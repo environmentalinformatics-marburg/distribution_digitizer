@@ -112,7 +112,21 @@ library(shiny)
 
 # Set working directory again (optional safety)
 setwd(script_folder)
-cat("📁 Working directory:", getwd(), "\n")
+workingDir <- script_folder
+cat("📁 Working directory:", workingDir, "\n")
+
+# Fix: Set or update 'input' in start_config.csv
+start_config_path <- file.path(script_folder, "start_config.csv")
+if (file.exists(start_config_path)) {
+  lines <- readLines(start_config_path)
+  config <- setNames(sub(".*=", "", lines), sub("=.*", "", lines))
+  config["input"] <- script_folder  # set input = working dir
+  new_lines <- paste0(names(config), "=", config)
+  writeLines(new_lines, start_config_path)
+  cat("✅ Set 'input' in start_config.csv to:", script_folder, "\n")
+} else {
+  warning("⚠️ start_config.csv not found. Cannot update 'input'.")
+}
 
 # Logging function for easier debugging
 log_message <- function(msg) {
@@ -135,18 +149,67 @@ if (length(missing) > 0) {
 
 # Run the mode selector dialog
 log_message("▶ Running mode selector...")
-config_path <- runApp(file.path(shiny_dir, "app_mode_selector.R"))
+shiny_port <- 8888
+Sys.setenv(APP_WORKING_DIR = script_folder)
 
-# Optional: Run configuration dialog
-# log_message("▶ Running configuration dialog...")
-# config_path <- runApp(file.path(shiny_dir, "app_write_config.R"))
+# ... (dein bestehender Code bleibt gleich bis hier)
+Sys.setenv(APP_WORKING_DIR = script_folder)
 
-# Optional: Save config result
-# log_message("💾 Saving configuration result...")
-# saveRDS(config_path, file = "config_path.rds")
+library(readr)
 
-# Optional: Launch main app in a separate R session
-# log_message("▶ Starting main app...")
-# system(paste("Rscript", file.path(shiny_dir, "app_main_dialog.R"), "8889"), wait = FALSE)
+# Pfad zur Steuerdatei
+configFile <- file.path(script_folder, "start_config.csv")
 
-log_message("✅ Main app launched.")
+if (!file.exists(configFile)) {
+  stop("❌ start_config.csv not found. Aborting.")
+}
+
+repeat {
+  Sys.sleep(1)
+  raw_lines <- readLines(configFile, warn = FALSE)
+  if (length(raw_lines) == 0) next
+  
+  # key=value Format parsen
+  config <- setNames(
+    sub(".*=", "", raw_lines),
+    sub("=.*", "", raw_lines)
+  )
+  
+  if (config[["actualscript"]] == "1") {
+    log_message("▶ Running app_mode_selector...")
+    output_path <- runApp(file.path(shiny_dir, "app_mode_selector.R"), port = shiny_port, launch.browser = TRUE)
+    
+    if (!is.null(output_path)) {
+      config[["output"]] <- output_path
+      config[["actualscript"]] <- "2"
+      writeLines(paste0(names(config), "=", config), configFile)
+      log_message(paste("ℹ️ Switching to app_main_dialog with output:", output_path))
+    } else {
+      log_message("ℹ️ User exited app_mode_selector without output.")
+      break
+    }
+    
+  } else if (config[["actualscript"]] == "2") {
+    log_message("▶ Running app_main_dialog...")
+    output_path <- config[["output"]]
+    system(paste("Rscript", file.path(shiny_dir, "app_main_dialog.R"),
+                 shQuote(output_path), shQuote(script_folder)), wait = FALSE)
+    break
+  } else {
+    log_message("⚠️ Unknown actualscript value in config.")
+    break
+  }
+}
+
+
+
+
+
+
+config_path <- "D:/distribution_digitizer/start_config.csv"
+lines <- readLines(config_path)
+config <- setNames(sub(".*=", "", lines), sub("=.*", "", lines))
+workingDir <- normalizePath(config["input"], winslash = "/", mustWork = TRUE)
+outDir <- normalizePath(config["output"], winslash = "/", mustWork = TRUE)
+setwd(workingDir)
+runApp("shiny_apps/app_main_dialog.R", launch.browser = TRUE)
