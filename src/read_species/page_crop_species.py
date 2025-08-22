@@ -39,11 +39,10 @@ def set_tessdata_prefix_once(workingDir, key="tesserAct"):
                 tess_path = config.get(key)
 
                 if tess_path and os.path.exists(tess_path):
-                    os.environ['TESSDATA_PREFIX'] = tess_path
-
+                    #os.environ['TESSDATA_PREFIX'] = tess_path
+                    os.environ['TESSDATA_PREFIX'] = os.path.join(tess_path, "tessdata")
                     # WICHTIG: Setze Pfad zu tesseract.exe explizit
-                    import pytesseract
-                    pytesseract.pytesseract.tesseract_cmd = os.path.join(tess_path, "..", "tesseract.exe")
+                    pytesseract.pytesseract.tesseract_cmd = os.path.join(tess_path,  "tesseract.exe")
 
                     print(f"TESSDATA_PREFIX set to: {tess_path}")
                     print(f"tesseract_cmd set to: {pytesseract.pytesseract.tesseract_cmd}")

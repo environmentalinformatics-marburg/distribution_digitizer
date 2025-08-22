@@ -10,10 +10,22 @@ library(stringr)
 library(leaflet)
 library(readr)
 
-workingDir = "D:/distribution_digitizer/"
-outDir = "D:/test/this/output_2025-06-17_14-41-47-48/"
-config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
+args <- commandArgs(trailingOnly = TRUE)
 
+# Argumente lesen
+inputDir  <- args[1]
+outDir    <- args[2]
+nPages    <- as.integer(args[3])
+pageNr    <- as.integer(args[4])
+
+cat("Input directory: ", inputDir, "\n")
+cat("Output directory:", outDir, "\n")
+cat("Number of pages: ", nPages, "\n")
+cat("Single page:     ", pageNr, "\n")
+
+# Beispiel: überschreibe workingDir/outDir mit den Angaben
+workingDir <- inputDir
+outDir <- outDir
 
 #######
 # Run Template Matching

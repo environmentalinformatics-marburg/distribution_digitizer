@@ -1,3 +1,37 @@
+args <- commandArgs(trailingOnly = TRUE)
+
+args <- commandArgs(trailingOnly = TRUE)
+
+inputDir <- args[1]
+outDir   <- args[2]
+pageSel  <- ifelse(length(args) >= 3, args[3], "ALL")
+
+cat("📂 Input directory: ", inputDir, "\n")
+cat("💾 Output directory:", outDir, "\n")
+
+# Interpretation von pageSel
+if (toupper(pageSel) == "ALL") {
+  cat("➡️ Processing ALL pages\n")
+} else if (grepl("\\.tif$", pageSel, ignore.case = TRUE)) {
+  cat("➡️ Processing single page: ", pageSel, "\n")
+} else if (grepl("^[0-9]+$", pageSel)) {
+  cat("➡️ Processing first ", pageSel, " pages\n")
+} else {
+  stop(paste("❌ Invalid pageSel argument:", pageSel))
+}
+
+
+cat("➡️ Page selection:  ", pageSel, "\n")
+
+# Beispiel: überschreibe workingDir/outDir mit den Angaben
+workingDir <- inputDir
+outDir <- outDir
+# ---- Config laden ----
+config_path <- file.path(inputDir, "config", "config.csv")
+if (!file.exists(config_path)) {
+  stop(paste("❌ Config file not found:", config_path))
+}
+config <- read.csv(config_path, header = TRUE, sep = ";")
 
 #######
 # Load Required Libraries and Define Paths
@@ -10,11 +44,6 @@ library(stringr)
 library(leaflet)
 library(readr)
 
-workingDir = "D:/distribution_digitizer/"
-outDir = "D:/test/output_2025-03-03_09-22-03_map_1/"
-config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
-
-
 #######
 # Run Template Matching
 #######
@@ -26,8 +55,9 @@ source_python(fname)
 print("Threshold:")
 print(2)
 print(outDir)
-main_template_matching(workingDir, outDir, 0.18, config$sNumberPosition, config$matchingType)
+#main_template_matching(workingDir, outDir, 0.18, config$sNumberPosition, config$matchingType)
 
+main_template_matching(workingDir, outDir, 0.18, config$sNumberPosition, config$matchingType, pageSel)
 
 #######
 # Align Images
@@ -108,6 +138,7 @@ print("Processing masking centroids python script:")
 print(fname)
 source_python(fname)
 MainMaskCentroids(workingDir, outDir)
+
 
 
 #######
@@ -192,7 +223,6 @@ spatial_final_data <- read.csv2(spatial_final_data_path, stringsAsFactors = FALS
 # Alle CSV-Dateien im Verzeichnis pagerecords einlesen save as pagerecords.csv
 csv_files <- list.files(file.path(outDir,"pagerecords"), pattern = "\\.csv$", full.names = TRUE)
 outputFile <- file.path(outDir,"pagerecords.csv")
-
 # Leere Liste zum Speichern der DataFrames
 data_list <- list()
 
@@ -323,180 +353,4 @@ spatial_df <- spatial_df %>% select(ID, file_map, map_ID,everything())
 write.table(spatial_df, file = outputFile, sep = ";", row.names = FALSE, quote = FALSE)
 
 cat("Die Datei wurde erfolgreich aktualisiert und gespeichert unter:", outputFile)
-
-
-
-#######
-# Funktion 
-# zum Kombinieren der 
-# spatial_final_data_with_new_pagerecordsFiles.csv von map1 und map2 
-# Dateien und Hinzufügen einer fortlaufenden ID-Spalte
-#######
-
-combineAllMaps <- function(outDir1, outDir2, outputDir) {
-  tryCatch(
-    {
-      # Pfade zu den CSV-Dateien
-      csv_path1 <- file.path(outDir1, "spatial_final_data_with_new_pagerecordsFiles.csv")
-      csv_path2 <- file.path(outDir2, "spatial_final_data_with_new_pagerecordsFiles.csv")
-      output_csv_path <- file.path(outputDir, "final_all_maps.csv")
-      
-      # CSV-Dateien einlesen
-      df1 <- read.csv2(csv_path1, stringsAsFactors = FALSE)
-      df2 <- read.csv2(csv_path2, stringsAsFactors = FALSE)
-      df1$Title <- gsub(";", "", df1$Title)
-      df2$Title <- gsub(";", "", df2$Title)
-      df1$X_WGS84 <- as.character(df1$X_WGS84)
-      df2$X_WGS84 <- as.character(df2$X_WGS84)
-      
-      # Beide DataFrames zusammenfügen (einfaches Anhängen)
-      combined_df <- bind_rows(df1, df2)
-      
-      # Fortlaufende ID-Spalte hinzufügen
-      combined_df <- combined_df %>%
-        mutate(ID = row_number())
-      
-      # ID-Spalte an die erste Stelle verschieben
-      combined_df <- combined_df %>%
-        dplyr::select(ID, everything())
-      
-      # Die neue CSV-Datei schreiben
-      write.csv2(combined_df, output_csv_path, row.names = FALSE)
-      
-      print(paste("Final combined CSV file with ID created at:", output_csv_path))
-      
-    }, 
-    error = function(e) {
-      print(e)
-    },
-    finally = {
-      cat("\nSuccessfully executed")
-    }
-  )
-}
-
-
-# Aufrufen der Funktion mit den angegebenen Arbeitsverzeichnissen
-outDir1 <- "D:/test/output_2025-03-04_15-42-16_map_2_all/"
-outDir2 <- "D:/test/output_2025-03-03_09-22-03_map_1/"
-outputDir <- "D:/test/"
-combineAllMaps(outDir1, outDir2, outputDir)
-
-
-#######
-# Sortieren
-#######
-
-data <- read.csv2("D:/test/final_all_maps.csv", stringsAsFactors = FALSE)
-
-# Funktion zum Extrahieren der Nummer vor "map"
-data$file_map <- as.integer(sub("^0*", "", sapply(strsplit(sub("map.*", "", data$File), "_"), `[`, 2)))
-
-# Sortieren: Zuerst nach "file_map" und danach nach "File"
-data_sortiert <- data[order(data$file_map, data$File), ]
-
-# Ergebnis als CSV-Datei speichern
-write.csv2(data_sortiert, "D:/test/ergebnis_datei_sortiert.csv", row.names = FALSE)
-
-data <- read.csv2("D:/test/ergebnis_datei_sortiert.csv", stringsAsFactors = FALSE)
-
-data_sortiert <- data[order(data$file_map, data$File), ]
-
-# Nur die gewünschten Spalten auswählen
-data_selected <- data_sortiert[, c("File", "file_map", "species", "Title")]
-
-# Falls es führende/nachfolgende Leerzeichen gibt, diese entfernen:
-data_selected$File <- trimws(data_selected$File)
-
-# Doppelte Einträge basierend auf "File" entfernen (nur der erste Eintrag wird behalten)
-data_unique <- data_selected[!duplicated(data_selected$File), ]
-
-# Ergebnis als CSV-Datei speichern
-write.csv2(data_unique, "D:/test/ergebnis_datei_sortiert_title_map_file.csv", row.names = FALSE)
-
-
-#######
-# diese Funktion ist geschrieben worden, weil es einige Maps gib es,
-# bei dennen weder Punkte, noch species gefunden worden sind, 
-# trozdem um die Information transparent zu behalten, dass diese maps gefunden worden sind
-#######
-
-mergeAllCSVFiles <- function(inputDir, outputFile) {
-  tryCatch(
-    {
-      # Liste aller CSV-Dateien im Ordner
-      csv_files <- list.files(path = inputDir, pattern = "\\.csv$", full.names = TRUE)
-      
-      # Falls keine CSV-Dateien gefunden wurden, abbrechen
-      if (length(csv_files) == 0) {
-        stop("Keine CSV-Dateien im angegebenen Ordner gefunden!")
-      }
-      
-      print(paste("Es wurden", length(csv_files), "CSV-Dateien gefunden."))
-      
-      # Alle CSV-Dateien einlesen und in einer Liste speichern
-      csv_list <- lapply(csv_files, function(file) {
-        print(paste("Lese Datei:", file))
-        read_csv(file, col_types = cols())  # Automatische Spaltenerkennung
-      })
-      
-      # Vereinheitlichte Spaltennamen sicherstellen
-      all_columns <- unique(unlist(lapply(csv_list, colnames)))
-      
-      # Fehlende Spalten in jeder Datei ergänzen
-      csv_list <- lapply(csv_list, function(df) {
-        missing_cols <- setdiff(all_columns, colnames(df))
-        for (col in missing_cols) {
-          df[[col]] <- NA  # Fehlende Spalten mit NA füllen
-        }
-        return(df[, all_columns])  # Sicherstellen, dass alle DataFrames dieselbe Spaltenreihenfolge haben
-      })
-      
-      # Alle CSV-Dateien zu einem DataFrame zusammenführen
-      merged_df <- bind_rows(csv_list)
-      
-      print("Merging abgeschlossen. Speichere Datei...")
-      
-      # Speichern der zusammengeführten CSV-Datei
-      write_csv2(merged_df, outputFile, na = "NA")
-      
-      print(paste("Die zusammengeführte CSV-Datei wurde gespeichert unter:", outputFile))
-      
-    }, 
-    error = function(e) {
-      print(e)
-    },
-    finally = {
-      cat("\nSuccessfully executed")
-    }
-  )
-}
-
-mergeAllCSVFiles(paste0(outDir,"pagerecords/"), paste0(outDir, "/pageregords_all.csv"))
-
-
-#######
-# Visualisation
-#######
-
-# Daten einlesen (mit Komma als Dezimaltrennzeichen!)
-df <- read_delim(file.path(outDir,"spatial_final_data_with_realXY.csv"), delim = ";", locale = locale(decimal_mark = ","))
-
-# Optional: Farb-Spalte mit RGB in HEX umrechnen
-df$Color <- rgb(df$Red / 255, df$Green / 255, df$Blue / 255)
-
-# Karte rendern
-leaflet(df) %>%
-  addTiles() %>%
-  addCircleMarkers(
-    lng = ~Real_X,
-    lat = ~Real_Y,
-    color = ~Color,
-    radius = 6,
-    fillOpacity = 0.7,
-    stroke = TRUE,
-    popup = ~paste0("<b>Art:</b> ", species, "<br>",
-                    "<b>Datei:</b> ", File, "<br>",
-                    "<b>Koordinaten:</b> ", Real_X, ", ", Real_Y)
-  )
 

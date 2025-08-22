@@ -30,7 +30,7 @@ if (workingDir == "") {
 setwd(workingDir)
 
 inputDir <- file.path(workingDir, "data/input/")
-print(workingDir)
+
 # Read config
 readConfigFile <- function(filename) {
   path <- file.path(workingDir, "config", filename)
@@ -206,42 +206,48 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$continueApp, {
+    # Pfade
     config_path <- file.path(workingDir, "config/config.csv")
-    if (file.exists(config_path)) {
-      cfg <- read.csv(config_path, sep = ";", stringsAsFactors = FALSE)
-      base_output <- dirname(cfg$dataOutputDir[1])
-      selected_output <- input$existingOutput
-      full_path <- file.path(base_output, selected_output)
-      
-      if (!is.null(selected_output) && dir.exists(full_path)) {
-        # 📝 Update start_config.csv
-        start_config_path <- file.path(workingDir, "start_config.csv")
-        if (file.exists(start_config_path)) {
-          lines <- readLines(start_config_path)
-          config_map <- setNames(sub(".*=", "", lines), sub("=.*", "", lines))
-          config_map["output"] <- full_path
-          config_map["actualscript"] <- "2"
-          new_lines <- paste0(names(config_map), "=", config_map)
-          writeLines(new_lines, start_config_path)
-        } else {
-          shinyalert("Error", "start_config.csv not found.", type = "error")
-          return()
-        }
-        
-        # ✅ Jetzt App sauber beenden
-        stopApp(NULL)
-      } else {
-        shinyalert("Error", "Selected output directory not found.", type = "error")
-      }
-    } else {
+    if (!file.exists(config_path)) {
       shinyalert("Error", "No config.csv found.", type = "error")
+      return()
     }
+    
+    # Auswahl prüfen
+    selected_output <- input$existingOutput
+    if (!nzchar(selected_output)) {
+      shinyalert("Error", "Please select an output folder.", type = "error")
+      return()
+    }
+    
+    # Basisordner aus aktueller config lesen
+    cfg <- read.csv(config_path, sep = ";", stringsAsFactors = FALSE)
+    base_output <- dirname(cfg$dataOutputDir[1])
+    
+    # Vollständigen Pfad bilden und prüfen
+    full_path <- file.path(base_output, selected_output)
+    if (!dir.exists(full_path)) {
+      shinyalert("Error", sprintf("Folder does not exist:\n%s", full_path), type = "error")
+      return()
+    }
+    
+    # In config.csv NUR dataOutputDir aktualisieren
+    cfg$dataOutputDir[1] <- full_path
+    write.table(cfg, file = config_path, sep = ";", row.names = FALSE, quote = FALSE)
+    
+    batch_file <- file.path(workingDir, "start_main_dialog.bat")
+    shinyalert(
+      "Success",
+      sprintf(
+        "Output folder saved:\n%s\n\nYou can now start the main batch:\n%s",
+        full_path, batch_file
+      ),
+      type = "success"
+    )
+    stopApp()
   })
   
-  
-  
-  
-  
+
   observeEvent(input$saveConfig, {
     req(file.exists(input$dataInputDir))
     required1 <- c("pages", "templates")

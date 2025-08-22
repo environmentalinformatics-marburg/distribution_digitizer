@@ -281,91 +281,99 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
 
 #working_dir="D:/distribution_digitizer"
 # Function to perform the main template matching in a loop
-def main_template_matching(working_dir, outDir, threshold, page_position, matchingType):
-  """
-  Perform the main template matching process.
+import os, glob, csv
 
-  Args:
-  - working_dir (str): Working directory.
-  - outDir (str) : Output directory
-  - threshold (float): Threshold value for template matching.
-  - page_position (int): The position of the page number. 1 for the top, 2 for the bottom.
-  """
-  try:
-    # OUTPUT
-    print("Working directory matching:")
-    print(working_dir)
-    output_dir = ""
-    output_page_records = ""
-    records = ""
-    if(os.path.exists(outDir)):
-      if outDir.endswith("/"):
-        output_dir = outDir + "maps/matching/"
-        output_page_records = outDir + "pagerecords/"
-        records = outDir + "records.csv"
-      else:
-        output_dir = outDir + "/maps/matching/"
-        output_page_records = outDir + "/pagerecords/"
-        records = outDir + "/records.csv"
-   
-    print("Output directory matching:")
-    print(output_dir)
+def main_template_matching(working_dir, outDir, threshold, page_position, matchingType, pageSel="ALL"):
+    """
+    Perform the main template matching process.
 
-    #page_position = 1
-    print("Site number position:")
-    print(page_position)
-    #threshold=0.2
-    # prepare the png directory
-    # for the converted png images after the matching process 
-    if working_dir.endswith("/"):
-      output_png_dir = working_dir + "www/data/matching_png/"
-      templates = working_dir+"data/input/templates/maps/"
-      input_dir = working_dir + "data/input/pages/"
-    else: 
-      output_png_dir = working_dir + "/www/data/matching_png/"
-      templates = working_dir+"/data/input/templates/maps/"
-      input_dir = working_dir + "/data/input/pages/"
-  
-    print(templates)
-    tif_files = sorted(glob.glob(input_dir + '*.tif'))
-    
-    # Start the matching in loop input templates and input pages 
-    with open(records, 'w', newline='') as csv_file:  
- 
-      # Creating a csv writer object to write the map coordinats     
-      csvwriter = csv.writer(csv_file)   
+    Args:
+    - working_dir (str): Working directory
+    - outDir (str): Output directory
+    - threshold (float): Threshold value for template matching
+    - page_position (int): The position of the page number. 1=top, 2=bottom
+    - matchingType (int): 1 = template, 2 = contours
+    - pageSel (str|int): "ALL" = all pages, int = first N pages, 
+                         3-digit int = single page file (e.g. 088 -> 088.tif)
+    """
 
-      # Iteriere über die Template-Dateien
-      for template_map_file in glob.glob(templates + '*.tif'):
-        # Iteriere über die TIFF-Dateien im input_dir
-        for index, current_page_path in enumerate(sorted(glob.glob(input_dir + '*.tif'))):
-    
-          # Bestimme den Pfad der vorherigen Seite (falls vorhanden)
-          previous_page_path = tif_files[index - 1] if index > 0 else 'None'
-          print("prev",previous_page_path)
-          print("current",current_page_path)
-          # Bestimme den Pfad der nächsten Seite (falls vorhanden)
-          next_page_path = tif_files[index + 1] if index < len(tif_files) - 1 else 'None'
-          print("next", next_page_path)
-          # Hier kannst du die Pfade an deine Funktion übergeben
-          params = {
-            "previous_page_path": previous_page_path,
-            "next_page_path": next_page_path,
-            "current_page_path": current_page_path,
-            "template_map_file": template_map_file,
-            "output_dir": output_dir,
-            "output_page_records": output_page_records,
-            "records": records,
-            "threshold": threshold,
-            "page_position": page_position
-          }
-          if matchingType == 1:
-            match_template(**params)
-          elif matchingType == 2:
-            match_template_contours(**params)
-  except Exception as e:
-        print("An error occurred in main_template_matching:", e)
+    try:
+        # --- Output dirs ---
+        if outDir.endswith("/"):
+            output_dir = outDir + "maps/matching/"
+            output_page_records = outDir + "pagerecords/"
+            records = outDir + "records.csv"
+        else:
+            output_dir = outDir + "/maps/matching/"
+            output_page_records = outDir + "/pagerecords/"
+            records = outDir + "/records.csv"
+
+        if working_dir.endswith("/"):
+            templates = working_dir + "data/input/templates/maps/"
+            input_dir = working_dir + "data/input/pages/"
+        else:
+            templates = working_dir + "/data/input/templates/maps/"
+            input_dir = working_dir + "/data/input/pages/"
+
+        # --- alle Seiten sammeln ---
+        tif_files = sorted(glob.glob(os.path.join(input_dir, '*.tif')))
+
+        # --- Seitenauswahl ---
+        if str(pageSel).upper() == "ALL":
+            pages = tif_files
         
+        elif str(pageSel).isdigit():
+            # Zahl => erste N Seiten
+            n = int(pageSel)
+            pages = tif_files[:n]
+        
+        elif str(pageSel).lower().endswith(".tif"):
+            # exakter Dateiname => nur diese Seite
+            candidate = os.path.join(input_dir, pageSel)
+            if not os.path.exists(candidate):
+                raise FileNotFoundError(f"❌ Page file not found: {candidate}")
+            pages = [candidate]
+        
+        else:
+            raise ValueError(f"❌ Invalid pageSel argument: {pageSel}")
+
+
+        print(f"➡️ Processing {len(pages)} page(s):")
+        for p in pages:
+            print("   ", p)
+
+        # --- Matching starten ---
+        with open(records, 'w', newline='') as csv_file:
+            csvwriter = csv.writer(csv_file)
+
+            for template_map_file in glob.glob(os.path.join(templates, '*.tif')):
+                for index, current_page_path in enumerate(pages):
+                    prev_path = pages[index - 1] if index > 0 else 'None'
+                    next_path = pages[index + 1] if index < len(pages) - 1 else 'None'
+
+                    print("prev", prev_path)
+                    print("current", current_page_path)
+                    print("next", next_path)
+
+                    params = {
+                        "previous_page_path": prev_path,
+                        "next_page_path": next_path,
+                        "current_page_path": current_page_path,
+                        "template_map_file": template_map_file,
+                        "output_dir": output_dir,
+                        "output_page_records": output_page_records,
+                        "records": records,
+                        "threshold": threshold,
+                        "page_position": page_position
+                    }
+                    if matchingType == 1:
+                        match_template(**params)
+                    elif matchingType == 2:
+                        match_template_contours(**params)
+
+    except Exception as e:
+        print("❌ An error occurred in main_template_matching:", e)
+
 
 #working_dir="D:/distribution_digitizer"
 #outDir="D:/test/output_2025-02-18_14-27-23/"
