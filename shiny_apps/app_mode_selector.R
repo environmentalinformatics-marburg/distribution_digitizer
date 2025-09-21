@@ -1,6 +1,6 @@
 # ============================================================
 # Script Author: Spaska Forteva
-# Updated On: 2025-06-17
+# Updated On: 2025-09-18
 # Description: Unified configuration and output folder creation 
 # for Distribution Digitizer (integrated in app_mode_selector.R)
 # ============================================================
@@ -38,6 +38,7 @@ readConfigFile <- function(filename) {
   read.csv(path, header = TRUE, sep = ";")
 }
 
+
 config <- tryCatch({
   readConfigFile("config.csv")
 }, error = function(e) {
@@ -55,6 +56,7 @@ config <- tryCatch({
 
 configStartDialog <- readConfigFile("configStartDialog.csv")
 shinyfields2 <- readConfigFile("shinyfields_detect_maps.csv")
+info<-readConfigFile("info.csv")
 
 # UI
 header <- dashboardHeader(
@@ -71,16 +73,6 @@ body <- dashboardBody(
   br(),
   br(),
   conditionalPanel(
-    condition = "input.showDialog % 2 == 0",
-    fluidRow(
-      column(6,
-             selectInput("existingOutput", "Select existing output directory", choices = NULL),
-             actionButton("continueApp", "Continue with selected output", class = "btn-success"),
-             br()
-      )
-    )
-  ),
-  conditionalPanel(
     condition = "input.showDialog % 2 == 1",
     tabItems(
       tabItem(
@@ -89,7 +81,14 @@ body <- dashboardBody(
           column(6, wellPanel(
             h3("General configuration fields"),
             textInput("title", "Book Title", config$title),
+            
+            actionButton("showAuthorInfo", "Info", icon = icon("question-circle")),
+            conditionalPanel(
+              condition = "input.showAuthorInfo % 2 == 1",
+              textOutput("authorInfo")
+            ),
             textInput("author", "Author", config$autor),
+
             textInput("pYear", "Publication Year", config$pYear),
             textInput("tesserAct", "Tesseract Path", config$tesserAct),
             textInput("dataInputDir", "Input Directory", config$dataInputDir),
@@ -189,6 +188,18 @@ prepare_www_output <- function(www_output) {
 
 server <- function(input, output, session) {
   addResourcePath("README.pdf", file.path(workingDir, "www/README.pdf"))
+  
+  observeEvent(input$showAuthorInfo, {
+    shinyalert(
+      "Autor-Informationen",
+      "Der Autor ist ein wichtiger Teil der Publikation. Bitte beachten Sie, dass der Autor korrekt angegeben werden muss.",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+      
+    
+    )
+  })
   
   observe({
     config_path <- file.path(workingDir, "config/config.csv")

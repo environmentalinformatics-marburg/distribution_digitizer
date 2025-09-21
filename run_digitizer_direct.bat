@@ -5,7 +5,7 @@ echo ==============================================
 
 REM === Default paths ===
 set DEFAULT_INPUT=D:/distribution_digitizer
-set DEFAULT_OUTPUT=D:/test/output_2025-08-13_12-41-21
+set DEFAULT_OUTPUT=D:/test/
 set DEFAULT_PYTHON=C:/ProgramData/miniconda3/python.exe
 set DEFAULT_TESSERACT=C:/Program Files/Tesseract-OCR
 

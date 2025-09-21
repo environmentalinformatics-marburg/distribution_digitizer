@@ -153,13 +153,15 @@ if (!is.null(selected_output_path) && dir.exists(selected_output_path)) {
   writeLines(paste0(names(config_map), "=", config_map), start_config_path)
   cat("✅ Updated start_config.csv\n")
   
-  # Schritt 3: Haupt-App starten
-  runApp(
-    file.path(shiny_dir, "app_main_dialog.R"),
-    port = 8889,   # eigener Port, um Konflikte zu vermeiden
-    launch.browser = TRUE
-  )
+
   
 } else {
   cat("❌ No output folder selected or folder does not exist.\n")
 }
+
+
+options(shiny.autoreload = TRUE)
+shiny::runApp("D:/distribution_digitizer/app_main_dialog.R")
+
+
+

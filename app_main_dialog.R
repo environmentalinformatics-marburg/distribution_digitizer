@@ -1,6 +1,7 @@
 # ============================================================
 # Script Author: [Spaska Forteva]
-# Created On: 2021-06-10c
+# Created On: 2021-06-10
+# Updated On: 2025-09-18
 # ============================================================
 
 # ============================================================
@@ -89,36 +90,81 @@ if(!require(raster)){
 }
 
 library(sf)
-Sys.setenv(TESSDATA_PREFIX = "C:/Program Files/Tesseract-OCR/tessdata")
 
+# ============================================================
+# DEBUG: Show all arguments passed from the batch script
+# ============================================================
+print("=== DEBUG ARGS ===")
+print(commandArgs(trailingOnly = TRUE))  # Print all trailing arguments
+print("===================")
+
+# ============================================================
+# Read arguments safely with fallbacks
+# ============================================================
+args <- commandArgs(trailingOnly = TRUE)
+
+# Host address for Shiny (default: localhost)
+R_HOST <- ifelse(length(args) >= 1, args[[1]], "127.0.0.1")
+
+# Port for Shiny (default: 8888)
+# We must check for NA because invalid input (e.g. text instead of number)
+# would otherwise produce NA and break Shiny ("Listening on NA").
+R_PORT <- 8888
+if (length(args) >= 2) {
+  val <- suppressWarnings(as.integer(args[[2]]))
+  if (!is.na(val)) {
+    R_PORT <- val
+  }
+}
+
+# Maximum request size (for file uploads) in bytes.
+# Here fixed to 100 MB. 
+# No need to read from arguments, this avoids parsing issues.
+R_MAX_REQUEST_SIZE <- 100 * 1024^2
+
+# Path to Python (used by reticulate)
+PYTHON_PATH <- ifelse(length(args) >= 4, args[[4]], "C:/ProgramData/miniconda3/python.exe")
+
+# Path to Tesseract installation folder
+# Note: We do not add "tessdata" here, it will be appended below.
+TESS_PATH <- ifelse(length(args) >= 5, args[[5]], "C:/Program Files/Tesseract-OCR")
+
+# Script working directory (default: current working directory)
+SCRIPT_DIR <- ifelse(length(args) >= 6, args[[6]], "D:/distribution_digitizer")
+
+# ============================================================
+# Apply Shiny options
+# ============================================================
+options(shiny.host = R_HOST)
+options(shiny.port = as.integer(R_PORT))
+options(shiny.maxRequestSize = R_MAX_REQUEST_SIZE)
+
+# ============================================================
+# Set the working directory for the app
+# ============================================================
+workingDir <- SCRIPT_DIR
+if (workingDir == "") {
+  workingDir <- getwd()  # fallback if empty
+}
+setwd(workingDir)
+
+# ============================================================
+# Set environment variable for Tesseract
+# ============================================================
+Sys.setenv(TESSDATA_PREFIX = file.path(TESS_PATH, "tessdata"))
+
+# ============================================================
 # Global variables
+# ============================================================
 processEventNumber = 0
-# ==========================
-# Read start_config.csv instead of using commandArgs
-# ==========================
-config_path <- "start_config.csv"
-if (!file.exists(config_path)) {
-  stop("❌ 'start_config.csv' not found. Cannot continue.")
-}
 
-lines <- readLines(config_path)
-config <- setNames(sub(".*=", "", lines), sub("=.*", "", lines))
-
-if (is.null(config["input"]) || is.null(config["output"])) {
-  stop("❌ Missing 'input' or 'output' entry in start_config.csv")
-}
-
-workingDir <- normalizePath(config["input"], winslash = "/", mustWork = TRUE)
-outDir <- normalizePath(config["output"], winslash = "/", mustWork = TRUE)
-
-cat("📁 Received working directory:", workingDir, "\n")
-cat("📁 Received output directory:", outDir, "\n")
 
 # ==========================
-# Weitere Initialisierung
+# Initialization
 # ==========================
 setwd(workingDir)  # falls du auf relative Pfade angewiesen bist
 inputDir <- file.path(workingDir, "data/input/")
+
 tempImage <- "temp.png"
 scale <- 20
 rescale <- 100 / scale
@@ -134,13 +180,6 @@ if (file.exists(fileFullPath)){
 
 if (file.exists(config$dataOutputDir)) {
   outDir <-  config$dataOutputDir
-}
-
-fileFullPath = (paste0(workingDir,'/config/configStartDialog.csv'))
-if (file.exists(fileFullPath)){
-  configStartDialog <- read.csv(fileFullPath, header = TRUE, sep = ';')
-} else{
-  stop("The file configStartDialog.csv was not found, please create them and start the app")
 }
 
 # read the shiny text fields
@@ -240,6 +279,7 @@ header <- dashboardHeader(
     class = "dropdown",
     sidebarMenu(
       id = "tablist",
+      menuItem("General Config", tabName = "tab0"),
       menuItem("Create Templates", tabName = "tab1"),
       menuItem("Maps Matching", tabName = "tab2"),
       menuItem("Points Matching", tabName = "tab3"),
@@ -256,15 +296,112 @@ header <- dashboardHeader(
 body <- dashboardBody(
   # Top Information
   # Working directory
+
+  # Add a title panel for the app and a link to the README.pdf file.  
+  # The PDF contains program documentation and instructions.  
+  # Users can click on the link (📘 Open README.pdf) to read more details 
+  # about how the "Distribution Digitizer" works.  
+  # The label/tooltip informs the user about the purpose of the link.
   titlePanel("Distribution Digitizer"),
   
-  p(paste0(config$workingDirInformation,": ",workingDir) , style = "color:black"),
+  # Second title panel for the README link
+  tags$h4(
+    tags$a(
+      href = "README.pdf",
+      target = "_blank",
+      "📘 Read the program description and usage instructions - README.pdf",
+      title = "Read the program description and usage instructions"
+    )
+  ),
+  br(),
+  p(paste0(config$workingDirInformation, ": ", workingDir), style = "color:black"),
+ 
+  br(),
+ 
   tabItems(
-    # Tab 1 Create Templates #---------------------------------------------------------------------
+    # =============================
+    # Tab 0 General Configuration
+    # =============================
+    tabItem(
+      tabName = "tab0",
+      wellPanel(
+        h3("General configuration fields"),
+        fluidRow(
+        # Left column
+          column(6,
+                 fluidRow(
+                   column(10, textInput("title", "Book Title", config$title)),
+                   column(2, actionButton("showTitleInfo", "", icon = icon("question-circle")))
+                 ),
+                 conditionalPanel("input.showTitleInfo % 2 == 1", textOutput("titleInfo")),
+                 
+                 fluidRow(
+                   column(10, textInput("author", "Author", config$autor)),
+                   column(2, actionButton("showAuthorInfo", "", icon = icon("question-circle")))
+                 ),
+                 conditionalPanel("input.showAuthorInfo % 2 == 1", textOutput("authorInfo")),
+                 
+                 fluidRow(
+                   column(10, textInput("pYear", "Publication Year", config$pYear)),
+                   column(2, actionButton("showPYearInfo", "", icon = icon("question-circle")))
+                 ),
+                 conditionalPanel("input.showPYearInfo % 2 == 1", textOutput("pYearInfo")),
+                 
+                 fluidRow(
+                   column(10, textInput("tesserAct", "Tesseract Path", config$tesserAct)),
+                   column(2, actionButton("showTesseractInfo", "", icon = icon("question-circle")))
+                 ),
+                 conditionalPanel("input.showTesseractInfo % 2 == 1", textOutput("tesseractInfo"))
+          ),
+        
+          # Right column
+          column(6,
+                 fluidRow(
+                   column(10, textInput("dataInputDir", "Input Directory", config$dataInputDir)),
+                   column(2, actionButton("showInputDirInfo", "", icon = icon("question-circle")))
+                 ),
+                 conditionalPanel("input.showInputDirInfo % 2 == 1", textOutput("inputDirInfo")),
+                 
+                 fluidRow(
+                   column(10, textInput("dataOutputDir", "Output Directory", config$dataOutputDir)),
+                   column(2, actionButton("showOutputDirInfo", "", icon = icon("question-circle")))
+                 ),
+                 conditionalPanel("input.showOutputDirInfo % 2 == 1", textOutput("outputDirInfo")),
+                 
+                 fluidRow(
+                   column(10, selectInput("pFormat", "Image Format", 
+                                          choices = c("tif" = 1, "png" = 2, "jpg" = 3),
+                                          selected = config$pFormat)),
+                   column(2, actionButton("showPFormatInfo", "", icon = icon("question-circle")))
+                 ),
+                 conditionalPanel("input.showPFormatInfo % 2 == 1", textOutput("pFormatInfo")),
+                 
+                 fluidRow(
+                   column(10, selectInput("pColor", "Page Color", 
+                                          choices = c("black white" = 1, "color" = 2),
+                                          selected = config$pColor)),
+                   column(2, actionButton("showPColorInfo", "", icon = icon("question-circle")))
+                 ),
+                 conditionalPanel("input.showPColorInfo % 2 == 1", textOutput("pColorInfo")),
+                 
+                 fluidRow(
+                   column(10, textInput("allPrintedPages", "Number of Scanned Images", config$allPrintedPages)),
+                   column(2, actionButton("showAllPagesInfo", "", icon = icon("question-circle")))
+                 ),
+                 conditionalPanel("input.showAllPagesInfo % 2 == 1", textOutput("allPagesInfo"))
+          )
+        ),actionButton("saveConfig", "Save", style = "color:#FFFFFF;background:#999999")
+      )
+    ),
+    
+    # =============================
+    # Tab 1 Create Templates
+    # =============================
     tabItem(
       tabName = "tab1",
       actionButton("listMTemplates",  label = "List saved map templates"),
       actionButton("listSTemplates",  label = "List saved symbol templates"),
+      
       fluidRow(
         column(4,
                wellPanel(
@@ -274,24 +411,29 @@ body <- dashboardBody(
                  fileInput("image",  label = h5(shinyfields1$lab1), buttonLabel = "Browse...",
                            placeholder = "No file selected"),
                ),
+               
                wellPanel(
-                 h4(strong(shinyfields1$save_template, style = "color:black")),
+                 
+                 p(HTML(shinyfields1$inf), style = "color:red"),
+                 p(strong(paste0(workingDir, "/data/templates/maps/"))),
                  # Add number to the file name of the created template file
-                 fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-                                 p(strong(paste0(shinyfields1$inf, workingDir, "/data/templates/maps/"), style = "color:black")),
-                                 p(shinyfields1$inf1, style = "color:black"),                
+                 fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),    
                                  # Save the template map image with the given index
-                                 downloadButton('saveTemplate', 'Save map template', style="color:#FFFFFF;background:#999999"))),
+                                 downloadButton('saveTemplate', '💾 Save Map Template', 
+                                                style="color:#FFFFFF;background:#0073e6"))),
+                                 p(shinyfields1$inf1, style = "color:black"),
                ),
                wellPanel(
-                 h4(strong(shinyfields1$save_symbol, style = "color:black")),
+                 
+                 p(HTML(shinyfields1$inf), style = "color:red"),
+                 p(strong(paste0(workingDir, "/data/templates/symbols/"))),
                  # Add number to the file name of the created template file
                  fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-                                 
-                                 p(strong(paste0(shinyfields1$inf2, workingDir, "/data/templates/symbols"), style = "color:black")),
-                                 p(shinyfields1$inf3, style = "color:black"),                
                                  # Save the template map image with the given index
-                                 downloadButton('saveSymbol', 'Save map symbol/Legende', style="color:#FFFFFF;background:#999999")))
+                                 downloadButton('saveSymbol', '💾 Save Symbol Template', 
+                                                style="color:#FFFFFF;background:#28a745"))),
+                                 p(shinyfields1$inf2, style = "color:black"),
+                 
                )
         ), # col 4
         column(8,
@@ -305,13 +447,15 @@ body <- dashboardBody(
     ),  # END tabItem 1
     
     
-    # Tab 2 Maps Matching #----------------------------------------------------------------------
+    # =============================
+    # Tab 2 Maps Matching
+    # =============================
     tabItem(
+      fluidRow(column(8,wellPanel(
+                      textInput("siteNumberMapsMatching", label=HTML(shinyfields2$inf6), value = ''),
+                      selectInput("matchingType", label = HTML(shinyfields2$matchingType), c("Template matching" = 1, "Contour matching" = 2), 1),
+                      selectInput("sNumberPosition", "Page Number Position", c("top" = 1, "bottom" = 2), selected = 1),))),
       tabName = "tab2",
-      # which site become overview
-      fluidRow(column(3,textInput("siteNumberMapsMatching", label=shinyfields6$input, value = ''))),
-      actionButton("listMapsMatching",  label = "List maps"),
-      actionButton("listAlign",  label = "List aligned maps"),
      # actionButton("listCropped",  label = "List cropped maps"),
       fluidRow(
         column(4,
@@ -320,18 +464,26 @@ body <- dashboardBody(
                  h3(strong(shinyfields2$head, style = "color:black")),
                  p(shinyfields2$inf1, style = "color:black"),
                  fluidRow(column(8, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.18, min = 0, max = 1, step = 0.05))),
+                 # Start map matchings
+                 fluidRow(column(3,actionButton("templateMatching",  
+                                                label = shinyfields2$start1, 
+                                                style="color:#FFFFFF;background:#28a745"))),
                  p(shinyfields2$inf2, style = "color:black"), 
-                 # Start map matching
-                 fluidRow(column(3,actionButton("templateMatching",  label = shinyfields2$start1, style="color:#FFFFFF;background:#999999"))),
+
                ),
                wellPanel(
                  # maps align 
-                 h3(shinyfields2$head_sub, style = "color:black"),
+                 h4(shinyfields2$head_sub, style = "color:black"),
                  p(shinyfields2$inf3, style = "color:black"),
-                 fluidRow(column(3, actionButton("alignMaps",  label = shinyfields2$start2, style="color:#FFFFFF;background:#999999"))),
+                 fluidRow(column(3,  actionButton("alignMaps",
+                                 label = shinyfields2$start2,
+                                 style = "color:#FFFFFF;background:#007bff"
+                 ))),
+                 
                )
         ), # col 4
-        column(8,
+        column(8,actionButton("listMapsMatching",  label = "List maps"),
+               actionButton("listAlign",  label = "List aligned maps"),
                uiOutput('listMaps', style="width:30%;float:left"),
                uiOutput('listAlign', style="width:30%;float:left"),
                #uiOutput('listCropped', style="width:30%;float:left")
@@ -340,7 +492,9 @@ body <- dashboardBody(
     ),  # END tabItem 2
     
     
-    # Tab 3 Points Matching  #----------------------------------------------------------------------
+    # =============================
+    # Tab 3 Points Matching
+    # =============================
     tabItem(
       tabName = "tab3",
       fluidRow(column(3,textInput("siteNumberPointsMatching", label=shinyfields6$input, value = ''))),
@@ -401,7 +555,10 @@ body <- dashboardBody(
       ) # END fluid Row
     ),  # END tabItem 3
     
-    # Tab 4 Masking #----------------------------------------------------------------------
+    
+    # =============================
+    # Tab 4 Masking
+    # =============================
     tabItem(
       tabName = "tab4",  
       fluidRow(column(3,textInput("siteNumberMasks", label=shinyfields6$input, value = ''))),
@@ -447,7 +604,9 @@ body <- dashboardBody(
     ),  # END tabItem 4
     
     
-    # Tab 5 Read Spezies #----------------------------------------------------------------------
+    # =============================
+    # Tab 5 Read Spezies
+    # =============================
     tabItem(
       tabName = "tab5",
       # which site become overview
@@ -468,7 +627,7 @@ body <- dashboardBody(
                  p(shinyfields2$inf5, style = "color:black"),
                  fluidRow(column(3, actionButton("pageReadRpecies",  label = shinyfields2$start4, style="color:#FFFFFF;background:#999999"))),
                )
-        ), # col 4
+        ), # col 4v
         #column(8,
         #       uiOutput('listCropped', style="width:30%;float:left")
         # )
@@ -504,7 +663,10 @@ body <- dashboardBody(
       # END fluid Row
     ),# END tabItem 6
     
-    # Tab 7 Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
+    
+    # =============================
+    # Tab 7 Polygonize  FILE=shinyfields_polygonize
+    # =============================
     tabItem(
       tabName = "tab7", 
       wellPanel(
@@ -577,12 +739,173 @@ sidebar <-
 
 
 
+
+
 ################################################################################
-# Shiny SERVER CODE
+#                         SERVER CODE
 ################################################################################
 ################################################################################
 
 server <- shinyServer(function(input, output, session) {
+  
+  # Register a resource path for the README.pdf file.  
+  # This maps the URL path "README.pdf" to the actual file location  
+  # inside the app directory (workingDir/www/README.pdf).  
+  # It ensures the file can be accessed via a browser link like /README.pdf.
+  addResourcePath("README.pdf", file.path(workingDir, "www/README.pdf"))
+  
+  
+  # Render help text for the "Author" field. 
+  # This text is displayed when the user clicks the "Info" button 
+  # in Tab 0 (General Config). It explains what should be entered 
+  # in the "Author" text input.
+  observeEvent(input$showAuthorInfo, {
+    shinyalert(
+      "Author-Informations",
+      "Here you can enter the author's full name as it appears in the book.",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+      
+      
+    )
+  })
+  
+  
+  observeEvent(input$saveConfig, {
+    req(file.exists(input$dataInputDir))
+    required1 <- c("pages", "templates")
+    folders1 <- list.dirs(input$dataInputDir, full.names = FALSE, recursive = FALSE)
+    if (!all(required1 %in% folders1)) {
+      output$message <- renderPrint(paste("Missing folders:", paste(setdiff(required1, folders1), collapse = ", ")))
+      return()
+    }
+    required2 <- c("align_ref", "maps", "symbols", "geopoints")
+    folders2 <- list.dirs(file.path(input$dataInputDir, "templates"), full.names = FALSE, recursive = FALSE)
+    if (!all(required2 %in% folders2)) {
+      output$message <- renderPrint(paste("Missing template folders:", paste(setdiff(required2, folders2), collapse = ", ")))
+      return()
+    }
+    timestamp <- format(Sys.time(), "%Y-%m-%d_%H-%M-%S")
+    outDir <- file.path(input$dataOutputDir, paste0("output_", timestamp))
+    prepare_base_output(outDir)
+    prepare_www_output(file.path(workingDir, "www/data"))
+    x <- data.frame(
+      workingDir = workingDir,
+      workingDirInformation = "Your working directory is the local digitizer repository!",
+      title = input$title,
+      autor = input$author,
+      pYear = input$pYear,
+      tesserAct = input$tesserAct,
+      dataInputDir = input$dataInputDir,
+      dataOutputDir = outDir,     
+      pFormat = input$pFormat,
+      pColor = input$pColor,
+      allPrintedPages = input$allPrintedPages
+    )
+    write.table(x, file = file.path(workingDir, "config/config.csv"), sep = ";", row.names = FALSE, quote = FALSE)
+    shinyalert("Success", "Configuration successfully saved!", type = "success")
+  })
+  
+  # Render help text for the "Title" field.
+  # Opens an info dialog when the user clicks the "?" button.
+  observeEvent(input$showTitleInfo, {
+    shinyalert(
+      "Book Title",
+      "Enter the full book title as it appears on the cover or title page.",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+    )
+  })
+  
+  # Render help text for the "Author" field.
+  observeEvent(input$showAuthorInfo, {
+    shinyalert(
+      "Author Information",
+      "Here you can enter the author's full name as it appears in the book.",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+    )
+  })
+  
+  # Render help text for the "Publication Year" field.
+  observeEvent(input$showPYearInfo, {
+    shinyalert(
+      "Publication Year",
+      "Provide the year in which the book was published.",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+    )
+  })
+  
+  # Render help text for the "Tesseract Path" field.
+  observeEvent(input$showTesseractInfo, {
+    shinyalert(
+      "Tesseract Path",
+      "Specify the installation path of Tesseract OCR (e.g., C:/Program Files/Tesseract-OCR).",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+    )
+  })
+  
+  # Render help text for the "Input Directory" field.
+  observeEvent(input$showInputDirInfo, {
+    shinyalert(
+      "Input Directory",
+      "Select or enter the folder where your scanned input files are stored.",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+    )
+  })
+  
+  # Render help text for the "Output Directory" field.
+  observeEvent(input$showOutputDirInfo, {
+    shinyalert(
+      "Output Directory",
+      "Choose the folder where the processed and digitized output will be saved.",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+    )
+  })
+  
+  # Render help text for the "Image Format" field.
+  observeEvent(input$showPFormatInfo, {
+    shinyalert(
+      "Image Format",
+      "Select the desired image format (e.g., tif, png, jpg) for your digitized pages.",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+    )
+  })
+  
+  # Render help text for the "Page Color" field.
+  observeEvent(input$showPColorInfo, {
+    shinyalert(
+      "Page Color",
+      "Choose whether the scanned pages are black & white or in color.",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+    )
+  })
+  
+  # Render help text for the "Number of Scanned Images" field.
+  observeEvent(input$showAllPagesInfo, {
+    shinyalert(
+      "Number of Scanned Images",
+      "Enter the total number of scanned images to be processed.",
+      type = "info",
+      showConfirmButton = TRUE, closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE, animation = TRUE
+    )
+  })
   
   dataInputDir = ""
   # Update the clock every second using a reactiveTimer
@@ -726,19 +1049,31 @@ server <- shinyServer(function(input, output, session) {
     manageProcessFlow("mapMatching", "map matching", "matching")
   })
   
+  # ============================================================
+  # Observe button/listener: input$listMapsMatching
+  # ------------------------------------------------------------
+  # This function reacts when the user presses the "List Maps" button
+  # (or triggers the event bound to input$listMapsMatching).
+  #
+  # Based on the text entered in input$siteNumberMapsMatching,
+  # it decides which pages should be prepared and shown:
+  #
+  # - Single number (e.g. "5"): Show exactly ONE page.
+  # - Range (e.g. "5-10"): Show all pages in the range (here: 6 pages).
+  # - "all" or empty input: Show ALL pages.
+  #
+  # The logic then calls prepareImageView(), which:
+  #   1. Copies the selected images from /data/matching_png/
+  #      into the Shiny www/ folder (so they can be displayed in the browser).
+  #   2. Returns <img> UI tags for the images.
+  # ============================================================
   observeEvent(input$listMapsMatching, {
-    if(input$siteNumberMapsMatching != ''){
-      #print(input$siteNumberMapsMatching)
-      output$listMaps = renderUI({
-        prepareImageView("/data/matching_png/", input$siteNumberMapsMatching)
-      })
-    }
-    else{
-      output$listMaps = renderUI({
-        prepareImageView("/data/matching_png/", '.png')
-      })
-    }
+    output$listMaps <- renderUI({
+      # Default behavior = show all pages
+      prepareImageView("matching_png", ".png")
+    })
   })
+  
   
   
   ####################
@@ -1306,6 +1641,8 @@ server <- shinyServer(function(input, output, session) {
       tryCatch({
         
         # processing template matching
+        #workingDir = "D:/distribution_digitizer"
+        #outDir="D:/test/output_2025-09-18_13-08-43/"
         fname=paste0(workingDir, "/", "src/matching/map_matching.py")
         
         print("The processing template matching python script:")
@@ -1313,9 +1650,15 @@ server <- shinyServer(function(input, output, session) {
         source_python(fname)
         print("Threshold:")
         print(input$threshold_for_TM)
-        print(config$matchingType)
         print(outDir)
-        main_template_matching(workingDir, outDir, input$threshold_for_TM, config$sNumberPosition, config$matchingType)
+        
+        print(input$sNumberPosition)
+        print(input$matchingType)
+        print(input$siteNumberMapsMatching)
+
+        main_template_matching(workingDir, outDir, input$threshold_for_TM, input$sNumberPosition, input$matchingType, as.character(input$siteNumberMapsMatching))
+        #main_template_matching(workingDir, outDir, 0.18, 1, 1, "0088.tif")
+        
         findTemplateResult = paste0(outDir, "/maps/matching/")
         
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
@@ -1783,23 +2126,39 @@ server <- shinyServer(function(input, output, session) {
   # -----------------------------------------# Other functions #---------------------------------------------------------------------#
   ######
   
-  # Function to list the result MAPS
   prepareImageView <- function(dirName, index){
     tryCatch({
-      pathToMatchingImages = paste0(workingDir, "/www/data/", dirName)
-      if(index !=".png"){index <- paste0("^", index, "\\w*")}
-      listPngImages = list.files(pathToMatchingImages, full.names = F, pattern = index)
-      display_image = function(i) {
-        HTML(paste0('<div class="shiny-map-image" > 
-                    <img src = ', paste0("data",dirName,listPngImages[i] ), ' style="width:100%;"><a href="',paste0("data", 
-                                                                                                                    dirName,listPngImages[i] ),'" style="width:27%;" target=_blank>', listPngImages[i],'</a></div>'))
+      pathToMatchingImages <- file.path(workingDir, "www", "data", dirName)
+      cat("DEBUG pathToMatchingImages:", pathToMatchingImages, "\n")
+      
+      if(index != ".png"){ index <- paste0("^", index, "\\w*") }
+      cat("DEBUG pattern:", index, "\n")
+      
+      listPngImages <- list.files(pathToMatchingImages, full.names = FALSE, pattern = index)
+      cat("DEBUG found files:", listPngImages, "\n")
+      
+      if (length(listPngImages) == 0) {
+        return(HTML("<p><i>No images found.</i></p>"))
       }
-      lapply(1:length(listPngImages), display_image)
+      
+      display_image <- function(i) {
+        relPath <- file.path("data", dirName, listPngImages[i])  # relative path
+        HTML(paste0(
+          '<div class="shiny-map-image">',
+          '<img src="', relPath, '" style="width:100%;">',
+          '<a href="', relPath, '" style="width:27%;" target=_blank>', listPngImages[i], '</a>',
+          '</div>'
+        ))
+      }
+      
+      lapply(seq_along(listPngImages), display_image)
     }, error = function(e) {
       cat("An error occurred during prepareImageView processing:\n")
       print(e)
     })
   }
+  
+  
   
   # Function to list CSV files as links
   prepareCSVLinks <- function(dirName, index) {
@@ -1822,25 +2181,28 @@ server <- shinyServer(function(input, output, session) {
 
   # Function to convert tif images to png and save in /www directory
   convertTifToPngSave <- function(pathToTiffImages, pathToPngImages) {
-    #print(pathToTiffImages)
     tryCatch({
+      # --- cleanup: remove old PNG files ---
+      oldPngFiles <- list.files(pathToPngImages, pattern = "\\.png$", full.names = TRUE)
+      if (length(oldPngFiles) > 0) {
+        file.remove(oldPngFiles)
+      }
+      
       # Get list of tif files
-      tifFiles <- list.files(pathToTiffImages, pattern = ".tif", recursive = FALSE)
+      tifFiles <- list.files(pathToTiffImages, pattern = "\\.tif$", recursive = FALSE)
       
       # Convert tif to png and save in the given path
       for (f in tifFiles) {
-        tifFile <- paste0(pathToTiffImages, f)
+        tifFile <- file.path(pathToTiffImages, f)
         
-        # Check if tif file exists
         if (file.exists(tifFile)) {
-          #print(tifFile)
           tifImage <- image_read(tifFile)
           pngFile <- image_convert(tifImage, "png")
           pngName <- tools::file_path_sans_ext(f)
-          fname <- paste0(pathToPngImages, pngName, ".png")
+          fname <- file.path(pathToPngImages, paste0(pngName, ".png"))
           image_write(pngFile, path = fname, format = "png")
         } else {
-          cat("Error in convert tif to png: The file", tifFile, "does not exist.\n")
+          cat("Error in convertTifToPngSave: The file", tifFile, "does not exist.\n")
         }
       }
     }, error = function(e) {
@@ -1848,10 +2210,154 @@ server <- shinyServer(function(input, output, session) {
       print(e)
     })
   }
+  
+  
+  # -------------------------------------------------------------------
+  # Function: prepare_base_output
+  # -------------------------------------------------------------------
+  # This function prepares the main "output" directory structure 
+  # for storing processing results. It ensures that all required 
+  # subdirectories exist before the workflow starts, so that 
+  # intermediate and final results can be organized consistently.
+  #
+  # Arguments:
+  #   base_path - the path to the base output directory
+  #
+  # Behavior:
+  #   1. Validates the provided base_path (must not be empty).
+  #   2. Creates the base output directory if it does not exist.
+  #   3. Creates a predefined set of subdirectories for various 
+  #      processing steps (e.g., final_output, georeferencing, maps).
+  #   4. Creates additional nested subdirectories for specific folders:
+  #        - "maps" → subfolders: align, csvFiles, matching, readSpecies, pointMatching
+  #        - "georeferencing" → subfolders: maps, masks
+  #        - "final_output", "maps", "masking_black", "polygonize", "rectifying" 
+  #            → subfolders: circleDetection, pointFiltering
+  #   5. If the provided base_path is empty, an error dialog is shown in the app.
+  #   6. Any errors are caught and printed to the console for debugging.
+  #
+  # Usage:
+  #   prepare_base_output(file.path(workingDir, "data/output"))
+  # -------------------------------------------------------------------
+  prepare_base_output <- function(base_path) {
+    tryCatch({
+      if (nchar(base_path) > 0) {
+        
+        # Create the main output directory if it does not exist
+        if (!dir.exists(base_path)) {
+          dir.create(base_path, recursive = TRUE)
+        }
+        
+        # Define top-level directories
+        directory_names <- c(
+          "final_output", "georeferencing", "maps", "masking", 
+          "masking_black", "output_shape", "pagerecords", 
+          "polygonize", "rectifying"
+        )
+        
+        for (dir_name in directory_names) {
+          dir_path <- file.path(base_path, dir_name)
+          dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
+          
+          # Special case: subfolders for "maps"
+          if (dir_name == "maps") {
+            sub_directory_names <- c("align", "csvFiles", "matching", "readSpecies", "pointMatching")
+            for (sub_dir_name in sub_directory_names) {
+              dir.create(file.path(dir_path, sub_dir_name), recursive = TRUE, showWarnings = FALSE)
+            }
+          }
+          
+          # Special case: subfolders for "georeferencing"
+          if (dir_name == "georeferencing") {
+            sub_directory_names <- c("maps", "masks")
+            for (sub_dir_name in sub_directory_names) {
+              dir.create(file.path(dir_path, sub_dir_name), recursive = TRUE, showWarnings = FALSE)
+            }
+          }
+          
+          # Common subfolders for selected directories
+          if (dir_name %in% c("final_output", "maps", "masking_black", "polygonize", "rectifying")) {
+            sub_directory_names <- c("circleDetection", "pointFiltering")
+            for (sub_dir_name in sub_directory_names) {
+              dir.create(file.path(dir_path, sub_dir_name), recursive = TRUE, showWarnings = FALSE)
+            }
+          }
+        }
+        
+      } else {
+        # Show error if no valid path was provided
+        showModal(modalDialog(title = "Error", "Please provide a valid input directory path."))
+        return()
+      }
+    }, error = function(e) {
+      # Handle and report any errors
+      cat("An error occurred during prepare_base_output processing:\n")
+      print(e)
+    })
+  }
+  
+  
+  
+  # -------------------------------------------------------------------
+  # Function: prepare_www_output
+  # -------------------------------------------------------------------
+  # This function prepares the "www" output directory that is used to 
+  # store intermediate and final results of the processing steps. 
+  # The created subdirectories organize images and data so that the user 
+  # can easily navigate and view them inside the Shiny app.
+  #
+  # Arguments:
+  #   www_output - the path to the "www/data" output directory
+  #
+  # Behavior:
+  #   1. Removes any existing content of the www_output directory 
+  #      (using unlink with recursive = TRUE).
+  #   2. Creates the main www_output directory if it does not exist.
+  #   3. Creates a predefined set of subdirectories for different 
+  #      processing outputs (e.g., align_png, matching_png, polygonize).
+  #   4. If the provided path is empty, shows an error dialog in the app.
+  #   5. Any errors encountered are caught and printed to the console.
+  #
+  # Usage:
+  #   prepare_www_output(file.path(workingDir, "www/data"))
+  # -------------------------------------------------------------------
+  prepare_www_output <- function(www_output) {
+    tryCatch({
+      # Remove existing folder and its contents
+      unlink(www_output, recursive = TRUE)
+      
+      if (nchar(www_output) > 0) {
+        # Create the main output folder if it does not exist
+        if (!dir.exists(www_output)) {
+          dir.create(www_output, recursive = TRUE)
+        }
+        
+        # Predefined subdirectory names for organizing outputs
+        directory_names <- c(
+          "align_png", "CircleDetection_png", "readSpecies_png", "georeferencing_png", 
+          "masking_black_png", "masking_circleDetection", "masking_png", "maskingCentroids",
+          "matching_png", "pages", "pointFiltering_png", "pointMatching_png", "polygonize",
+          "symbol_templates_png", "map_templates_png"
+        )
+        
+        # Create each subdirectory inside the www_output folder
+        for (sub_dir_name in directory_names) {
+          sub_dir_path <- file.path(www_output, sub_dir_name)
+          dir.create(sub_dir_path, recursive = TRUE, showWarnings = FALSE)
+        }
+      } else {
+        # Show error if no valid directory path was provided
+        showModal(modalDialog(title = "Error", "Please provide a valid input directory path."))
+        return()
+      }
+    }, error = function(e) {
+      # Handle and report any errors
+      cat("An error occurred during prepare_www_output processing:\n")
+      print(e)
+    })
+  }
+  
 })
 
-# Starte auf dynamischem Port, falls per Rscript übergeben
-args <- commandArgs(trailingOnly = TRUE)
-custom_port <- if (length(args) > 0) as.numeric(args[1]) else 8888
 
-shinyApp(ui = ui, server = server, options = list(port = custom_port))
+shinyApp(ui, server)

@@ -23,9 +23,14 @@ import time
 import os
 import pytesseract
 from pytesseract import Output
+import shutil
 import re
 
+# Set path to tesseract.exe
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
+# Optional: set tessdata prefix if needed
+os.environ["TESSDATA_PREFIX"] = r"C:\Program Files\Tesseract-OCR\tessdata"
 start_time = time.time()
 
 # Define fields for the records CSV files
@@ -86,184 +91,168 @@ def find_page_number(image, page_position):
   return result
 
 # Function to match template and process the result
-def match_template(previous_page_path, next_page_path, current_page_path, 
-                        template_map_file, output_dir, output_page_records, 
-                        records, threshold, page_position):
+def match_template(previous_page_path, next_page_path, current_page_path,
+                   template_map_file, output_dir, output_page_records,
+                   records, threshold, page_position):
     """
-    Find the maps, save them, and write the map coordinates in a CSV file.
+    Find the maps using template matching, save them, and write the map coordinates in CSV files.
     """
     try:
         print(current_page_path)
         print(template_map_file)
-        
-        # Open the TIFF file and template using PIL
+
         img = np.array(Image.open(current_page_path))
         imgc = img.copy()
-        
-        # Open the template map
+
         tmp = np.array(Image.open(template_map_file))
-        h, w, c = tmp.shape 
-        
-        # Template Matching using cv2
+        h, w, c = tmp.shape
+
         res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
         loc = np.where(res >= threshold)
-        
-        # Define lists to store already saved coordinates
+
         saved_maps = []
-        
         count = 0
-        font = cv2.FONT_HERSHEY_SIMPLEX
         page_number = find_page_number(current_page_path, page_position)
-    
+
         for pt in zip(*loc[::-1]):
             x, y = pt[0], pt[1]
-            
-            # Überprüfe, ob die neue Karte zu nah an einer bereits gespeicherten Karte ist
+
             too_close = any(abs(y - sy) < (h / 2) for sx, sy in saved_maps)
-            
+
             if not too_close:
                 size = w * h * (2.54/400) * (2.54/400)
-                
-                # Save record details into the main records CSV file
-                rows_records = [[str(page_number), previous_page_path, next_page_path, current_page_path, x, y, w, h, size, threshold, (time.time() - start_time)]]
-                
-                # Write the record into the CSV file
+
+                rows_records = [[str(page_number), previous_page_path, next_page_path,
+                                 current_page_path, x, y, w, h, size,
+                                 threshold, (time.time() - start_time)]]
+
                 is_empty = os.stat(records).st_size == 0
-                with open(records, 'a', newline='') as csv_file:  
+                with open(records, 'a', newline='') as csv_file:
                     csvwriter = csv.writer(csv_file)
                     if is_empty:
                         csvwriter.writerow(fields)
                     csvwriter.writerows(rows_records)
-                
-                # Save the extracted map
+
                 threshold_last = str(threshold).split(".")
-                img_map_path = (str(page_number) + '-' + str(threshold_last[1]) + '_' +
-                                os.path.basename(current_page_path).rsplit('.', 1)[0] + 
-                                os.path.basename(template_map_file).rsplit('.', 1)[0] + '_' + str(count))
-                
-                cv2.imwrite(output_dir + img_map_path + '.tif', imgc[y:(y + h), x:(x + w), :])
-                
-                # Draw a rectangle around the matched region on the original image
-                cv2.rectangle(imgc, pt, (pt[0] + w, pt[1] + h), (0, 255, 0), 2)
-                
-                # Save the page record
-                rows = [[str(page_number), previous_page_path, next_page_path, current_page_path, output_dir + img_map_path + '.tif', x, y, w, h, size, threshold, (time.time() - start_time)]]
+                # ✅ Y-position at the very end of the filename
+                img_map_path = (
+                    str(page_number) + '-' + str(threshold_last[1]) + '__' +
+                    os.path.basename(current_page_path).rsplit('.', 1)[0] +
+                    os.path.basename(template_map_file).rsplit('.', 1)[0] +
+                    '_' + str(count) +
+                    '_y' + str(y)
+                )
+
+                cv2.imwrite(output_dir + img_map_path + '.tif',
+                            imgc[y:(y + h), x:(x + w), :])
+
+                cv2.rectangle(imgc, pt, (pt[0] + w, pt[1] + h),
+                              (0, 255, 0), 2)
+
+                rows = [[str(page_number), previous_page_path, next_page_path,
+                         current_page_path, output_dir + img_map_path + '.tif',
+                         x, y, w, h, size, threshold, (time.time() - start_time)]]
                 csv_path = output_page_records + img_map_path + '.csv'
                 with open(csv_path, 'w', newline='') as page_record:
                     pageCsvwriter = csv.writer(page_record)
                     pageCsvwriter.writerow(fields_page_record)
                     pageCsvwriter.writerows(rows)
-                
-                # Speichere die Koordinaten der neuen Karte
+
                 saved_maps.append((x, y))
                 count += 1
-    
-    except Exception as e:
-        print("An error occurred in match_template_tiff:", e)
 
-def match_template_contours(previous_page_path, next_page_path, current_page_path, 
-                          template_map_file, output_dir, output_page_records, 
-                          records, threshold, page_position):
+    except Exception as e:
+        print("An error occurred in match_template:", e)
+
+
+def match_template_contours(previous_page_path, next_page_path, current_page_path,
+                            template_map_file, output_dir, output_page_records,
+                            records, threshold, page_position):
+    """
+    Find maps using contour detection, save them, and write coordinates in CSV files.
+    """
     try:
         print(current_page_path)
         print(template_map_file)
 
-        # Lade das Bild als Graustufenbild
-        img = np.array(Image.open(current_page_path).convert('L'))  # Bild im Graustufenmodus
-        imgc = np.array(Image.open(current_page_path))  # Farbversion für Ausgabe
+        img = np.array(Image.open(current_page_path).convert('L'))
+        imgc = np.array(Image.open(current_page_path))
 
-        # Lade die Vorlage
         template = np.array(Image.open(template_map_file))
-        #h, w, c = tmp.shape
-        
-        # Binärbild durch Schwellenwertbildung erstellen
-        _, binary = cv2.threshold(img, 128, 255, cv2.THRESH_BINARY_INV)
-        
-        # Debugging-Ausgaben
-        print("Binary image shape:", binary.shape)  # Überprüfen der Form des binären Bildes
-        print("Image dtype:", binary.dtype)  # Überprüfen des Datentyps des binären Bildes
 
-        # Morphologische Operationen (optional)
+        _, binary = cv2.threshold(img, 128, 255, cv2.THRESH_BINARY_INV)
+
         kernel = np.ones((5, 5), np.uint8)
         dilated = cv2.dilate(binary, kernel, iterations=2)
         eroded = cv2.erode(dilated, kernel, iterations=2)
 
-        # Finde die Konturen im erodierten Bild
-        contours, _ = cv2.findContours(eroded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(eroded, cv2.RETR_EXTERNAL,
+                                       cv2.CHAIN_APPROX_SIMPLE)
 
-        # Ergebnisse für CSV speichern
-        results = []
         template_h, template_w = template.shape[:2]
-            
-        # Definiere eine Toleranz für die Konturengrößen, basierend auf der Template-Größe
-        tolerance = 0.5  # 50% Toleranz auf die Template-Größe
+
+        tolerance = 0.2
         min_w = int(template_w * (1 - tolerance))
         max_w = int(template_w * (1 + tolerance))
         min_h = int(template_h * (1 - tolerance))
         max_h = int(template_h * (1 + tolerance))
-        
-         # Liste, um bereits verarbeitete Bereiche zu speichern (um Überschneidungen zu verhindern)
+
         processed_areas = []
 
-        # Funktion zur Überprüfung, ob ein neuer Bereich bereits bearbeitet wurde
         def is_overlapping(x, y, w, h, processed_areas):
             for (px, py, pw, ph) in processed_areas:
-                if (x < px + pw and x + w > px and y < py + ph and y + h > py):
+                if (x < px + pw and x + w > px and
+                    y < py + ph and y + h > py):
                     return True
             return False
-          
+
         count = 0
         threshold_last = str(threshold).split(".")
-        # Durchlaufe alle gefundenen Konturen
         for idx, contour in enumerate(contours):
-            
             x, y, w, h = cv2.boundingRect(contour)
-            size = w * h * (2.54 / 400) * (2.54 / 400)  # Berechnung der Kartengröße
-            
-            # Überprüfen, ob die Größe innerhalb der Toleranz liegt
-            if min_w <= w <= max_w and min_h <= h <= max_h and not is_overlapping(x, y, w, h, processed_areas):
-                   
-                # Speichern der Aufzeichnung in der Haupt-CSV-Datei
-                page_number = find_page_number(current_page_path, page_position)
-                rows_records = [[str(page_number), previous_page_path, next_page_path, current_page_path, x, y, w, h, size, threshold, (time.time() - start_time)]]
+            size = w * h * (2.54 / 400) * (2.54 / 400)
 
-                # CSV für alle Ergebnisse
+            if min_w <= w <= max_w and min_h <= h <= max_h and not is_overlapping(x, y, w, h, processed_areas):
+                page_number = find_page_number(current_page_path, page_position)
+                rows_records = [[str(page_number), previous_page_path,
+                                 next_page_path, current_page_path,
+                                 x, y, w, h, size, threshold,
+                                 (time.time() - start_time)]]
+
+
                 is_empty = os.stat(records).st_size == 0
                 with open(records, 'a', newline='') as csv_file:
                     csvwriter = csv.writer(csv_file)
                     if is_empty:
-                        csvwriter.writerow(fields)  # Hier sollte die Header-Liste definiert sein
+                        csvwriter.writerow(fields)
                     csvwriter.writerows(rows_records)
 
-                # Speichere die extrahierte Karte
-                #img_map_path = f"{page_number}_{os.path.basename(current_page_path).rsplit('.', 1)[0]}_{idx}"
-                img_map_path = (str(page_number) + '-' + str(threshold_last[1]) + '_' +
-                                os.path.basename(current_page_path).rsplit('.', 1)[0] + 
-                                os.path.basename(template_map_file).rsplit('.', 1)[0] + '_' + str(count))
-                                
-                cv2.imwrite(os.path.join(output_dir, img_map_path + '.tif'), imgc[y:y+h, x:x+w])
-                count += 1
-                
-                
-                # Zeichne ein Rechteck um den gefundenen Bereich
-                #cv2.rectangle(imgc, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                # ✅ Y-position at the very end of the filename
+                img_map_path = (
+                    str(page_number) + '-' + str(threshold_last[1]) + '__' +
+                    os.path.basename(current_page_path).rsplit('.', 1)[0] +
+                    os.path.basename(template_map_file).rsplit('.', 1)[0] +
+                    '_' + str(count) +
+                    '_y' + str(y)
+                )
 
-                # Speichere die Seitenaufzeichnung
+                cv2.imwrite(os.path.join(output_dir, img_map_path + '.tif'),
+                            imgc[y:y+h, x:x+w])
+                count += 1
+
                 csv_path = os.path.join(output_page_records, img_map_path + '.csv')
                 with open(csv_path, 'w', newline='') as page_record:
                     pageCsvwriter = csv.writer(page_record)
-                    pageCsvwriter.writerow(fields_page_record)  # Diese Header-Liste sollte definiert sein
-                    rows = [[str(page_number), previous_page_path, next_page_path, current_page_path, os.path.join(output_dir, img_map_path + '.tif'), x, y, w, h, size, threshold, (time.time() - start_time)]]
+                    pageCsvwriter.writerow(fields_page_record)
+                    rows = [[str(page_number), previous_page_path, next_page_path,
+                             current_page_path,
+                             os.path.join(output_dir, img_map_path + '.tif'),
+                             x, y, w, h, size, threshold,
+                             (time.time() - start_time)]]
                     pageCsvwriter.writerows(rows)
-            
-
-        # Speichere das Bild mit den gezeichneten Rechtecken
-        #final_output_path = os.path.join(output_dir, 'matches_' + os.path.basename(current_page_path))
-        #cv2.imwrite(final_output_path, imgc)
-        #print(f"Image with drawn matches saved at {final_output_path}")
 
     except Exception as e:
-        print("An error occurred in match_template_images:", e)
+        print("An error occurred in match_template_contours:", e)
 
 # Beispielaufruf
 # params = {
@@ -281,7 +270,6 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
 
 #working_dir="D:/distribution_digitizer"
 # Function to perform the main template matching in a loop
-import os, glob, csv
 
 def main_template_matching(working_dir, outDir, threshold, page_position, matchingType, pageSel="ALL"):
     """
@@ -293,9 +281,22 @@ def main_template_matching(working_dir, outDir, threshold, page_position, matchi
     - threshold (float): Threshold value for template matching
     - page_position (int): The position of the page number. 1=top, 2=bottom
     - matchingType (int): 1 = template, 2 = contours
-    - pageSel (str|int): "ALL" = all pages, int = first N pages, 
-                         3-digit int = single page file (e.g. 088 -> 088.tif)
+    - pageSel (str|int): "ALL" = all pages,
+                         int = first N pages,
+                         "start-end" = range of pages (inclusive),
+                         "*.tif" = single page file
     """
+    # --- sanitize Shiny inputs ---
+    threshold = float(threshold)
+    page_position = int(page_position)
+    matchingType = int(matchingType)
+    pageSel = str(pageSel).strip()
+
+    #print("DEBUG threshold:", threshold, type(threshold))
+    #print("DEBUG sNumberPosition:", page_position, type(page_position))
+    #print("DEBUG matchingType:", matchingType, type(matchingType))
+    #print("DEBUG pageSel raw:", pageSel, type(pageSel))
+    
 
     try:
         # --- Output dirs ---
@@ -315,34 +316,61 @@ def main_template_matching(working_dir, outDir, threshold, page_position, matchi
             templates = working_dir + "/data/input/templates/maps/"
             input_dir = working_dir + "/data/input/pages/"
 
-        # --- alle Seiten sammeln ---
+        tif_files = sorted(glob.glob(os.path.join(input_dir, '*.tif')))
+        print("DEBUG input_dir:", input_dir)
+        print("DEBUG number of tif files found:", len(tif_files))
+
+        # Remove old matching results
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Remove old page records
+        if os.path.exists(output_page_records):
+            shutil.rmtree(output_page_records)
+        os.makedirs(output_page_records, exist_ok=True)
+
+        # Remove old records.csv
+        if os.path.exists(records):
+            os.remove(records)
+            
+        # --- collect all pages ---
         tif_files = sorted(glob.glob(os.path.join(input_dir, '*.tif')))
 
-        # --- Seitenauswahl ---
-        if str(pageSel).upper() == "ALL":
+        # --- Page selection ---
+        if str(pageSel).upper() == "ALL" or str(pageSel).strip() == "":
+            # Case 1: All pages
             pages = tif_files
         
-        elif str(pageSel).isdigit():
-            # Zahl => erste N Seiten
-            n = int(pageSel)
-            pages = tif_files[:n]
-        
         elif str(pageSel).lower().endswith(".tif"):
-            # exakter Dateiname => nur diese Seite
+            # Case 2: Exact filename
             candidate = os.path.join(input_dir, pageSel)
             if not os.path.exists(candidate):
                 raise FileNotFoundError(f"❌ Page file not found: {candidate}")
             pages = [candidate]
         
+        elif "-" in str(pageSel):
+            # Case 3: Range "start-end"
+            parts = str(pageSel).split("-")
+            if len(parts) != 2 or not parts[0].isdigit() or not parts[1].isdigit():
+                raise ValueError(f"❌ Invalid range format: {pageSel}")
+        
+            start = int(parts[0])
+            end = int(parts[1])
+            if start > end:
+                raise ValueError(f"❌ Invalid range: start ({start}) > end ({end})")
+        
+            # Convert 1-based page numbers to 0-based indices
+            pages = tif_files[start-1:end]
+        
         else:
             raise ValueError(f"❌ Invalid pageSel argument: {pageSel}")
-
 
         print(f"➡️ Processing {len(pages)} page(s):")
         for p in pages:
             print("   ", p)
 
-        # --- Matching starten ---
+        # --- start matching ---
         with open(records, 'w', newline='') as csv_file:
             csvwriter = csv.writer(csv_file)
 
@@ -376,7 +404,7 @@ def main_template_matching(working_dir, outDir, threshold, page_position, matchi
 
 
 #working_dir="D:/distribution_digitizer"
-#outDir="D:/test/output_2025-02-18_14-27-23/"
-#main_template_matching(working_dir, outDir,  0.2, 2, 2)
-
+#outDir="D:/test/output_2025-09-18_13-08-43/"
+#main_template_matching(working_dir, outDir,  0.18, 1, 1, "0088.tif")
+#main_template_matching(working_dir, outDir,  0.18, 1, 2, "1-2")
 

@@ -56,7 +56,7 @@ REM === Write dynamic start_config.csv ===
 ) > "%SCRIPT_DIR%\start_config.csv"
 
 REM Launch the R script with arguments
-Rscript app_start.R "%PYTHON_PATH%" "%SCRIPT_DIR%" "%TESS_PATH%"
+Rscript --vanilla app_start.R "%PYTHON_PATH%" "%SCRIPT_DIR%" "%TESS_PATH%"
 
 pause
 exit
