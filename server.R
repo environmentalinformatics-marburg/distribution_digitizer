@@ -43,7 +43,7 @@
 
 library(shiny)
 library(shinydashboard)
-
+library(shinyjs)
 if(!require(magick)){
   install.packages("magick", dependencies = T)
   library(magick)
@@ -99,10 +99,9 @@ processEventNumber = 0
 
 
 workingDir <- "D:/distribution_digitizer"
-outDir <- "D:/test/output_2025-09-24_16-01-03/"
 
 cat("📁 Received working directory:", workingDir, "\n")
-cat("📁 Received output directory:", outDir, "\n")
+
 
 # ==========================
 # Weitere Initialisierung
@@ -117,466 +116,93 @@ rescale <- 100 / scale
 #read config fields from config.csv in .../distribution_digitizer/config directory
 fileFullPath = (paste0(workingDir,'/config/config.csv'))
 if (file.exists(fileFullPath)){
-  config <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
-
-if (file.exists(config$dataOutputDir)) {
-  outDir <-  config$dataOutputDir
-}
-
-fileFullPath = (paste0(workingDir,'/config/configStartDialog.csv'))
-if (file.exists(fileFullPath)){
-  configStartDialog <- read.csv(fileFullPath, header = TRUE, sep = ';')
-} else{
-  stop("The file configStartDialog.csv was not found, please create them and start the app")
-}
-
-# read the shiny text fields
-#1 shinyfields_create_templates.csv
-fileFullPath = (paste0(workingDir,'/config/shinyfields_create_templates.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields1 <- read.csv(fileFullPath, header = TRUE, sep = ';')
-} else{
-  stop("file shinyfields_create_templates.csv not found, please create them and start the app")
-}
-#2 shinyfields_detect_maps.csv
-fileFullPath = (paste0(workingDir,'/config/shinyfields_detect_maps.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields2 <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
-
-#3 shinyfields_detect_points.csv
-fileFullPath = (paste0(workingDir,'/config/shinyfields_detect_points.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields3 <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
-
-#4 shinyfields_detect_points_using_filtering
-fileFullPath = (paste0(workingDir,'/config/shinyfields_detect_points_using_filtering.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields4 <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
-
-#4.1 shinyfields_detect_points_using_circle_detection
-fileFullPath = (paste0(workingDir,'/config/shinyfields_detect_points_using_circle_detection.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields4.1 <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
-
-#5 shinyfields_masking
-fileFullPath = (paste0(workingDir,'/config/shinyfields_masking.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields5 <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
-
-#5.1 shinyfields_mask_centroids
-fileFullPath = (paste0(workingDir,'/config/shinyfields_mask_centroids.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields5.1 <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
-
-#6 shinyfields_georeferensing
-fileFullPath = (paste0(workingDir,'/config/shinyfields_georeferensing.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields6 <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
-
-#7 shinyfields_polygonize
-fileFullPath = (paste0(workingDir,'/config/shinyfields_polygonize.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields7 <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
-
-# 8 shinyfields_georef_coords_from_csv_file
-fileFullPath = (paste0(workingDir,'/config/shinyfields_georef_coords_from_csv_file.csv'))
-if (file.exists(fileFullPath)){
-  shinyfields8 <- read.csv(fileFullPath,header = TRUE, sep = ';')
-} else{
-  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
-}
-
-header <- dashboardHeader(
-  tags$li(
-    class = "dropdown",
-    tags$style(HTML("
-          .navbar-custom-menu{float:left !important;}
-          .sidebar-menu{display:flex;align-items:baseline;}
-          /* layout of the map images */
-          .shiny-map-image{margin:7px;}
-          #message {color: red;}
-          "))
-  ),
+  #config <- read.csv(fileFullPath,header = TRUE, sep = ';')
+  # Reading configuration files
+  config_list<- read.csv2(paste0(workingDir,'/config/config.csv'), header = FALSE, sep = ';',stringsAsFactors = FALSE)
+  colnames(config_list) <- c("key", "value")
+  # Als Liste umwandeln
+  config<- as.list(setNames(config_list$value, config_list$key))
   
-  
-  tags$li(
-    class = "dropdown",
-    sidebarMenu(
-      id = "tablist",
-      menuItem("Create Templates", tabName = "tab1"),
-      menuItem("Maps Matching", tabName = "tab2"),
-      menuItem("Points Matching", tabName = "tab3"),
-      menuItem("Masking", tabName = "tab4" ),
-      menuItem("Read Spacies", tabName = "tab5" ),
-      menuItem("Georeferencing", tabName = "tab6" ),
-      menuItem("Polygonize", tabName = "tab7" ),
-      menuItem("Spatial View", tabName = "tab8" ),
-      menuItem("Download", tabName = "tab9" )
-    )
-  )
-)
+} else{
+  stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
+}
 
-body <- dashboardBody(
-  # Top Information
-  # Working directory
-  titlePanel("Distribution Digitizer"),
-  
-  p(paste0(config$workingDirInformation,": ",workingDir) , style = "color:black"),
-  tabItems(
-    # Tab 1 Create Templates #---------------------------------------------------------------------
-    tabItem(
-      tabName = "tab1",
-      actionButton("listMTemplates",  label = "List saved map templates"),
-      actionButton("listSTemplates",  label = "List saved symbol templates"),
-      fluidRow(
-        column(4,
-               wellPanel(
-                 h3(strong(shinyfields1$head, style = "color:black")),
-                 p(shinyfields1$inf4, style = "color:black"),
-                 # Choose the file 
-                 fileInput("image",  label = h5(shinyfields1$lab1), buttonLabel = "Browse...",
-                           placeholder = "No file selected"),
-               ),
-               wellPanel(
-                 h4(strong(shinyfields1$save_template, style = "color:black")),
-                 # Add number to the file name of the created template file
-                 fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-                                 p(strong(paste0(shinyfields1$inf, workingDir, "/data/templates/maps/"), style = "color:black")),
-                                 p(shinyfields1$inf1, style = "color:black"),                
-                                 # Save the template map image with the given index
-                                 downloadButton('saveTemplate', 'Save map template', style="color:#FFFFFF;background:#999999"))),
-               ),
-               wellPanel(
-                 h4(strong(shinyfields1$save_symbol, style = "color:black")),
-                 # Add number to the file name of the created template file
-                 fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-                                 
-                                 p(strong(paste0(shinyfields1$inf2, workingDir, "/data/templates/symbols"), style = "color:black")),
-                                 p(shinyfields1$inf3, style = "color:black"),                
-                                 # Save the template map image with the given index
-                                 downloadButton('saveSymbol', 'Save map symbol/Legende', style="color:#FFFFFF;background:#999999")))
-               )
-        ), # col 4
-        column(8,
-               uiOutput('listMapTemplates', style="width:35%;float:left"),
-               uiOutput('listSymbolTemplates', style="width:35%;float:left"),
-               plotOutput("plot", click = "plot_click",  # Equiv, to click=clickOpts(id="plot_click")
-                          hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
-                          brush = brushOpts(id = "plot_brush")),
-        )
-      ) # END fluid Row
-    ),  # END tabItem 1
-    
-    
-    # Tab 2 Maps Matching #----------------------------------------------------------------------
-    tabItem(
-      tabName = "tab2",
-      # which site become overview
-      fluidRow(column(3,textInput("siteNumberMapsMatching", label=shinyfields6$input, value = ''))),
-      actionButton("listMapsMatching",  label = "List maps"),
-      actionButton("listAlign",  label = "List aligned maps"),
-      # actionButton("listCropped",  label = "List cropped maps"),
-      fluidRow(
-        column(4,
-               wellPanel(
-                 # submit action button
-                 h3(strong(shinyfields2$head, style = "color:black")),
-                 p(shinyfields2$inf1, style = "color:black"),
-                 fluidRow(column(8, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.18, min = 0, max = 1, step = 0.05))),
-                 p(shinyfields2$inf2, style = "color:black"), 
-                 # Start map matching
-                 fluidRow(column(3,actionButton("templateMatching",  label = shinyfields2$start1, style="color:#FFFFFF;background:#999999"))),
-               ),
-               wellPanel(
-                 # maps align 
-                 h3(shinyfields2$head_sub, style = "color:black"),
-                 p(shinyfields2$inf3, style = "color:black"),
-                 fluidRow(column(3, actionButton("alignMaps",  label = shinyfields2$start2, style="color:#FFFFFF;background:#999999"))),
-               )
-        ), # col 4
-        column(8,
-               uiOutput('listMaps', style="width:30%;float:left"),
-               uiOutput('listAlign', style="width:30%;float:left"),
-               #uiOutput('listCropped', style="width:30%;float:left")
-        )
-      ) # END fluid Row
-    ),  # END tabItem 2
-    
-    
-    # Tab 3 Points Matching  #----------------------------------------------------------------------
-    tabItem(
-      tabName = "tab3",
-      fluidRow(column(3,textInput("siteNumberPointsMatching", label=shinyfields6$input, value = ''))),
-      actionButton("listMapsMatching2",  label = "List maps"),
-      actionButton("listPointsM",  label = "List points matching"),
-      actionButton("listPointsF",  label = "List points filterng"),
-      actionButton("listPointsCD", label = "List points circle detection"),
-      fluidRow(
-        column(4,
-               wellPanel(
-                 h3(strong(shinyfields3$head, style = "color:black")),
-                 p(shinyfields3$inf1, style = "color:black"),
-                 p(shinyfields3$inf2, style = "color:black"),
-               ),
-               wellPanel(
-                 # ----------------------------------------# 3.1 Points detection Using template  FILE=shinyfields_detect_points #---------------------------------------------------------------------
-                 h4(shinyfields3$head_sub, style = "color:black"),
-                 p(shinyfields3$inf3, style = "color:black"),
-                 # Threshold for point matching
-                 fluidRow(column(8,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.75, min = 0, max = 1, step = 0.05))),
-                 p(shinyfields3$inf4, style = "color:black"),
-                 fluidRow(column(3, actionButton("pointMatching",  label = shinyfields3$lab, style="color:#FFFFFF;background:#999999"))),
-               ),
-               wellPanel(
-                 # ----------------------------------------# 3.2 Points detection Using filtering  FILE=shinyfields_detect_points_using_filtering #---------------------------------------------------
-                 h4(shinyfields4$head, style = "color:black"),
-                 fluidRow(column(8,numericInput("filterK", label = shinyfields4$lab1, value = 5))),#, width = NULL, placeholder = NULL)
-                 p(shinyfields4$inf1, style = "color:black"),
-                 fluidRow(column(8,numericInput("filterG", label = shinyfields4$lab2, value = 9))),#, width = NULL, placeholder = NULL)
-                 p(shinyfields4$inf2, style = "color:black"),
-                 fluidRow(column(3, actionButton("pointFiltering",  label = shinyfields4$lab3, style="color:#FFFFFF;background:#999999"))),
-               ),
-               wellPanel(
-                 # ----------------------------------------# 3.3 Points detection Using circle detection  FILE=shinyfields_detect_points_using_circle_detection #------------------------------------
-                 h4(shinyfields4.1$head, style = "color:black"),
-                 fluidRow(column(8,numericInput("Gaussian", label = shinyfields4.1$lab1, value = 5, min = 0))),
-                 p(shinyfields4.1$inf1, style = "color:black"),
-                 fluidRow(column(8,numericInput("minDist", label = shinyfields4.1$lab2, value = 1, min = 0))),
-                 p(shinyfields4.1$inf2, style = "color:black"),
-                 fluidRow(column(8,numericInput("thresholdEdge", label = shinyfields4.1$lab3, value = 100, min = 0))),
-                 p(shinyfields4.1$inf3, style = "color:black"),
-                 fluidRow(column(8,numericInput("thresholdCircles", label = shinyfields4.1$lab4, value = 21, min = 0))),
-                 p(shinyfields4.1$inf4, style = "color:black"),
-                 fluidRow(column(8,numericInput("minRadius", label = shinyfields4.1$lab5, value = 3, min = 0))),
-                 p(shinyfields4.1$inf5, style = "color:black"),
-                 fluidRow(column(8,numericInput("maxRadius", label = shinyfields4.1$lab6, value = 12, min = 0))),
-                 p(shinyfields4.1$inf6, style = "color:black"),
-                 p(shinyfields4.1$inf7, style = "color:black"),
-                 fluidRow(column(3, actionButton("pointCircleDetection",  label = shinyfields4.1$lab7, style="color:#FFFFFF;background:#999999"))),
-               )
-        ), # col 4
-        column(8,
-               uiOutput('listMapsMatching2', style="width:25%;float:left"),
-               uiOutput('listPM', style="width:25%;float:left"),
-               uiOutput('listPF', style="width:25%;float:left"),
-               uiOutput('listPCD', style="width:25%;float:left")
-        )
-      ) # END fluid Row
-    ),  # END tabItem 3
-    
-    # Tab 4 Masking #----------------------------------------------------------------------
-    tabItem(
-      tabName = "tab4",  
-      fluidRow(column(3,textInput("siteNumberMasks", label=shinyfields6$input, value = ''))),
-      actionButton("listMasks",  label = "List masks"),
-      actionButton("listMasksB",  label = "List black masks"),
-      actionButton("listMasksCD",  label = "List CD masks"),
-      # actionButton("listMPointsF",  label = "List points filterng"),
-      fluidRow(
-        column(4,
-               wellPanel(
-                 h3(strong(shinyfields5$head, style = "color:black"))
-               ),
-               wellPanel(
-                 # ----------------------------------------# 4. 1 Masking (white)#----------------------------------------------------------------------
-                 h3(shinyfields5$head_sub, style = "color:black"),
-                 h4("You can extract masks with white background", style = "color:black"),
-                 p(shinyfields5$inf1, style = "color:black"),
-                 # p(shinyfields7$inf2, style = "color:black"),
-                 fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
-                 fluidRow(column(3, actionButton("masking",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
-               ), 
-               #wellPanel(
-               # ----------------------------------------# Masking (black)#----------------------------------------------------------------------
-               #   h4("Or you can extract masks with black background", style = "color:black"),
-               #   p(shinyfields5$inf2, style = "color:black"),
-               #   fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
-               #   fluidRow(column(3, actionButton("maskingBlack",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
-               # ),
-               # ---------------------------------------- # 4.2 Masking centroids -----------------------------------------------------------------
-               wellPanel(
-                 h3(shinyfields5.1$head_sub, style = "color:black"),
-                 h4("You can mask the centroids of the points detected by Point Filtering and Circle Detection.", style = "color:black"),
-                 p(shinyfields5.1$inf1, style = "color:black"),
-                 fluidRow(column(3, actionButton("maskingCentroids",  label = shinyfields5.1$lab1, style="color:#FFFFFF;background:#999999")))
-               )
-        ), # col 4
-        column(8,
-               uiOutput('listMS', style="float:left"),
-               uiOutput('listMSB', style="float:left"),
-               uiOutput('listMCD', style="float:left")
-        )
-      ) # END fluid Row
-    ),  # END tabItem 4
-    
-    
-    # Tab 5 Read Spezies #----------------------------------------------------------------------
-    tabItem(
-      tabName = "tab5",
-      # which site become overview
-      fluidRow(column(3,textInput("siteNumberMapsMatching", label=shinyfields6$input, value = ''))),
-      actionButton("listCropped",  label = "List cropped maps"),
-      fluidRow(
-        column(4,
-               # speciesOnMap
-               wellPanel(  
-                 # maps species 
-                 h3(shinyfields2$head_species, style = "color:black"),
-                 p(shinyfields2$inf4, style = "color:black"),
-                 fluidRow(column(3, actionButton("mapReadRpecies",  label = shinyfields2$start3, style="color:#FFFFFF;background:#999999"))),
-               ),
-               wellPanel(  
-                 # page species
-                 h3(shinyfields2$head_page_species, style = "color:black"),
-                 p(shinyfields2$inf5, style = "color:black"),
-                 fluidRow(column(3, actionButton("pageReadRpecies",  label = shinyfields2$start4, style="color:#FFFFFF;background:#999999"))),
-               )
-        ), # col 4
-        #column(8,
-        #       uiOutput('listCropped', style="width:30%;float:left")
-        # )
-      ) # END fluid Row
-    ),  # END tabItem 5
-    
-    
-    # Tab 6 Georeferencing  FILES=shinyfields_georeferensing & shinyfields_georef_coords_from_csv_file.csv #-------------------------------------------------
-    tabItem(
-      tabName = "tab6",  
-      wellPanel(
-        h3(strong(shinyfields6$head, style = "color:black")),
-        p(shinyfields6$inf1, style = "color:black"),
-        p(shinyfields6$inf2, style = "color:black"),
-        # start georeferencing
-        actionButton("georeferencing",  label = shinyfields6$lab1, style="color:#FFFFFF;background:#999999")
-      ),
-      wellPanel(
-        # which site become overview
-        fluidRow(column(3,textInput("siteNumberGeoreferencing", label=shinyfields6$input, value = ''))),
-        # start overview 
-        actionButton("listGeoreferencing",  label = "List georeferenced files"),
-      ),
-      wellPanel(
-        uiOutput('leaflet_outputs_GEO')
-      ),
-      wellPanel(
-        h4(shinyfields8$head_sub, style = "color:red"),
-        p(shinyfields8$info1, style = "color:black"),
-        p(shinyfields8$info2, style = "color:black"),
-        actionButton("georef_coords_from_csv", label = shinyfields8$lab1, style="color:#FFFFFF;background:#999999")
-      )
-      # END fluid Row
-    ),# END tabItem 6
-    
-    # Tab 7 Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
-    tabItem(
-      tabName = "tab7", 
-      wellPanel(
-        h3(strong(shinyfields7$head, style = "color:black")),
-        p(shinyfields7$inf1, style = "color:black"),
-        p(shinyfields7$inf2, style = "color:black"),
-        actionButton("polygonize",  label = shinyfields7$lab1, style="color:#FFFFFF;background:#999999")
-      ),
-      wellPanel(
-        # which site become overview
-        fluidRow(column(3,textInput("siteNumberPolygonize", label=shinyfields6$input, value = ''))),
-        actionButton("listPolygonize",  label = "Listf polygonized files",),
-      ),
-      wellPanel( 
-        uiOutput("leaflet_outputs_PL")
-      )
-    ),  # END tabItem 7
-    
-    # Tab 8 Spatial data view #----------------------------------------------------------------------
-    tabItem(
-      tabName = "tab8", 
-      # wellPanel(
-      #  h3(strong("Save the outputs in csv file", style = "color:black")),
-      #  p("hier kommt noch mehr Text", style = "color:black"),
-      #  p("hier kommt noch mehr Text", style = "color:black"),
-      actionButton("startSpatialDataComputing",  label ="Spatial Data Computing", style="color:#FFFFFF;background:#999999"),
-      #),
-      wellPanel(
-        # which site become overview
-        #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
-        
-        actionButton("spatialViewPF",  label = "Start View point detection",),
-        leafletOutput("mapSpatialViewPF"),
-        verbatimTextOutput("hoverInfo3")
-      ),
-      # wellPanel(
-      # which site become overview
-      #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
-      
-      #actionButton("spatialViewCD",  label = "Start View circle detection",),
-      #leafletOutput("mapSpatialViewCD"),
-      #verbatimTextOutput("hoverInfo")
-      #)
-      
-    ),  # END tabItem 8
-    
-    tabItem(
-      tabName = "tab9",
-      actionButton("viewCSV",  label ="Overview spatial final data", style="color:#FFFFFF;background:#999999"),
-      
-      wellPanel( 
-        #downloadButton("downloadCSV", label = "Download CSV", style="color:#FFFFFF;background:#999999"),
-        downloadButton("download_csv", label = "Download CSV", style="color:#FFFFFF;background:#999999"),
-        
-        dataTableOutput("view_csv")
-      ),
-    )
-  ) # END tabItems
-) # END BODY
-
-
-sidebar <-
-  ui <- dashboardPage(
-    header = header,
-    sidebar = dashboardSidebar(disable = TRUE),
-    body = body,
-    title = NULL,
-    skin = "black"
-  )
-
-
-
-################################################################################
-# Shiny SERVER CODE
-################################################################################
-################################################################################
 
 server <- shinyServer(function(input, output, session) {
+  # ganz oben im server:
+  outDir <- reactiveVal(NULL)
   
+  # kleiner Helper: Basis-Pfad säubern (Trailing Slashes entfernen)
+  strip_trailing <- function(p) sub("[/\\]+$", "", toString(p))          # .../foo/  -> .../foo
+  pretty_path    <- function(p) normalizePath(p, winslash = "/", mustWork = FALSE)
+  
+
   dataInputDir = ""
   # Update the clock every second using a reactiveTimer
   current_time <- reactiveTimer(1000)
+  
+  # Hilfsfunktion zum Lesen
+  read_config <- function(file) {
+    df <- read.csv2(file, header = FALSE, stringsAsFactors = FALSE)
+    names(df) <- c("key","value")
+    as.list(stats::setNames(df$value, df$key))
+  }
+  
+  # Einmal nach dem ersten Flush (UI steht), dann Inputs gefahrlos updaten
+  session$onFlushed(function() {
+    cfg_path <- file.path(workingDir, "config", "config.csv")
+    if (file.exists(cfg_path)) {
+      cfg <- read_config(cfg_path)
+      # Run-Ordner aus der Config in die Reactive übernehmen
+      if (!is.null(cfg$dataOutputDir) && nzchar(cfg$dataOutputDir)) {
+        outDir(cfg$dataOutputDir)
+      }
+      # Optional: ins UI spiegeln, ohne Event-Lawine
+      isolate({
+        if (!is.null(input$dataOutputDir)) {
+          shiny::freezeReactiveValue(input, "dataOutputDir")
+          updateTextInput(session, "dataOutputDir", value = pretty_path(cfg$dataOutputDir) %||% "")
+        }
+      })
+    }
+  }, once = TRUE)
+  
+  # CSS hover-Event, um zusätzliche Info anzuzeigen
+  observe({
+    session$sendCustomMessage("showHoverInfo", list(id = "title"))
+  })
+  
+  # CSS hover-Event, um zusätzliche Info anzuzeigen
+  observe({
+    session$sendCustomMessage("showHoverInfo", list(id = "author"))
+  })
+  
+  # CSS hover-Event, um zusätzliche Info anzuzeigen
+  observe({
+    session$sendCustomMessage("showHoverInfo", list(id = "pYear"))
+  })
+  # CSS hover-Event, um zusätzliche Info anzuzeigen
+  observe({
+    session$sendCustomMessage("showHoverInfo", list(id = "tesserAct"))
+  })
+  # CSS hover-Event, um zusätzliche Info anzuzeigen
+  observe({
+    session$sendCustomMessage("showHoverInfo", list(id = "dataInputDir"))
+  })
+  # CSS hover-Event, um zusätzliche Info anzuzeigen
+  observe({
+    session$sendCustomMessage("showHoverInfo", list(id = "dataOutputDir"))
+  })
+
+  # CSS hover-Event, um zusätzliche Info anzuzeigen
+  observe({
+    session$sendCustomMessage("showHoverInfo", list(id = "pColor"))
+  })
+  
+  # CSS hover-Event, um zusätzliche Info anzuzeigen
+  observe({
+    session$sendCustomMessage("showHoverInfo", list(id = "pFormat"))
+  })
   
   # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------
   #Function to show the ccrop process in the app 
@@ -603,6 +229,91 @@ server <- shinyServer(function(input, output, session) {
     y1 = plot_brush$ymax
     grid.raster(img[y2:y1,x1:x2,])
   }
+  
+
+  # Hilfsfunktion
+  to_chr <- function(x) if (is.null(x) || is.na(x)) "" else as.character(x)
+  
+  observeEvent(input$saveConfig, ignoreInit = TRUE, {
+    # optional: vorherige Meldungen leeren
+    output$message <- renderPrint(NULL)
+    
+    tryCatch({
+      # ---------- VORPRÜFUNGEN ----------
+      req(nzchar(input$dataInputDir), dir.exists(input$dataInputDir))
+      req(nzchar(input$dataOutputDir))
+      
+      required1 <- c("pages", "templates")
+      folders1  <- list.dirs(input$dataInputDir, full.names = FALSE, recursive = FALSE)
+      if (!all(required1 %in% folders1)) {
+        stop(sprintf("Missing folders in dataInputDir: %s", paste(setdiff(required1, folders1), collapse=", ")))
+      }
+      
+      required2 <- c("align_ref", "maps", "symbols", "geopoints")
+      folders2  <- list.dirs(file.path(input$dataInputDir, "templates"), full.names = FALSE, recursive = FALSE)
+      if (!all(required2 %in% folders2)) {
+        stop(sprintf("Missing template folders: %s", paste(setdiff(required2, folders2), collapse=", ")))
+      }
+      
+      # ---------- AUSGABEORDNER & CONFIG-PFAD ----------
+      timestamp <- format(Sys.time(), "%Y-%m-%d_%H-%M-%S")
+      run_out <- file.path(input$dataOutputDir, paste0("output_", timestamp))
+      run_out  <- strip_trailing(run_out)
+      run_out <- pretty_path(run_out)
+      prepare_base_output(run_out)
+      prepare_www_output(file.path(workingDir, "www", "data"))
+      
+      cfg_dir  <- file.path(workingDir, "config")
+      if (!dir.exists(cfg_dir)) dir.create(cfg_dir, recursive = TRUE, showWarnings = FALSE)
+      cfg_path <- file.path(cfg_dir, "config.csv")
+     
+      # ---------- CONFIG ALS KEY→VALUE ----------
+      to_chr <- function(x) if (is.null(x) || is.na(x)) "" else as.character(x)
+      cfg <- list(
+        workingDir     = to_chr(workingDir),
+        title          = to_chr(input$title),
+        author         = to_chr(input$author),
+        pYear          = to_chr(input$pYear),
+        tesserAct      = to_chr(input$tesserAct),
+        dataInputDir   = to_chr(input$dataInputDir),
+        dataOutputDir  = run_out,           # <-- WICHTIG: mit Zeitstempel!
+        pFormat        = to_chr(input$pFormat),
+        pColor         = to_chr(input$pColor)
+      )
+
+      
+      df <- data.frame(key = names(cfg), value = unname(unlist(cfg, use.names = FALSE)), stringsAsFactors = FALSE)
+      
+      # ---------- SCHREIBEN ----------
+      write.table(df, cfg_path, sep = ";", row.names = FALSE, col.names = FALSE, quote = FALSE)
+      if (!file.exists(cfg_path)) stop("Config file not found after write: ", cfg_path)
+      
+      # ---------- REAKTIVEN STATE SETZEN ----------
+      # WICHTIG: benutze eine reactiveVal, z.B. outDir
+      outDir(run_out)
+      
+      # UI nicht mit neuem Zeitstempel überschreiben, wenn du das nicht willst.
+      # Falls du im Dialog den aktuellen Run-Ordner anzeigen willst:
+      #output$currentRunDir <- renderText(outDir())
+      
+      # ---------- ERFOLG (ganz zum Schluss) ----------
+      shinyalert("Success", "Configuration successfully saved!", type = "success")
+      output$message <- renderPrint(paste("Saved to:", cfg_path, "\nRun output:", run_out_dir))
+      # Wrapper um das textInput, damit wir das Style anwenden können
+      isolate({
+        # verhindert Event-Kaskaden
+        freezeReactiveValue(input, "dataOutputDir")
+        updateTextInput(session, "dataOutputDir", value = outDir())  # oder value = run_out
+      })
+    }, error = function(e) {
+      # EIN Fehlerpfad: kein Success mehr anzeigen
+      msg <- conditionMessage(e)
+      if (!nzchar(msg)) msg <- "Unknown error (possibly from validate/need)."
+      shinyalert("Error", paste("Config save failed:", msg), type = "error")
+      output$message <- renderPrint(paste("Config save failed:", msg))
+    })
+  })
+  
   
   # Render the image in the plot with given dynamical 10%
   output$plot <- renderImage({
@@ -717,18 +428,16 @@ server <- shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$listMapsMatching, {
-    if(input$siteNumberMapsMatching != ''){
-      #print(input$siteNumberMapsMatching)
-      output$listMaps = renderUI({
-        prepareImageView("/data/matching_png/", input$siteNumberMapsMatching)
-      })
-    }
-    else{
-      output$listMaps = renderUI({
-        prepareImageView("/data/matching_png/", '.png')
-      })
-    }
+    # optional: leere Eingaben zu "" normalisieren
+    idx <- if (isTruthy(input$siteNumberMapsMatchingR)) trimws(input$siteNumberMapsMatchingR) else ""
+    rng <- if (isTruthy(input$mapsRange))               trimws(input$mapsRange)               else ""
+    
+    output$listMaps <- renderUI({
+      # KEIN führender Slash, weil prepareImageView intern "www" ergänzt
+      prepareImageView("data/matching_png", index = idx, range_str = rng)
+    })
   })
+  
   
   
   ####################
@@ -746,12 +455,12 @@ server <- shinyServer(function(input, output, session) {
     if(input$siteNumberMapsMatching != ''){
       #print(input$siteNumberMapsMatching)
       output$listAlign = renderUI({
-        prepareImageView("/align_png/", input$siteNumberMapsMatching)
+        prepareImageView("/data/align_png/", input$siteNumberMapsMatching)
       })
     }
     else{
       output$listAlign = renderUI({
-        prepareImageView("/align_png/", '.png')
+        prepareImageView("/data/align_png/", '.png')
       })
     }
   })
@@ -950,10 +659,11 @@ server <- shinyServer(function(input, output, session) {
   # Start
   # GCP points extraction
   observeEvent(input$pointextract, {
+    current_out_dir <- outDir()
     #Processing georeferencing
     fname=paste0(workingDir, "/", "src/georeferencing/geo_points_extraction.py")
     source_python(fname)
-    maingeopointextract(workingDir,outDir, input$filterm)
+    maingeopointextract(workingDir,current_out_dir, input$filterm)
     cat("\nSuccessfully executed")
   })
   
@@ -965,16 +675,16 @@ server <- shinyServer(function(input, output, session) {
   
   # Georeferencing list maps
   observeEvent(input$listGeoreferencing, {
-    
+    current_out_dir <- outDir()
     # Anzahl der Leaflet-Elemente, die Sie hinzufügen möchten
     # show start action message
     message=paste0("Process ", "Georeferencing", " is started on: ")
     shinyalert(text = paste(message, format(current_time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
                closeOnClickOutside = FALSE, animation = TRUE)
-    #outDir <- "D:/test/output_2025-03-27_12-30-59/"
-    listgeoTiffiles = list.files(paste0(outDir, "/rectifying/maps"), full.names = T, pattern = paste0('.tif',input$siteNumberGeoreferencing))
+    #current_out_dir <- "D:/test/output_2025-03-27_12-30-59/"
+    listgeoTiffiles = list.files(paste0(current_out_dir, "/rectifying/maps"), full.names = T, pattern = paste0('.tif',input$siteNumberGeoreferencing))
     if( length(listgeoTiffiles) == 0) {
-      listgeoTiffiles = list.files(paste0(outDir, "/rectifying/maps"), full.names = T, pattern = '.tif')
+      listgeoTiffiles = list.files(paste0(current_out_dir, "/rectifying/maps"), full.names = T, pattern = '.tif')
     }
     num_leaflet_outputs_GEO <- length(listgeoTiffiles)
     
@@ -1048,68 +758,119 @@ server <- shinyServer(function(input, output, session) {
   }) 
   
   
-  observeEvent(input$listPolygonize, {
+  observeEvent(input$listPolygonize, ignoreInit = TRUE, {
     tryCatch({
-      config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
-      outDir <- config$dataOutputDir
-      listShapefiles = list.files(paste0(outDir, "/polygonize/pointFiltering/"), full.names = T, pattern = '.shp')
-      listShapefiles = grep(input$siteNumberPolygonize, listShapefiles, value= TRUE)
-      muster <- "filtered"
-      listShapefiles <- grep(paste0("^((?!(", muster, ")).)*$"), listShapefiles, value = TRUE, perl = TRUE)
-      print(listShapefiles)
-      num_leaflet_outputs <- length(listShapefiles)
-      print(num_leaflet_outputs)
-      listPng = list.files(paste0(workingDir, "/www/data/pointFiltering_png/"), full.names = F, pattern = input$siteNumberPolygonize)
+      # 1) outDir holen und prüfen
+      current_out_dir <- outDir()
+      validate(
+        need(nzchar(current_out_dir), "outDir() ist leer."),
+        need(dir.exists(current_out_dir), paste("Ordner existiert nicht:", current_out_dir))
+      )
+      
+      # 2) Basisordner für Shapefiles
+      shp_dir <- file.path(current_out_dir, "polygonize", "pointFiltering")
+      validate(need(dir.exists(shp_dir), paste("Shapefile-Ordner fehlt:", shp_dir)))
+      
+      # 3) Alle .shp einsammeln
+      shp <- list.files(shp_dir, pattern = "\\.shp$", full.names = TRUE, recursive = FALSE)
+      
+      # 4) Nach Site-Nummer filtern (falls gesetzt) – auf Dateiname (basename) matchen
+      site_pat <- if (!is.null(input$siteNumberPolygonize)) as.character(input$siteNumberPolygonize) else ""
+      if (nzchar(site_pat)) {
+        shp <- shp[grepl(site_pat, basename(shp), fixed = TRUE)]
+      }
+      
+      # 5) "filtered" ausschließen (einfach & stabil)
+      shp <- shp[!grepl("filtered", basename(shp), ignore.case = TRUE)]
+      
+      # 6) Ergebnis prüfen
+      validate(need(length(shp) > 0, "Keine passenden Shapefiles gefunden."))
+      
+      # 7) PNG-Verzeichnis (statische Auslieferung unter www/data/…)
+      png_dir_disk <- file.path(workingDir, "www", "data", "pointFiltering_png")
+      validate(need(dir.exists(png_dir_disk), paste("PNG-Ordner fehlt:", png_dir_disk)))
+      
+      # Hilfsfunktion: für jedes Shapefile ein passendes PNG finden (gleicher Basename)
+      pick_png_for_shp <- function(shp_path) {
+        stem <- sub("\\.shp$", "", basename(shp_path))
+        # Erlaube z. B. .png oder .PNG
+        cand <- list.files(png_dir_disk, pattern = paste0("^", gsub("([.^$|()\\[\\]{}+*?\\\\])", "\\\\\\1", stem), "\\.(?i:png)$"),
+                           full.names = FALSE)
+        if (length(cand) > 0) cand[[1]] else NA_character_
+      }
+      
+      # 8) Leaflet-Outputs dynamisch anlegen
+      num_leaflet_outputs <- length(shp)
       
       output$leaflet_outputs_PL <- renderUI({
-        leaflet_outputs_list <- lapply(1:num_leaflet_outputs, function(i) {
+        leaflet_outputs_list <- lapply(seq_len(num_leaflet_outputs), function(i) {
           leafletOutput(outputId = paste0("listPL", i))
         })
         do.call(tagList, leaflet_outputs_list)
       })
       
-      leaflet_list_PL <- lapply(seq_along(listShapefiles), function(i) {
-        # Read shapefile
-        shape_data <- st_read(listShapefiles[i])
+      # 9) Karten erstellen
+      leaflet_list_PL <- lapply(seq_along(shp), function(i) {
+        shp_i <- shp[i]
+        shp_name <- basename(shp_i)
+        png_i <- pick_png_for_shp(shp_i)
         
-        # Function to convert RGB to HEX
+        # Shapefile einlesen
+        shape_data <- sf::st_read(shp_i, quiet = TRUE)
+        
+        # RGB→HEX (erwartet Spalten Red/Green/Blue in 0..255)
         rgb_to_hex <- function(r, g, b) {
-          rgb(r / 255, g / 255, b / 255, maxColorValue = 1)
+          grDevices::rgb(r/255, g/255, b/255)  # default maxColorValue = 1 → Werte 0..1
         }
         
-        leaflet() %>%
-          addTiles() %>%
-          addCircleMarkers(data = shape_data,
-                           # lng = ~st_coordinates(geometry)[,1],  # Längengrad
-                           # lat = ~st_coordinates(geometry)[,2],  # Breitengrad
-                           color = ~rgb_to_hex(Red, Green, Blue),  # Farbattribute verwenden
-                           weight = 1,
-                           opacity = 0.9,
-                           fillOpacity = 0.5,
-                           radius = 5) %>%
-          addControl(
-            htmltools::div(
-              p(listShapefiles[i]),
-            ),
-            position = "bottomright"
-          ) %>%
-          addControl(
-            htmltools::div(
-              img(src = paste0("/data/pointFiltering_png/",listPng[i]), width = 200, height = 200),
-              tags$a(href = paste0("/data/matching_png/",listPng[i]), listPng[i], target="_blank"),
-            ),
-            position = "bottomleft"
+        # Optional: Falls Red/Green/Blue fehlen, fallback auf eine Farbe
+        if (!all(c("Red","Green","Blue") %in% names(shape_data))) {
+          shape_data$Red   <- 30
+          shape_data$Green <- 144
+          shape_data$Blue  <- 255
+        }
+        
+        # UI-Schnipsel unten rechts (Dateiname)
+        info_br <- htmltools::div(htmltools::p(shp_name))
+        
+        # UI-Schnipsel unten links (PNG-Vorschau + Link), nur wenn PNG vorhanden
+        info_bl <- if (!is.na(png_i)) {
+          htmltools::div(
+            tags$img(src = file.path("/data/pointFiltering_png", png_i), width = 200, height = 200),
+            tags$a(href = file.path("/data/pointFiltering_png", png_i), target = "_blank", png_i)
           )
+        } else {
+          htmltools::div(htmltools::em("Kein PNG gefunden."))
+        }
+        
+        leaflet::leaflet() %>%
+          leaflet::addTiles() %>%
+          leaflet::addCircleMarkers(
+            data = shape_data,
+            color = ~rgb_to_hex(Red, Green, Blue),
+            weight = 1,
+            opacity = 0.9,
+            fillOpacity = 0.5,
+            radius = 5
+          ) %>%
+          leaflet::addControl(info_br, position = "bottomright") %>%
+          leaflet::addControl(info_bl, position = "bottomleft")
       })
       
-      leaflet_lists <- lapply(1:length(leaflet_list_PL), function(i) {
-        output[[paste0('listPL', i)]] <- renderLeaflet({ leaflet_list_PL[[i]] })
-      })
+      # 10) Rendern
+      invisible(lapply(seq_along(leaflet_list_PL), function(i) {
+        output[[paste0("listPL", i)]] <- leaflet::renderLeaflet(leaflet_list_PL[[i]])
+      }))
+      
+      # Optional: kurze Rückmeldung
+      showNotification(paste("Gefunden:", num_leaflet_outputs, "Shapefile(s)."), type = "message")
+      
     }, error = function(e) {
-      message <- paste("Error in observeEvent(input$listPolygonize):", e$message)
+      message <- paste("Error in observeEvent(input$listPolygonize):", conditionMessage(e))
       shinyalert(text = message, type = "error")
     })
   })
+  
   
   ####################
   # 7. Save the outputs #----------------------------------------------------------------------#
@@ -1123,14 +884,12 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$spatialViewPF, {
     tryCatch({
-      # IMPORTANT not remove!
-      config <- read.csv(paste0(workingDir,"/config/config.csv"), header = TRUE, sep = ';')
-      outDir <- config$dataOutputDir
+      current_out_dir <- outDir()
       customMouseover <- JS(
         "function(event) { var layer = event.target;
       layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();}"
       )
-      marker_data <- read.csv(paste0(outDir, "/spatial_final_data_with_realXY.csv"), sep = ";", header = TRUE)
+      marker_data <- read.csv(paste0(current_out_dir, "/spatial_final_data_with_realXY.csv"), sep = ";", header = TRUE)
       #filtered_data <- marker_data[marker_data$Detectionmethod == "point_filtering", ]
       name_on_top = paste0(marker_data$species)#,": ", filtered_data$File,".png")
       name <- gsub("\\.tiff?$", ".png", marker_data$File)
@@ -1177,8 +936,7 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$spatialViewCD, {
     # IMPORTANT not remove!
-    config <- read.csv(paste0(workingDir,"/config/config.csv"),header = TRUE, sep = ';')
-    outDir = config$dataOutputDir
+    current_out_dir <- outDir()
     
     customMouseover <- JS(
       "function(event) {
@@ -1188,7 +946,7 @@ server <- shinyServer(function(input, output, session) {
     )
     
     # Einlesen der Daten
-    filtered_data <- read.csv(paste0(outDir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
+    filtered_data <- read.csv(paste0(current_out_dir, "/spatial_final_data.csv"), sep = ";", header = TRUE)
     
     # Filtern der Daten
     #filtered_data <- marker_data[filtered_data$Detection.method == "circle_detection", ]
@@ -1246,7 +1004,8 @@ server <- shinyServer(function(input, output, session) {
       "spatial_final_data.csv"
     },
     content = function(file) {
-      csv_path <- paste0(outDir, "/spatial_final_data.csv")
+      current_out_dir <- outDir()
+      csv_path <- paste0(current_out_dir, "/spatial_final_data.csv")
       if (file.exists(csv_path)) {
         file.copy(csv_path, file)
       } else {
@@ -1275,9 +1034,7 @@ server <- shinyServer(function(input, output, session) {
   # Function to manage the processing
   manageProcessFlow <- function(processing, allertText1, allertText2){
     
-    # IMPORTANT not remove!
-    config <- read.csv(paste0(workingDir,"/config/config.csv"),header = TRUE, sep = ';')
-    outDir = config$dataOutputDir
+    current_out_dir <- outDir()
     # END IMPORTANT
     
     message=""
@@ -1291,11 +1048,12 @@ server <- shinyServer(function(input, output, session) {
       animation = TRUE
     )
     
-    
+    #  MATCHING
     if(processing == "mapMatching"){
       tryCatch({
-        
         # processing template matching
+        #workingDir = "D:/distribution_digitizer"
+        #outDir="D:/test/output_2025-09-18_13-08-43/"
         fname=paste0(workingDir, "/", "src/matching/map_matching.py")
         
         print("The processing template matching python script:")
@@ -1303,9 +1061,15 @@ server <- shinyServer(function(input, output, session) {
         source_python(fname)
         print("Threshold:")
         print(input$threshold_for_TM)
-        print(config$matchingType)
         print(outDir)
-        main_template_matching(workingDir, outDir, input$threshold_for_TM, config$sNumberPosition, config$matchingType)
+        
+        print(input$sNumberPosition)
+        print(input$matchingType)
+        print(input$siteNumberMapsMatching)
+        
+        main_template_matching(workingDir, outDir, input$threshold_for_TM, input$sNumberPosition, input$matchingType, as.character(input$siteNumberMapsMatching))
+        #main_template_matching(workingDir, outDir, 0.18, 1, 1, "0088.tif")
+        
         findTemplateResult = paste0(outDir, "/maps/matching/")
         
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
@@ -1323,6 +1087,7 @@ server <- shinyServer(function(input, output, session) {
       })
     }
     
+    # ALIGN
     if(processing == "alignMaps" ){
       tryCatch({
         
@@ -1331,15 +1096,15 @@ server <- shinyServer(function(input, output, session) {
         print("Processing align python script:")
         print(fname)
         source_python(fname)
-        align_images_directory(workingDir, outDir)
+        align_images_directory(workingDir, current_out_dir)
         
         cat("\nSuccessfully executed")
-        findTemplateResult = paste0(outDir, "/maps/align/")
+        findTemplateResult = paste0(current_out_dir, "/maps/align/")
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles = paste0(length(files),"")
         
         # convert the tif images to png and show this on the plot
-        convertTifToPngSave(paste0(outDir, "/maps/align/"), paste0(workingDir, "/www/data/align_png/"))
+        convertTifToPngSave(paste0(current_out_dir, "/maps/align/"), paste0(workingDir, "/www/data/align_png/"))
         
         message=paste0("Ended on: ", 
                        format(current_time(), "%H:%M:%S \n"), " The number align maps ", " are \n", 
@@ -1359,9 +1124,9 @@ server <- shinyServer(function(input, output, session) {
         print("Croping the species names from the map botton R script:")
         print(fname)
         source(fname)
-        species <- read_legends(workingDir, outDir)
+        species <- read_legends(workingDir, current_out_dir)
         cat("\nSuccessfully executed")
-        findTemplateResult <- paste0(outDir, "/maps/readSpecies/")
+        findTemplateResult <- paste0(current_out_dir, "/maps/readSpecies/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         
         countFiles <- paste0(length(files), "")
@@ -1381,16 +1146,16 @@ server <- shinyServer(function(input, output, session) {
       tryCatch({
         # Read page species
         fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
-        print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ", outDir," directory"))
+        print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ", current_out_dir," directory"))
         source(fname)
         if(length(config$keywordReadSpecies) > 0) {
-          species <- readPageSpecies(workingDir, outDir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
+          species <- readPageSpecies(workingDir, current_out_dir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
         } else {
-          species <- readPageSpecies(workingDir, outDir, 'None', config$keywordBefore, config$keywordThen, config$middle)
+          species <- readPageSpecies(workingDir, current_out_dir, 'None', config$keywordBefore, config$keywordThen, config$middle)
         }
         
         cat("\nSuccessfully executed")
-        findTemplateResult <- paste0(outDir, "/maps/align/")
+        findTemplateResult <- paste0(current_out_dir, "/maps/align/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Ended on: ", 
@@ -1412,13 +1177,13 @@ server <- shinyServer(function(input, output, session) {
         print(" Processing point python script:")
         print(fname)
         source_python(fname)
-        map_points_matching(workingDir, outDir, input$threshold_for_PM)
-        findTemplateResult = paste0(outDir, "/maps/pointMatching/")
+        map_points_matching(workingDir, current_out_dir, input$threshold_for_PM)
+        findTemplateResult = paste0(current_out_dir, "/maps/pointMatching/")
         print(findTemplateResult)
         cat("\nSuccessfully executed")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
-        #outDir = "D:/test/output_2024-07-12_08-18-21/"
+        #current_out_dir = "D:/test/output_2024-07-12_08-18-21/"
         #workingDir = "D:/distribution_digitizer/"
         
         # convert the tif images to png and save in www
@@ -1438,11 +1203,11 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         source_python(fname2)
-        main_point_filtering(workingDir, outDir, input$filterK, input$filterG)
+        main_point_filtering(workingDir, current_out_dir, input$filterK, input$filterG)
         
         cat("\nSuccessfully executed")
         # convert the tif images to png and save in www
-        findTemplateResult = paste0(outDir, "/maps/pointFiltering/")
+        findTemplateResult = paste0(current_out_dir, "/maps/pointFiltering/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Ended on: ", 
@@ -1465,12 +1230,12 @@ server <- shinyServer(function(input, output, session) {
         print(fname)
         source_python(fname)
         source_python(fname2)
-        print(outDir)
-        mainCircleDetection(workingDir, outDir, input$Gaussian, input$minDist, 
+        print(current_out_dir)
+        mainCircleDetection(workingDir, current_out_dir, input$Gaussian, input$minDist, 
                             input$thresholdEdge, input$thresholdCircles, input$minRadius, input$maxRadius)
         
         # convert the tif images to png and save in www
-        findTemplateResult = paste0(outDir, "/maps/circleDetection/")
+        findTemplateResult = paste0(current_out_dir, "/maps/circleDetection/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Ended on: ", 
@@ -1491,15 +1256,15 @@ server <- shinyServer(function(input, output, session) {
         print(" Process masking normale python script:")
         print(fname)
         source_python(fname)
-        mainGeomask(workingDir, outDir, input$morph_ellipse)
+        mainGeomask(workingDir, current_out_dir, input$morph_ellipse)
         
         fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
         print(" Process masking black python script:")
         print(fname)
         source_python(fname)
-        mainGeomaskB(workingDir, outDir, input$morph_ellipse)
+        mainGeomaskB(workingDir, current_out_dir, input$morph_ellipse)
         
-        findTemplateResult = paste0(outDir, "/masking/")
+        findTemplateResult = paste0(current_out_dir, "/masking/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Ended on: ", 
@@ -1508,7 +1273,7 @@ server <- shinyServer(function(input, output, session) {
         
         convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_png/"))
         
-        findTemplateResult = paste0(outDir, "/masking_black/")
+        findTemplateResult = paste0(current_out_dir, "/masking_black/")
         convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_black_png/"))
       }, error = function(e) {
         cat("An error occurred during masking processing:\n")
@@ -1523,9 +1288,9 @@ server <- shinyServer(function(input, output, session) {
         print(" Process masking Centroids python script:")
         print(fname)
         source_python(fname)
-        MainMaskCentroids(workingDir, outDir)
+        MainMaskCentroids(workingDir, current_out_dir)
         
-        findTemplateResult = paste0(outDir, "/masking_black/pointFiltering/")
+        findTemplateResult = paste0(current_out_dir, "/masking_black/pointFiltering/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Ended on: ", 
@@ -1547,24 +1312,24 @@ server <- shinyServer(function(input, output, session) {
         print(" Process georeferencing python script:")
         print(fname)
         source_python(fname)
-        #mainmaskgeoreferencingMaps(workingDir, outDir)
-        #mainmaskgeoreferencingMaps_CD(workingDir, outDir)
-        #mainmaskgeoreferencingMasks(workingDir, outDir)
-        #mainmaskgeoreferencingMasks_CD(workingDir, outDir)
-        mainmaskgeoreferencingMasks_PF(workingDir, outDir)
+        #mainmaskgeoreferencingMaps(workingDir, current_out_dir)
+        #mainmaskgeoreferencingMaps_CD(workingDir, current_out_dir)
+        #mainmaskgeoreferencingMasks(workingDir, current_out_dir)
+        #mainmaskgeoreferencingMasks_CD(workingDir, current_out_dir)
+        mainmaskgeoreferencingMasks_PF(workingDir, current_out_dir)
         # processing rectifying
         
         fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
         print(" Process rectifying python script:")
         print(fname)
         source_python(fname)
-        mainmaskgeoreferencingMaps(workingDir, outDir)
-        mainRectifying_Map_PF(workingDir, outDir)
-        mainRectifying(workingDir, outDir)
-        mainRectifying_CD(workingDir, outDir)
-        mainRectifying_PF(workingDir, outDir)
-        #outDir = "D:/test/output_2024-08-05_15-38-45/"
-        findTemplateResult = paste0(outDir, "/georeferencing/maps/pointFiltering/")
+        mainmaskgeoreferencingMaps(workingDir, current_out_dir)
+        mainRectifying_Map_PF(workingDir, current_out_dir)
+        mainRectifying(workingDir, current_out_dir)
+        mainRectifying_CD(workingDir, current_out_dir)
+        mainRectifying_PF(workingDir, current_out_dir)
+        #current_out_dir = "D:/test/output_2024-08-05_15-38-45/"
+        findTemplateResult = paste0(current_out_dir, "/georeferencing/maps/pointFiltering/")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Georeferencing ended on: ", 
@@ -1587,7 +1352,7 @@ server <- shinyServer(function(input, output, session) {
         print(" Process georef_coords_from_csv python script:")
         print(fname)
         source_python(fname)
-        mainCentroidGeoref(workingDir, outDir)
+        mainCentroidGeoref(workingDir, current_out_dir)
       }, error = function(e) {
         cat("An error occurred during pageReadRpecies processing:\n")
         print(e)
@@ -1602,11 +1367,11 @@ server <- shinyServer(function(input, output, session) {
         print(" Process polygonizing python script:")
         print(fname)
         source_python(fname)
-        #mainPolygonize(workingDir, outDir)
-        #mainPolygonize_Map_PF(workingDir, outDir)
-        mainPolygonize_CD(workingDir, outDir)
-        mainPolygonize_PF(workingDir, outDir)
-        findTemplateResult = paste0(outDir, "/polygonize/pointFiltering")
+        #mainPolygonize(workingDir, current_out_dir)
+        #mainPolygonize_Map_PF(workingDir, current_out_dir)
+        mainPolygonize_CD(workingDir, current_out_dir)
+        mainPolygonize_PF(workingDir, current_out_dir)
+        findTemplateResult = paste0(current_out_dir, "/polygonize/pointFiltering")
         files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
         countFiles <- paste0(length(files), "")
         message <- paste0("Georeferencing ended on: ", 
@@ -1645,20 +1410,20 @@ server <- shinyServer(function(input, output, session) {
         expr = {
           #fname=paste0(workingDir, "/", "src/extract_coordinates/poly_to_point.py")
           #source_python(fname)
-          #main_circle_detection(workingDir, outDir)
-          #main_point_filtering(workingDir, outDir)
+          #main_circle_detection(workingDir, current_out_dir)
+          #main_point_filtering(workingDir, current_out_dir)
           
           #fname=paste0(workingDir, "/", "src/extract_coordinates/extract_coords.py")
           #source_python(fname)
-          #main_circle_detection(workingDir, outDir)
-          #main_point_filtering(workingDir, outDir)
+          #main_circle_detection(workingDir, current_out_dir)
+          #main_point_filtering(workingDir, current_out_dir)
           
           # prepare pages as png for the spatia view
           convertTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/data/pages/"))
           source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
-          mergeFinalData(workingDir, outDir)
-          spatialFinalData(outDir)
-          spatialRealCoordinats(outDir)
+          mergeFinalData(workingDir, current_out_dir)
+          spatialFinalData(current_out_dir)
+          spatialRealCoordinats(current_out_dir)
         },
         error = function(e) {
           messageOnClose = e$message
@@ -1678,14 +1443,14 @@ server <- shinyServer(function(input, output, session) {
           closeAlert(num = 0, id = NULL)
           message = "End of processing spatial on " 
           message = paste(message, format(current_time(), "%H:%M:%S."), 
-                          " The data spatial_final_data.csv in: " , outDir)
+                          " The data spatial_final_data.csv in: " , current_out_dir)
         }
       )
     }
     
     if(processing == "view_csv"){
       # Hier können Sie den Pfad zu Ihrer CSV-Datei angeben
-      csv_path <- paste0(outDir, "/spatial_final_data.csv")
+      csv_path <- paste0(current_out_dir, "/spatial_final_data.csv")
       
       # Hier können Sie Daten für Ihre Tabelle oder Visualisierung laden
       # In diesem Beispiel lesen wir die CSV-Datei
@@ -1706,7 +1471,7 @@ server <- shinyServer(function(input, output, session) {
     cat("\nSuccessfully executed")
     
     closeAlert(num = 0, id = NULL)
-    shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"), "!\n Results are located at: " , outDir ), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
+    shinyalert(text = paste(message, format(current_time(), "%H:%M:%S"), "!\n Results are located at: " , current_out_dir ), type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
                closeOnClickOutside = TRUE, animation = TRUE)
     
   }
@@ -1773,23 +1538,90 @@ server <- shinyServer(function(input, output, session) {
   # -----------------------------------------# Other functions #---------------------------------------------------------------------#
   ######
   
-  # Function to list the result MAPS
-  prepareImageView <- function(dirName, index){
+  prepareImageView <- function(dirName, index = "", range_str = "") {
     tryCatch({
-      pathToMatchingImages = paste0(workingDir, "/www/data/", dirName)
-      if(index !=".png"){index <- paste0("^", index, "\\w*")}
-      listPngImages = list.files(pathToMatchingImages, full.names = F, pattern = index)
-      display_image = function(i) {
-        HTML(paste0('<div class="shiny-map-image" > 
-                    <img src = ', paste0("data",dirName,listPngImages[i] ), ' style="width:100%;"><a href="',paste0("data", 
-                                                                                                                    dirName,listPngImages[i] ),'" style="width:27%;" target=_blank>', listPngImages[i],'</a></div>'))
+      cat("📁 WorkingDir:", workingDir, "\n")
+      cat("DEBUG raw dirName:", paste0("[", dirName, "]"), "\n")
+      
+      # 1) dirName säubern
+      dirName <- trimws(dirName)
+      dirName <- gsub("^/+","", dirName)
+      dirName <- gsub("/+$","", dirName)
+      if (dirName == "") dirName <- "data/matching_png"
+      cat("DEBUG clean dirName:", dirName, "\n")
+      
+      # 2) FS-Pfad (mit www)
+      pathToMatchingImages <- file.path(workingDir, "www", dirName)
+      cat("DEBUG pathToMatchingImages:", pathToMatchingImages, "\n")
+      if (!dir.exists(pathToMatchingImages)) {
+        cat("WARN: directory does not exist\n")
+        return(HTML("<p><i>Directory not found.</i></p>"))
       }
-      lapply(1:length(listPngImages), display_image)
-    }, error = function(e) {
-      cat("An error occurred during prepareImageView processing:\n")
-      print(e)
+      
+      # 3) Pattern
+      if (is.null(index) || is.na(index) || index == "" || index == ".png") {
+        pattern <- "\\.png$"
+      } else {
+        index_esc <- gsub("([\\.^$|()\\[\\]{}+*?\\\\])", "\\\\\\1", index)
+        pattern <- paste0("^", index_esc, ".*\\.png$")
+      }
+      cat("DEBUG pattern:", pattern, "\n")
+      
+      # 4) Dateien holen (alphabetisch sortiert)
+# 1) Alle PNGs holen
+    files <- sort(list.files(pathToMatchingImages,
+                             full.names = FALSE,
+                             pattern = "\\.png$",
+                             ignore.case = TRUE))
+    n <- length(files)
+    if (n == 0) return(HTML("<p><i>No images found.</i></p>"))
+
+    # 2) Falls im index versehentlich ein Range steht → als range_str nutzen
+    idx_raw <- trimws(index %||% "")
+    if (idx_raw != "" && grepl("^\\d+\\s*-\\s*\\d*$|^\\d+\\s*$|^-\\s*\\d+$", idx_raw)) {
+      range_str <- if (range_str == "") idx_raw else range_str
+      index <- ""  # Index-Filter deaktivieren
+    }
+
+    # 3) Index-Filter OHNE Regex (Prefix-Match)
+    if (!is.null(index) && nzchar(index) && index != ".png") {
+      files <- files[startsWith(tolower(files), tolower(index))]
+      n <- length(files)
+      if (n == 0) return(HTML("<p><i>No images found.</i></p>"))
+    }
+
+    # 4) Range anwenden
+    parse_range <- function(s, n_max) {
+      s <- trimws(s %||% "")
+      if (s == "") return(seq_len(n_max))
+      if (grepl("^-?\\d+$", s)) {
+        a <- max(1, min(as.integer(s), n_max)); return(a)
+      }
+      if (grepl("^\\d+\\s*-\\s*\\d+$", s)) {
+        ab <- as.integer(unlist(strsplit(gsub("\\s*", "", s), "-")))
+        a <- max(1, min(ab[1], n_max)); b <- max(1, min(ab[2], n_max))
+        return(if (a<=b) seq(a,b) else seq(b,a))
+      }
+      if (grepl("^\\d+\\s*-$", s)) { a <- as.integer(gsub("\\D","",s)); a <- max(1,min(a,n_max)); return(seq(a,n_max)) }
+      if (grepl("^-\\s*\\d+$", s)) { b <- as.integer(gsub("\\D","",s)); b <- max(1,min(b,n_max)); return(seq(1,b)) }
+      seq_len(n_max)
+    }
+    `%||%` <- function(x,y) if (is.null(x)) y else x
+    sel <- parse_range(range_str, n)
+
+    # 5) Render
+    lapply(sel, function(i){
+      relPath <- file.path(dirName, files[i])
+      HTML(paste0(
+        '<div class="shiny-map-image">',
+        '<img src="', relPath, '" style="width:100%;">',
+        '<a href="', relPath, '" style="width:27%;" target="_blank">', files[i], '</a>',
+        '</div>'
+      ))
     })
-  }
+  }, error=function(e){ cat("prepareImageView error:\n"); print(e); HTML("<p><i>Error while preparing image view.</i></p>") })
+}
+  
   
   # Function to list CSV files as links
   prepareCSVLinks <- function(dirName, index) {
@@ -1838,10 +1670,153 @@ server <- shinyServer(function(input, output, session) {
       print(e)
     })
   }
+  
+  # -------------------------------------------------------------------
+  # Function: prepare_base_output
+  # -------------------------------------------------------------------
+  # This function prepares the main "output" directory structure 
+  # for storing processing results. It ensures that all required 
+  # subdirectories exist before the workflow starts, so that 
+  # intermediate and final results can be organized consistently.
+  #
+  # Arguments:
+  #   base_path - the path to the base output directory
+  #
+  # Behavior:
+  #   1. Validates the provided base_path (must not be empty).
+  #   2. Creates the base output directory if it does not exist.
+  #   3. Creates a predefined set of subdirectories for various 
+  #      processing steps (e.g., final_output, georeferencing, maps).
+  #   4. Creates additional nested subdirectories for specific folders:
+  #        - "maps" → subfolders: align, csvFiles, matching, readSpecies, pointMatching
+  #        - "georeferencing" → subfolders: maps, masks
+  #        - "final_output", "maps", "masking_black", "polygonize", "rectifying" 
+  #            → subfolders: circleDetection, pointFiltering
+  #   5. If the provided base_path is empty, an error dialog is shown in the app.
+  #   6. Any errors are caught and printed to the console for debugging.
+  #
+  # Usage:
+  #   prepare_base_output(file.path(workingDir, "data/output"))
+  # -------------------------------------------------------------------
+  prepare_base_output <- function(base_path) {
+    tryCatch({
+      if (nchar(base_path) > 0) {
+        
+        # Create the main output directory if it does not exist
+        if (!dir.exists(base_path)) {
+          dir.create(base_path, recursive = TRUE)
+        }
+        
+        # Define top-level directories
+        directory_names <- c(
+          "final_output", "georeferencing", "maps", "masking", 
+          "masking_black", "output_shape", "pagerecords", 
+          "polygonize", "rectifying"
+        )
+        
+        for (dir_name in directory_names) {
+          dir_path <- file.path(base_path, dir_name)
+          dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
+          
+          # Special case: subfolders for "maps"
+          if (dir_name == "maps") {
+            sub_directory_names <- c("align", "csvFiles", "matching", "readSpecies", "pointMatching")
+            for (sub_dir_name in sub_directory_names) {
+              dir.create(file.path(dir_path, sub_dir_name), recursive = TRUE, showWarnings = FALSE)
+            }
+          }
+          
+          # Special case: subfolders for "georeferencing"
+          if (dir_name == "georeferencing") {
+            sub_directory_names <- c("maps", "masks")
+            for (sub_dir_name in sub_directory_names) {
+              dir.create(file.path(dir_path, sub_dir_name), recursive = TRUE, showWarnings = FALSE)
+            }
+          }
+          
+          # Common subfolders for selected directories
+          if (dir_name %in% c("final_output", "maps", "masking_black", "polygonize", "rectifying")) {
+            sub_directory_names <- c("circleDetection", "pointFiltering")
+            for (sub_dir_name in sub_directory_names) {
+              dir.create(file.path(dir_path, sub_dir_name), recursive = TRUE, showWarnings = FALSE)
+            }
+          }
+        }
+        
+      } else {
+        # Show error if no valid path was provided
+        showModal(modalDialog(title = "Error", "Please provide a valid input directory path."))
+        return()
+      }
+    }, error = function(e) {
+      # Handle and report any errors
+      cat("An error occurred during prepare_base_output processing:\n")
+      print(e)
+    })
+  }
+  
+  
+  
+  # -------------------------------------------------------------------
+  # Function: prepare_www_output
+  # -------------------------------------------------------------------
+  # This function prepares the "www" output directory that is used to 
+  # store intermediate and final results of the processing steps. 
+  # The created subdirectories organize images and data so that the user 
+  # can easily navigate and view them inside the Shiny app.
+  #
+  # Arguments:
+  #   www_output - the path to the "www/data" output directory
+  #
+  # Behavior:
+  #   1. Removes any existing content of the www_output directory 
+  #      (using unlink with recursive = TRUE).
+  #   2. Creates the main www_output directory if it does not exist.
+  #   3. Creates a predefined set of subdirectories for different 
+  #      processing outputs (e.g., align_png, matching_png, polygonize).
+  #   4. If the provided path is empty, shows an error dialog in the app.
+  #   5. Any errors encountered are caught and printed to the console.
+  #
+  # Usage:
+  #   prepare_www_output(file.path(workingDir, "www/data"))
+  # -------------------------------------------------------------------
+  prepare_www_output <- function(www_output) {
+    tryCatch({
+      # Remove existing folder and its contents
+      unlink(www_output, recursive = TRUE)
+      
+      if (nchar(www_output) > 0) {
+        # Create the main output folder if it does not exist
+        if (!dir.exists(www_output)) {
+          dir.create(www_output, recursive = TRUE)
+        }
+        
+        # Predefined subdirectory names for organizing outputs
+        directory_names <- c(
+          "align_png", "CircleDetection_png", "readSpecies_png", "georeferencing_png", 
+          "masking_black_png", "masking_circleDetection", "masking_png", "maskingCentroids",
+          "matching_png", "pages", "pointFiltering_png", "pointMatching_png", "polygonize",
+          "symbol_templates_png", "map_templates_png"
+        )
+        
+        # Create each subdirectory inside the www_output folder
+        for (sub_dir_name in directory_names) {
+          sub_dir_path <- file.path(www_output, sub_dir_name)
+          dir.create(sub_dir_path, recursive = TRUE, showWarnings = FALSE)
+        }
+      } else {
+        # Show error if no valid directory path was provided
+        showModal(modalDialog(title = "Error", "Please provide a valid input directory path."))
+        return()
+      }
+    }, error = function(e) {
+      # Handle and report any errors
+      cat("An error occurred during prepare_www_output processing:\n")
+      print(e)
+    })
+  }
+  
 })
 
-# Starte auf dynamischem Port, falls per Rscript übergeben
-args <- commandArgs(trailingOnly = TRUE)
-custom_port <- if (length(args) > 0) as.numeric(args[1]) else 8888
+  
 
-shinyApp(ui = ui, server = server, options = list(port = custom_port))
