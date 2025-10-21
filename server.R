@@ -98,7 +98,17 @@ processEventNumber = 0
 # ==========================
 
 
-workingDir <- "D:/distribution_digitizer"
+get_app_dir <- function() {
+  args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- sub("^--file=", "", args[grep("^--file=", args)])
+  if (length(file_arg)) {
+    return(normalizePath(dirname(file_arg), winslash = "/"))
+  }
+  normalizePath(getwd(), winslash = "/")
+}
+
+workingDir <- get_app_dir()
+message("workingDir = ", workingDir)
 
 cat("📁 Received working directory:", workingDir, "\n")
 
@@ -127,8 +137,91 @@ if (file.exists(fileFullPath)){
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
 
+# Setzt TESSDATA_PREFIX einmalig aus einem Pfad (aus Config),
+# egal ob dieser auf .../Tesseract-OCR oder .../tessdata zeigt.
+set_tessdata_prefix_once <- function(tess_path) {
+  if (nzchar(Sys.getenv("TESSDATA_PREFIX"))) {
+    message("TESSDATA_PREFIX already set to: ", Sys.getenv("TESSDATA_PREFIX"))
+    return(invisible(FALSE))
+  }
+  if (is.null(tess_path) || !nzchar(tess_path)) {
+    warning("No Tesseract path provided.")
+    return(invisible(FALSE))
+  }
+  p <- normalizePath(tess_path, winslash = "/", mustWork = FALSE)
+  # Wenn Pfad direkt auf 'tessdata' zeigt → eine Ebene hoch
+  if (basename(p) %in% c("tessdata", "tessdata/")) {
+    p <- dirname(p)
+  }
+  # Prüfen, ob unter p tatsächlich ein 'tessdata' Ordner existiert
+  if (!dir.exists(file.path(p, "tessdata"))) {
+    warning("No 'tessdata' directory found under: ", p)
+    return(invisible(FALSE))
+  }
+  Sys.setenv(TESSDATA_PREFIX = p)
+  message("TESSDATA_PREFIX set to: ", p)
+  invisible(TRUE)
+}
+
 
 server <- shinyServer(function(input, output, session) {
+  # ganz oben im server:
+  outDir <- reactiveVal(NULL)
+
+  # Erlaube Navigieren auf bestimmten Laufwerken/Roots
+  roots <- c(Home = "~", D = "D:/")  # passe an: C="C:/", Netzlaufwerke etc.
+  # Dateiauswahl mit Startordner
+  shinyFileChoose(
+    input, "pick_file",
+    roots = roots,
+    defaultRoot = "D",
+    defaultPath = "distribution_digitizer/www/data",
+    filetypes = c("", "tif", "tiff", "png", "jpg")  # Filter optional
+  )
+  
+  sel_files <- reactive({
+    req(input$pick_file)
+    parseFilePaths(roots, input$pick_file)$datapath
+  })
+  
+  output$file_out <- renderPrint(sel_files())
+  
+  
+  open_dir <- function(path) {
+    p <- normalizePath(path, winslash = "/", mustWork = FALSE)
+    if (.Platform$OS.type == "windows") {
+      shell.exec(p)                # Windows: Explorer
+    } else if (Sys.info()[["sysname"]] == "Darwin") {
+      system2("open", p)           # macOS: Finder
+    } else {
+      system2("xdg-open", p)       # Linux: Dateimanager
+    }
+  }
+  
+  observeEvent(input$open_output, {
+    open_dir(outDir())   # <-- Pfad anpassen
+  })
+
+  observeEvent(input$open_output_map, {
+    # Basis-Ausgabeverzeichnis (z. B. aus deiner Config oder Funktion)
+    base_out <- outDir()
+    
+    # Ziel-Unterordner
+    target_path <- file.path(base_out, "maps", "matching")
+    
+    # Prüfen, ob er existiert – falls nicht, erstelle ihn
+    if (!dir.exists(target_path)) {
+      dir.create(target_path, recursive = TRUE, showWarnings = FALSE)
+    }
+    
+    # Ordner im Explorer öffnen
+    open_dir(target_path)
+  })
+  
+  set_tessdata_prefix_once(config$tesseract_path)
+  # prüfen:
+  Sys.getenv("TESSDATA_PREFIX")
+  
   # ganz oben im server:
   outDir <- reactiveVal(NULL)
   
@@ -235,38 +328,39 @@ server <- shinyServer(function(input, output, session) {
   to_chr <- function(x) if (is.null(x) || is.na(x)) "" else as.character(x)
   
   observeEvent(input$saveConfig, ignoreInit = TRUE, {
-    # optional: vorherige Meldungen leeren
-    output$message <- renderPrint(NULL)
     
     tryCatch({
       # ---------- VORPRÜFUNGEN ----------
       req(nzchar(input$dataInputDir), dir.exists(input$dataInputDir))
       req(nzchar(input$dataOutputDir))
       
+      # optional: vorherige Meldungen leeren
+      output$message <- renderPrint(NULL)
+      
       required1 <- c("pages", "templates")
       folders1  <- list.dirs(input$dataInputDir, full.names = FALSE, recursive = FALSE)
       if (!all(required1 %in% folders1)) {
-        stop(sprintf("Missing folders in dataInputDir: %s", paste(setdiff(required1, folders1), collapse=", ")))
+        stop(sprintf("Missing folders in dataInputDir: %s", paste(setdiff(required1, folders1), collapse = ", ")))
       }
       
       required2 <- c("align_ref", "maps", "symbols", "geopoints")
       folders2  <- list.dirs(file.path(input$dataInputDir, "templates"), full.names = FALSE, recursive = FALSE)
       if (!all(required2 %in% folders2)) {
-        stop(sprintf("Missing template folders: %s", paste(setdiff(required2, folders2), collapse=", ")))
+        stop(sprintf("Missing template folders: %s", paste(setdiff(required2, folders2), collapse = ", ")))
       }
       
       # ---------- AUSGABEORDNER & CONFIG-PFAD ----------
       timestamp <- format(Sys.time(), "%Y-%m-%d_%H-%M-%S")
       run_out <- file.path(input$dataOutputDir, paste0("output_", timestamp))
-      run_out  <- strip_trailing(run_out)
+      run_out <- strip_trailing(run_out)
       run_out <- pretty_path(run_out)
       prepare_base_output(run_out)
-      prepare_www_output(file.path(workingDir, "www", "data"))
+      prepare_www_output(workingDir, file.path(workingDir, "www", "data"))
       
       cfg_dir  <- file.path(workingDir, "config")
       if (!dir.exists(cfg_dir)) dir.create(cfg_dir, recursive = TRUE, showWarnings = FALSE)
       cfg_path <- file.path(cfg_dir, "config.csv")
-     
+      
       # ---------- CONFIG ALS KEY→VALUE ----------
       to_chr <- function(x) if (is.null(x) || is.na(x)) "" else as.character(x)
       cfg <- list(
@@ -276,11 +370,10 @@ server <- shinyServer(function(input, output, session) {
         pYear          = to_chr(input$pYear),
         tesserAct      = to_chr(input$tesserAct),
         dataInputDir   = to_chr(input$dataInputDir),
-        dataOutputDir  = run_out,           # <-- WICHTIG: mit Zeitstempel!
+        dataOutputDir  = run_out,
         pFormat        = to_chr(input$pFormat),
         pColor         = to_chr(input$pColor)
       )
-
       
       df <- data.frame(key = names(cfg), value = unname(unlist(cfg, use.names = FALSE)), stringsAsFactors = FALSE)
       
@@ -289,30 +382,39 @@ server <- shinyServer(function(input, output, session) {
       if (!file.exists(cfg_path)) stop("Config file not found after write: ", cfg_path)
       
       # ---------- REAKTIVEN STATE SETZEN ----------
-      # WICHTIG: benutze eine reactiveVal, z.B. outDir
       outDir(run_out)
-      
-      # UI nicht mit neuem Zeitstempel überschreiben, wenn du das nicht willst.
-      # Falls du im Dialog den aktuellen Run-Ordner anzeigen willst:
-      #output$currentRunDir <- renderText(outDir())
-      
-      # ---------- ERFOLG (ganz zum Schluss) ----------
-      shinyalert("Success", "Configuration successfully saved!", type = "success")
-      output$message <- renderPrint(paste("Saved to:", cfg_path, "\nRun output:", run_out_dir))
-      # Wrapper um das textInput, damit wir das Style anwenden können
       isolate({
-        # verhindert Event-Kaskaden
         freezeReactiveValue(input, "dataOutputDir")
-        updateTextInput(session, "dataOutputDir", value = outDir())  # oder value = run_out
+        updateTextInput(session, "dataOutputDir", value = outDir())
       })
+      Sys.sleep(0.5)
+      # ---------- ERFOLGSMODAL ----------
+      showModal(modalDialog(
+        title = span("✅ Configuration saved successfully"),
+        tags$div(
+          style = "font-size:15px; line-height:1.5;",
+          "All configuration data were saved successfully.",
+          tags$br(),
+          tags$br(),
+          "If this is your first setup, please make sure that all ",
+          tags$b(".tif"), " pages were converted into ", tags$b(".png"),
+          " and copied into the ", tags$code("www/pages"), " directory.",
+          tags$br(),
+          "This ensures all pages will be accessible later in the app."
+        ),
+        easyClose = TRUE,
+        footer = modalButton("Close")
+      ))
+      
     }, error = function(e) {
-      # EIN Fehlerpfad: kein Success mehr anzeigen
       msg <- conditionMessage(e)
       if (!nzchar(msg)) msg <- "Unknown error (possibly from validate/need)."
       shinyalert("Error", paste("Config save failed:", msg), type = "error")
       output$message <- renderPrint(paste("Config save failed:", msg))
     })
+    shinyjs::show("open_output")
   })
+  
   
   
   # Render the image in the plot with given dynamical 10%
@@ -423,22 +525,42 @@ server <- shinyServer(function(input, output, session) {
   
   # START th template matching 
   observeEvent(input$templateMatching, {
+    # Falls leer → rotes Feld + Meldung + Abbruch
+    if (is.null(input$range_matching) || trimws(input$range_matching) == "") {
+      
+      shinyjs::runjs("$('#range_matching').css('border-color', 'red')")
+      output$range_warning <- renderText("⚠️ Please fill in 'range matching' before starting.")
+      
+      return()  # ❌ stoppe hier – kein Matching!
+    }
+    
+    # Wenn alles OK → Standardfarbe + Hinweis entfernen
+    shinyjs::runjs("$('#range_matching').css('border-color', '')")
+    output$range_warning <- renderText("")
     # call the function for map matching 
     manageProcessFlow("mapMatching", "map matching", "matching")
   })
   
-  observeEvent(input$listMapsMatching, {
-    # optional: leere Eingaben zu "" normalisieren
-    idx <- if (isTruthy(input$siteNumberMapsMatchingR)) trimws(input$siteNumberMapsMatchingR) else ""
-    rng <- if (isTruthy(input$mapsRange))               trimws(input$mapsRange)               else ""
-    
+  observeEvent(input$listMatchingButton, {
     output$listMaps <- renderUI({
-      # KEIN führender Slash, weil prepareImageView intern "www" ergänzt
-      prepareImageView("data/matching_png", index = idx, range_str = rng)
+      prepareImageView("data/matching_png", range_str = input$range_list)
     })
   })
   
-  
+  observeEvent(input$showRecords, {
+    wd <- if (is.function(workingDir)) workingDir() else workingDir
+    csv <- file.path(wd, "www", "records.csv")
+    
+    output$records_tbl <- DT::renderDataTable({
+      validate(need(file.exists(csv), "records.csv not found yet."))
+      # Trenner automatisch erkennen (, oder ;)
+      first <- readLines(csv, n = 1, warn = FALSE)
+      sep <- if (grepl(";", first, fixed = TRUE)) ";" else ","
+      df <- utils::read.table(csv, header = TRUE, sep = sep, quote = "",
+                              stringsAsFactors = FALSE, check.names = FALSE, comment.char = "")
+      DT::datatable(df, options = list(pageLength = 25, scrollX = TRUE), rownames = FALSE)
+    })
+  })
   
   ####################
   # 2.1 Maps align #----------------------------------------------------------------------#
@@ -451,18 +573,10 @@ server <- shinyServer(function(input, output, session) {
   })
   
   # List align maps
-  observeEvent(input$listAlign, {
-    if(input$siteNumberMapsMatching != ''){
-      #print(input$siteNumberMapsMatching)
-      output$listAlign = renderUI({
-        prepareImageView("/data/align_png/", input$siteNumberMapsMatching)
-      })
-    }
-    else{
-      output$listAlign = renderUI({
-        prepareImageView("/data/align_png/", '.png')
-      })
-    }
+  observeEvent(input$listAlignButton, {
+    output$listAlign = renderUI({
+        prepareImageView("data/align_png", range_str = input$range_list)
+     })
   })
   
   
@@ -481,12 +595,12 @@ server <- shinyServer(function(input, output, session) {
     if(input$siteNumberMapsMatching != ''){
       #print(input$siteNumberMapsMatching)
       output$listCropped = renderUI({
-        prepareImageView("/cropped_png/", input$siteNumberMapsMatching)
+        prepareImageView("/data/cropped_png/", input$siteNumberMapsMatching)
       })
     }
     else{
       output$listCropped = renderUI({
-        prepareImageView("/cropped_png/", '.png')
+        prepareImageView("/data/cropped_png/", '.png')
       })
     }
   })
@@ -517,15 +631,16 @@ server <- shinyServer(function(input, output, session) {
     if(input$siteNumberPointsMatching != ''){
       #print(input$siteNumberPointsMatching)
       output$listPM = renderUI({
-        prepareImageView("/pointMatching_png/", input$siteNumberPointsMatching)
+        prepareImageView("/data/pointMatching_png/", input$siteNumberPointsMatching)
       })
     }
     else{
       output$listPM = renderUI({
-        prepareImageView("/pointMatching_png/", '.png')
+        prepareImageView("/data/pointMatching_png/", '.png')
       })
     }
   })
+  
   
   
   ####################
@@ -542,12 +657,12 @@ server <- shinyServer(function(input, output, session) {
     if(input$siteNumberPointsMatching != ''){
       #print(input$siteNumberPointsMatching)
       output$listPF = renderUI({
-        prepareImageView("/pointFiltering_png/", input$siteNumberPointsMatching)
+        prepareImageView("/data/pointFiltering_png/", input$siteNumberPointsMatching)
       })
     }
     else{
       output$listPF = renderUI({
-        prepareImageView("/pointFiltering_png/", '.png')
+        prepareImageView("/data/pointFiltering_png/", '.png')
       })
     }
   })
@@ -580,12 +695,12 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listPointsCD, {
     if(input$siteNumberPointsMatching != ''){
       output$listPCD = renderUI({
-        prepareImageView("/CircleDetection_png/", input$siteNumberPointsMatching)
+        prepareImageView("/data/CircleDetection_png/", input$siteNumberPointsMatching)
       })
     }
     else{
       output$listPCD = renderUI({
-        prepareImageView("/CircleDetection_png/", '.png')
+        prepareImageView("/data/CircleDetection_png/", '.png')
       })
     }
     
@@ -615,12 +730,12 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listMasks, {
     if(input$siteNumberMasks!= ''){
       output$listMS = renderUI({
-        prepareImageView("/masking_png/", input$siteNumberMasks)
+        prepareImageView("/data/masking_png/", input$siteNumberMasks)
       })
     }
     else{
       output$listMS = renderUI({
-        prepareImageView("/masking_png/", '.png')
+        prepareImageView("/data/masking_png/", '.png')
       })
     }
   })
@@ -628,12 +743,12 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listMasksB, {
     if(input$siteNumberMasks!= ''){
       output$listMSB = renderUI({
-        prepareImageView("/masking_png/", input$siteNumberMasks)
+        prepareImageView("/data/masking_png/", input$siteNumberMasks)
       })
     }
     else{
       output$listMSB = renderUI({
-        prepareImageView("/masking_black_png/", '.png')
+        prepareImageView("/data/masking_black_png/", '.png')
       })
     }
   })
@@ -641,12 +756,12 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listMasksCD, {
     if(input$siteNumberMasks!= ''){
       output$listMCD = renderUI({
-        prepareImageView("/maskingCentroids/", input$siteNumberMasks)
+        prepareImageView("/data/maskingCentroids/", input$siteNumberMasks)
       })
     }
     else{
       output$listMCD = renderUI({
-        prepareImageView("/maskingCentroids/", '.png')
+        prepareImageView("/data/maskingCentroids/", '.png')
       })
     }
   })
@@ -1053,28 +1168,39 @@ server <- shinyServer(function(input, output, session) {
       tryCatch({
         # processing template matching
         #workingDir = "D:/distribution_digitizer"
-        #outDir="D:/test/output_2025-09-18_13-08-43/"
+        current_out_dir <- outDir()
+        #current_out_dir="D:/test/output_2025-09-26_13-16-11/"
         fname=paste0(workingDir, "/", "src/matching/map_matching.py")
-        
+        print(workingDir)
         print("The processing template matching python script:")
         print(fname)
         source_python(fname)
         print("Threshold:")
         print(input$threshold_for_TM)
-        print(outDir)
+        pattern <- "^(ALL|[0-9]+[0-9]+)$"
+        #if (grep(pattern,input$range_matching)){
+          main_template_matching(workingDir, current_out_dir, input$threshold_for_TM, input$sNumberPosition, input$matchingType, as.character(input$range_matching))
+        #}else{
+        #  stop("🚨 The input range is not correct, please write like 1-5 or ALL")
+        #}
+        #main_template_matching(workingDir, current_out_dir, 0.18, 1, 1, "1-2")
         
-        print(input$sNumberPosition)
-        print(input$matchingType)
-        print(input$siteNumberMapsMatching)
-        
-        main_template_matching(workingDir, outDir, input$threshold_for_TM, input$sNumberPosition, input$matchingType, as.character(input$siteNumberMapsMatching))
-        #main_template_matching(workingDir, outDir, 0.18, 1, 1, "0088.tif")
-        
-        findTemplateResult = paste0(outDir, "/maps/matching/")
+        findTemplateResult = paste0(current_out_dir, "/maps/matching/")
         
         files<- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-        convertTifToPngSave(paste0(outDir, "/maps/matching/"), paste0(workingDir, "/www/data/matching_png/"))
+        print(input$sNumberPosition)
+        print(input$matchingType)
+        print(input$range_matching)
+        convertTifToPngSave(
+          pathToTiffImages = file.path(current_out_dir, "maps", "matching"),
+          pathToPngImages  = file.path(workingDir, "www", "data", "matching_png"),  # oder "www/data/matching_png" wenn du das willst
+          source           = "matching",
+          records_csv_name = "records.csv",
+          out_dir          = current_out_dir,  # optional, aber für den CSV-Copy sicher
+          working_dir      = workingDir        # optional
+        )
         
+       # convertTifToPngSave(paste0(current_out_dir, "/maps/matching/"), paste0(workingDir, "/www/data/matching_png/", source="matching",records_csv_name = "records.csv"))
         countFiles = paste0(length(files),"")
         message=paste0("Ended on: ", 
                        format(current_time(), "%H:%M:%S \n"), " The number extracted outputs with threshold = ",
@@ -1538,138 +1664,167 @@ server <- shinyServer(function(input, output, session) {
   # -----------------------------------------# Other functions #---------------------------------------------------------------------#
   ######
   
-  prepareImageView <- function(dirName, index = "", range_str = "") {
+  # --- Helper ---------------------------------------------------------------
+  
+  sanitize_dirname <- function(dirName, default = "data/matching_png") {
+    dn <- if (is.null(dirName)) "" else trimws(dirName)
+    dn <- gsub("^/+","", dn)
+    dn <- gsub("/+$","", dn)
+    if (dn == "") default else dn
+  }
+  
+  # "1", "1-5", "3-", "-4" -> Indizes (1-basiert, automatisch begrenzt)
+  parse_range_indices <- function(range_str, n_max) {
+    s <- if (is.null(range_str)) "" else trimws(range_str)
+    if (!nzchar(s)) return(seq_len(n_max))                 # leer -> alle
+    is_int <- function(x) grepl("^-?\\d+$", x)
+    
+    if (is_int(s)) {
+      a <- max(1, min(as.integer(s), n_max)); return(a)
+    }
+    if (grepl("^\\d+\\s*-\\s*\\d+$", s)) {
+      ab <- as.integer(unlist(strsplit(gsub("\\s*", "", s), "-")))
+      a <- max(1, min(ab[1], n_max)); b <- max(1, min(ab[2], n_max))
+      return(if (a <= b) seq(a,b) else seq(b,a))
+    }
+    if (grepl("^\\d+\\s*-$", s)) {
+      a <- as.integer(gsub("\\D", "", s)); a <- max(1, min(a, n_max))
+      return(seq(a, n_max))
+    }
+    if (grepl("^-\\s*\\d+$", s)) {
+      b <- as.integer(gsub("\\D", "", s)); b <- max(1, min(b, n_max))
+      return(seq(1, b))
+    }
+    seq_len(n_max)  # Fallback
+  }
+  
+  # --- Hauptfunktion --------------------------------------------------------
+  
+  prepareImageView <- function(dirName = "data/matching_png", range_str = "") {
     tryCatch({
-      cat("📁 WorkingDir:", workingDir, "\n")
-      cat("DEBUG raw dirName:", paste0("[", dirName, "]"), "\n")
+      dirName <- sanitize_dirname(dirName)
+      fs_dir  <- file.path(workingDir, "www", dirName)
       
-      # 1) dirName säubern
-      dirName <- trimws(dirName)
-      dirName <- gsub("^/+","", dirName)
-      dirName <- gsub("/+$","", dirName)
-      if (dirName == "") dirName <- "data/matching_png"
-      cat("DEBUG clean dirName:", dirName, "\n")
-      
-      # 2) FS-Pfad (mit www)
-      pathToMatchingImages <- file.path(workingDir, "www", dirName)
-      cat("DEBUG pathToMatchingImages:", pathToMatchingImages, "\n")
-      if (!dir.exists(pathToMatchingImages)) {
-        cat("WARN: directory does not exist\n")
+      if (!dir.exists(fs_dir))
         return(HTML("<p><i>Directory not found.</i></p>"))
-      }
       
-      # 3) Pattern
-      if (is.null(index) || is.na(index) || index == "" || index == ".png") {
-        pattern <- "\\.png$"
-      } else {
-        index_esc <- gsub("([\\.^$|()\\[\\]{}+*?\\\\])", "\\\\\\1", index)
-        pattern <- paste0("^", index_esc, ".*\\.png$")
-      }
-      cat("DEBUG pattern:", pattern, "\n")
+      files <- sort(list.files(fs_dir, pattern="\\.png$", full.names=FALSE, ignore.case=TRUE))
+      if (!length(files)) return(HTML("<p><i>No images found.</i></p>"))
       
-      # 4) Dateien holen (alphabetisch sortiert)
-# 1) Alle PNGs holen
-    files <- sort(list.files(pathToMatchingImages,
-                             full.names = FALSE,
-                             pattern = "\\.png$",
-                             ignore.case = TRUE))
-    n <- length(files)
-    if (n == 0) return(HTML("<p><i>No images found.</i></p>"))
-
-    # 2) Falls im index versehentlich ein Range steht → als range_str nutzen
-    idx_raw <- trimws(index %||% "")
-    if (idx_raw != "" && grepl("^\\d+\\s*-\\s*\\d*$|^\\d+\\s*$|^-\\s*\\d+$", idx_raw)) {
-      range_str <- if (range_str == "") idx_raw else range_str
-      index <- ""  # Index-Filter deaktivieren
-    }
-
-    # 3) Index-Filter OHNE Regex (Prefix-Match)
-    if (!is.null(index) && nzchar(index) && index != ".png") {
-      files <- files[startsWith(tolower(files), tolower(index))]
-      n <- length(files)
-      if (n == 0) return(HTML("<p><i>No images found.</i></p>"))
-    }
-
-    # 4) Range anwenden
-    parse_range <- function(s, n_max) {
-      s <- trimws(s %||% "")
-      if (s == "") return(seq_len(n_max))
-      if (grepl("^-?\\d+$", s)) {
-        a <- max(1, min(as.integer(s), n_max)); return(a)
-      }
-      if (grepl("^\\d+\\s*-\\s*\\d+$", s)) {
-        ab <- as.integer(unlist(strsplit(gsub("\\s*", "", s), "-")))
-        a <- max(1, min(ab[1], n_max)); b <- max(1, min(ab[2], n_max))
-        return(if (a<=b) seq(a,b) else seq(b,a))
-      }
-      if (grepl("^\\d+\\s*-$", s)) { a <- as.integer(gsub("\\D","",s)); a <- max(1,min(a,n_max)); return(seq(a,n_max)) }
-      if (grepl("^-\\s*\\d+$", s)) { b <- as.integer(gsub("\\D","",s)); b <- max(1,min(b,n_max)); return(seq(1,b)) }
-      seq_len(n_max)
-    }
-    `%||%` <- function(x,y) if (is.null(x)) y else x
-    sel <- parse_range(range_str, n)
-
-    # 5) Render
-    lapply(sel, function(i){
-      relPath <- file.path(dirName, files[i])
-      HTML(paste0(
-        '<div class="shiny-map-image">',
-        '<img src="', relPath, '" style="width:100%;">',
-        '<a href="', relPath, '" style="width:27%;" target="_blank">', files[i], '</a>',
-        '</div>'
-      ))
-    })
-  }, error=function(e){ cat("prepareImageView error:\n"); print(e); HTML("<p><i>Error while preparing image view.</i></p>") })
-}
-  
-  
-  # Function to list CSV files as links
-  prepareCSVLinks <- function(dirName, index) {
-    tryCatch({
-      #pathToCSVFiles = paste0(workingDir, "/www", dirName)
-      listCSVFiles = list.files(paste0(workingDir, "/data/output"), full.names = FALSE, pattern = index)
+      sel <- parse_range_indices(range_str, length(files))
       
-      display_link = function(i) {
-        HTML(paste0('<div class="csv-link" > 
-                  <a href="', paste0(dirName, listCSVFiles[i]), '" target="_blank">', listCSVFiles[i], '</a></div>'))
-      }
-      
-      lapply(1:length(listCSVFiles), display_link)
+      lapply(sel, function(i) {
+        relPath <- file.path(dirName, files[i])  # kein "www/" im src!
+        relPageName <- file.path("pages", substr(files[i],8,11))
+        relPagePath <- paste0(relPageName,".png")
+        relPageName_t <- paste0(substr(files[i],8,11),".png")
+        HTML(paste0(
+          '<div class="shiny-map-image">',
+          paste0( '<a href="', relPath, '" style="width:27%;" target="_blank"><img src="', relPath, '" style="width:100%;">', files[i], '</a>'),
+          '<p><a href="', relPagePath, '" style="width:27%;" target="_blank">see oringinal Page</a></p>',
+          '</div>'
+        ))
+      })
     }, error = function(e) {
-      cat("An error occurred during prepareCSVLinks processing:\n")
       print(e)
+      HTML("<p><i>Error while preparing image view.</i></p>")
     })
   }
   
   
-  # Function to convert tif images to png and save in /www directory
-  convertTifToPngSave <- function(pathToTiffImages, pathToPngImages) {
-    #print(pathToTiffImages)
+  
+  # Convert TIF(F) -> PNG in 'pathToPngImages'.
+  # Vorher: Alle bestehenden Dateien im Zielordner werden gelöscht.
+  # Wenn source == "matching": kopiere zusätzlich <outDir>/records.csv nach <workingDir>/www/
+  convertTifToPngSave <- function(pathToTiffImages,
+                                  pathToPngImages,
+                                  source = NULL,
+                                  records_csv_name = "records.csv",
+                                  out_dir = NULL,
+                                  working_dir = NULL) {
     tryCatch({
-      # Get list of tif files
-      tifFiles <- list.files(pathToTiffImages, pattern = ".tif", recursive = FALSE)
-      
-      # Convert tif to png and save in the given path
-      for (f in tifFiles) {
-        tifFile <- paste0(pathToTiffImages, f)
+      # --- 1. Sichere Bereinigung des PNG-Zielordners ---
+      if (dir.exists(pathToPngImages)) {
+        # Liste alle Dateien (nur Dateien, keine Verzeichnisse)
+        files <- list.files(pathToPngImages, full.names = TRUE, include.dirs = FALSE)
         
-        # Check if tif file exists
-        if (file.exists(tifFile)) {
-          #print(tifFile)
-          tifImage <- image_read(tifFile)
-          pngFile <- image_convert(tifImage, "png")
-          pngName <- tools::file_path_sans_ext(f)
-          fname <- paste0(pathToPngImages, pngName, ".png")
-          image_write(pngFile, path = fname, format = "png")
+        if (length(files) > 0) {
+          # Versuche, alle Dateien zu löschen
+          failed <- file.remove(files)
+          
+          # Zeige an, welche gelöscht wurden, welche nicht
+          deleted <- sum(failed)
+          not_deleted <- sum(!failed)
+          
+          if (not_deleted > 0) {
+            cat("⚠️ WARNING: Could not delete", not_deleted, "file(s) in", pathToPngImages, "\n")
+            # Zeige die fehlgeschlagenen Dateien an
+            failed_files <- files[!failed]
+            cat("  Failed to delete:", paste(failed_files, collapse = ", "), "\n")
+          } else {
+            cat("✅ Cleaned", deleted, "existing PNG files from:", pathToPngImages, "\n")
+          }
         } else {
-          cat("Error in convert tif to png: The file", tifFile, "does not exist.\n")
+          cat("ℹ️ PNG output directory is already empty:", pathToPngImages, "\n")
+        }
+      } else {
+        # Ordner existiert nicht → erstellen
+        dir.create(pathToPngImages, recursive = TRUE, showWarnings = FALSE)
+        cat("📁 Created PNG output directory:", pathToPngImages, "\n")
+      }
+      
+      # --- 2. TIF -> PNG Konvertierung ---
+      if (!dir.exists(pathToTiffImages)) {
+        cat("❌ No TIF directory found:", pathToTiffImages, "\n")
+        return(invisible(NULL))
+      }
+      
+      tifs <- list.files(pathToTiffImages, pattern = "\\.tif{1,2}$", ignore.case = TRUE, full.names = TRUE)
+      
+      if (length(tifs) == 0) {
+        cat("ℹ️ No TIF files found in:", pathToTiffImages, "\n")
+        return(invisible(NULL))
+      }
+      
+      for (tif in tifs) {
+        img <- magick::image_read(tif)
+        out <- file.path(pathToPngImages, paste0(tools::file_path_sans_ext(basename(tif)), ".png"))
+        magick::image_write(magick::image_convert(img, "png"), path = out, format = "png")
+      }
+      
+      # --- 3. CSV Kopieren (nur bei "matching") ---
+      if (!is.null(source) && identical(tolower(source), "matching")) {
+        od <- if (!is.null(out_dir)) out_dir else if (exists("outDir", inherits = TRUE) && is.function(outDir)) outDir() else outDir
+        wd <- if (!is.null(working_dir)) working_dir else if (exists("workingDir", inherits = TRUE) && is.function(workingDir)) workingDir() else workingDir
+        od <- normalizePath(od, winslash = "/", mustWork = FALSE)
+        wd <- normalizePath(wd, winslash = "/", mustWork = FALSE)
+        
+        from_csv <- file.path(od, records_csv_name)
+        to_dir   <- file.path(wd, "www")
+        to_csv   <- file.path(to_dir, records_csv_name)
+        
+        cat("📋 CSV COPY DEBUG: from =", from_csv, " | to =", to_csv, "\n")
+        
+        if (!dir.exists(to_dir)) dir.create(to_dir, recursive = TRUE, showWarnings = FALSE)
+        
+        if (file.exists(from_csv)) {
+          ok <- file.copy(from_csv, to_csv, overwrite = TRUE)
+          if (!ok) {
+            cat("❌ ERROR: file.copy failed!\n")
+          } else {
+            cat("✅ CSV copied successfully to:", to_csv, "\n")
+          }
+        } else {
+          cat("ℹ️ records.csv not found at:", from_csv, "\n")
         }
       }
+      
     }, error = function(e) {
-      cat("An error occurred during convertTifToPngSave processing:\n")
+      cat("🚨 convertTifToPngSave ERROR:\n")
       print(e)
     })
   }
+  
   
   # -------------------------------------------------------------------
   # Function: prepare_base_output
@@ -1755,7 +1910,7 @@ server <- shinyServer(function(input, output, session) {
     })
   }
   
-  
+
   
   # -------------------------------------------------------------------
   # Function: prepare_www_output
@@ -1780,18 +1935,25 @@ server <- shinyServer(function(input, output, session) {
   # Usage:
   #   prepare_www_output(file.path(workingDir, "www/data"))
   # -------------------------------------------------------------------
-  prepare_www_output <- function(www_output) {
-    tryCatch({
-      # Remove existing folder and its contents
-      unlink(www_output, recursive = TRUE)
-      
-      if (nchar(www_output) > 0) {
-        # Create the main output folder if it does not exist
-        if (!dir.exists(www_output)) {
-          dir.create(www_output, recursive = TRUE)
+  prepare_www_output <- function(workingDir, www_output) {
+  tryCatch({
+
+        # --- 1. Bereinige den gesamten www_output-Ordner ---
+        if (dir.exists(www_output)) {
+          unlink(www_output, recursive = TRUE)
+          cat("🗑️ Removed existing www_output directory:", www_output, "\n")
         }
         
-        # Predefined subdirectory names for organizing outputs
+        # --- 2. Erstelle den neuen www_output-Ordner ---
+        if (nchar(www_output) > 0) {
+          dir.create(www_output, recursive = TRUE)
+          cat("📁 Created new www_output directory:", www_output, "\n")
+        } else {
+          showModal(modalDialog(title = "Error", "Please provide a valid input directory path."))
+          return()
+        }
+    
+        # --- 3. Definiere alle Unterordner ---
         directory_names <- c(
           "align_png", "CircleDetection_png", "readSpecies_png", "georeferencing_png", 
           "masking_black_png", "masking_circleDetection", "masking_png", "maskingCentroids",
@@ -1799,22 +1961,73 @@ server <- shinyServer(function(input, output, session) {
           "symbol_templates_png", "map_templates_png"
         )
         
-        # Create each subdirectory inside the www_output folder
+        # Erstelle alle Unterordner
         for (sub_dir_name in directory_names) {
           sub_dir_path <- file.path(www_output, sub_dir_name)
           dir.create(sub_dir_path, recursive = TRUE, showWarnings = FALSE)
+          cat("📁 Created subdirectory:", sub_dir_path, "\n")
         }
-      } else {
-        # Show error if no valid directory path was provided
-        showModal(modalDialog(title = "Error", "Please provide a valid input directory path."))
-        return()
-      }
-    }, error = function(e) {
-      # Handle and report any errors
-      cat("An error occurred during prepare_www_output processing:\n")
-      print(e)
-    })
-  }
+    
+        # --- 4. Verkleinere und konvertiere TIFs aus input/pages/ nach www/pages/ ---
+        input_pages <- file.path(workingDir, "data", "input", "pages")
+        output_pages <- file.path(workingDir, "www","pages")
+        
+        # Sicherstellen, dass der Ausgabeordner existiert
+        if (!dir.exists(output_pages)) {
+          dir.create(output_pages, recursive = TRUE, showWarnings = FALSE)
+        }
+        
+        # Prüfe, ob input_pages existiert
+        if (!dir.exists(input_pages)) {
+          cat("⚠️ Warning: Input pages directory not found:", input_pages, "\n")
+          return()
+        }
+        
+        # Liste alle TIF-Dateien
+        tif_files <- list.files(input_pages, pattern = "\\.tif{1,2}$", ignore.case = TRUE, full.names = TRUE)
+        
+        if (length(tif_files) == 0) {
+          cat("ℹ️ No TIF files found in:", input_pages, "\n")
+          return()
+        }
+        
+        # Zielgröße (Breite in Pixel, Höhe wird automatisch skaliert)
+        target_width <- 800  # z. B. 800px Breite, Höhe proportional
+        
+        showModal(modalDialog(
+          titel = "Please wait...", tags$div(style="text-align:center;",tags$div(style="border:8px solid #f3f3f3;border-top:8px solid #4CAF50;border-radius:50%;width:60px;height:60px;animation:spin 1s linear infinite;margin:20px auto;"),
+                                             tags$style("@keyframes spin{ from { transform: rotate(0deg);} to{ transform:rotate(360deg);}}"),
+          tags$p(paste("Prepare the monitoring feedback. Resize and copy the ",length(tif_files)  ," page files as png files into the www pages direktory..."))), footer = NULL, easyClose = FALSE, size ="l"))
+        Sys.sleep(3)
+        log_text <- ""
+        for (tif_path in tif_files) {
+          # Dateiname ohne Erweiterung
+          base_name <- tools::file_path_sans_ext(basename(tif_path))
+          png_path <- file.path(output_pages, paste0(base_name, ".png"))
+          if (!file.exists(png_path)){
+            # Lade TIF und verkleinere
+            img <- magick::image_read(tif_path)
+            img_resized <- magick::image_resize(img, paste0(target_width, "x"))
+            
+            # Speichere als PNG
+            magick::image_write(img_resized, path = png_path, format = "png")
+            
+            cat("✅ Converted & resized:", basename(tif_path), "→", png_path, "\n")
+            log_text <- paste(log_text, "✅ Converted & resized:", tif_path, "→", png_path, "\n")
+            }else{
+            cat("🚨 This png image", png_path, "is copied \n")
+          }
+     
+        }
+        if (log_text ==""){ log_text <- "The pages already exist – no pages copied."}
+        removeModal()
+      
+    
+  }, error = function(e) {
+    cat("🚨 An error occurred during prepare_www_output processing:\n")
+    print(e)
+  })
+}
   
 })
 

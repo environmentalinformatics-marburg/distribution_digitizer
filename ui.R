@@ -137,12 +137,17 @@ header <- dashboardHeader(
 )
 
 # Füge JavaScript-Datei in den Kopfbereich der Seite ein
+
+# In deinem ui.R, am Ende von tags$head:
 head_content <- tags$head(
-  tags$script(src = "custom.js"), # Wir fügen die custom.js-Datei korrekt über tags$head ein
-  tags$link(rel = "stylesheet", type = "text/css", href = "dd_style.css")
+  tags$script(src = "custom.js"),
+  tags$link(rel = "stylesheet", type = "text/css", href = "dd_style.css"),
+  tags$script("shinyjs.options({debug: false});")
 )
 
 body <- dashboardBody(
+  useShinyjs(),   # 🔹 <- WICHTIG: shinyjs aktivieren
+  head_content, 
   # Top Information
   # Working directory
   
@@ -188,7 +193,7 @@ body <- dashboardBody(
                                    textInput("title", "Book Title", config$title)
                           ),
                           # zusätzliche Info-Box für "title", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "title_infoBox", style = "display:none; position:absolute; background-color: #f0f0f0; padding: 15px; border: 1px solid #ccc; border-radius: 4px;z-index: 999;",
+                          div(id = "title_infoBox", class="infobox_tab_0" ,
                               info$title_infoBox)
                    )
                  ),
@@ -201,7 +206,7 @@ body <- dashboardBody(
                                    textInput("author", "Author", config$author)
                           ),
                           # zusätzliche Info-Box für "author", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "author_infoBox", style = "display:none; position:absolute; background-color: #f0f0f0; padding: 15px; border: 1px solid #ccc; border-radius: 4px;z-index: 999;",
+                          div(id = "author_infoBox",  class="infobox_tab_0",
                               info$author_infoBox)
                    )
                  ),
@@ -213,7 +218,7 @@ body <- dashboardBody(
                                    textInput("pYear", "Publication Year", config$pYear)
                           ),
                           # zusätzliche Info-Box für "pYear", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "pYear_infoBox", style = "display:none; position:absolute; background-color: #f0f0f0; padding: 15px; border: 1px solid #ccc; border-radius: 4px;z-index: 999;",
+                          div(id = "pYear_infoBox", class="infobox_tab_0",
                               info$pYear_infoBox)
                    )
                  ),
@@ -224,7 +229,7 @@ body <- dashboardBody(
                                    textInput("tesserAct", "Tesseract Path", config$tesserAct)
                           ),
                           # zusätzliche Info-Box für "tesserAct", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "tesserAct_infoBox", style = "display:none; position:absolute; background-color: #f0f0f0; padding: 15px; border: 1px solid #ccc; border-radius: 4px;z-index: 999;",
+                          div(id = "tesserAct_infoBox", class="infobox_tab_0",
                               info$tesserAct_infoBox)
                    )
                  ),
@@ -236,11 +241,12 @@ body <- dashboardBody(
                  fluidRow(
                    column(10, 
                           # Wrapper um das textInput, damit wir das Style anwenden können
-                          tags$div(style = "position:relative;",
-                                   textInput("dataInputDir", "Input Directory", config$dataInputDir)
+                          tags$div(style="display:flex; gap:10px; align-items:center;",
+                                   textInput("dataInputDir",  "Input Directory",  config$dataInputDir, width="100%"),
+                                   
                           ),
                           # zusätzliche Info-Box für "allPrintedPages", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "dataInputDir_infoBox", style = "display:none; position:absolute; background-color: #f0f0f0; padding: 15px; border: 1px solid #ccc; border-radius: 4px;z-index: 999;",
+                          div(id = "dataInputDir_infoBox", class="infobox_tab_0",
                               info$dataInputDir_infoBox)
                    )
                  ),
@@ -249,10 +255,11 @@ body <- dashboardBody(
                    column(10, 
                           # Wrapper um das textInput, damit wir das Style anwenden können
                           tags$div(style = "position:relative;",
-                                   textInput("dataOutputDir", "Output Directory", config$dataOutputDir)
+                                   textInput("dataOutputDir", "Output Directory", config$dataOutputDir),
+                                   
                           ),
                           # zusätzliche Info-Box für "allPrintedPages", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "dataOutputDir_infoBox", style = "display:none; position:absolute; background-color: #f0f0f0; padding: 15px; border: 1px solid #ccc; border-radius: 4px;z-index: 999;",
+                          div(id = "dataOutputDir_infoBox", class="infobox_tab_0",
                               info$dataOutputDir_infoBox)
                    )
                  ),
@@ -266,7 +273,7 @@ body <- dashboardBody(
                                                    selected = config$pFormat)
                                        ),
                          # zusätzliche Info-Box für "pColor", die erscheint, wenn man über das Eingabefeld fährt
-                         div(id = "pFormat_infoBox", style = "display:none; position:absolute; background-color: #f0f0f0; padding: 15px; border: 1px solid #ccc; border-radius: 4px; color: black;z-index: 999;",
+                         div(id = "pFormat_infoBox", class="infobox_tab_0",
                              info$pFormat_infoBox)
                    )
                  ),
@@ -279,14 +286,23 @@ body <- dashboardBody(
                                                    choices = c("black white" = 1, "color" = 2),selected = config$pColor)
                                   ),
                           # zusätzliche Info-Box für "pColor", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "pColor_infoBox", style = "display:none; position:absolute; background-color: #f0f0f0; padding: 15px; border: 1px solid #ccc; border-radius: 4px; color: black;z-index: 999;",
+                          div(id = "pColor_infoBox", class="infobox_tab_0", 
                               info$pColor_infoBox)
+                          
                     )
                    ),
                    
                  
           )
-        ),actionButton("saveConfig", "Save", style = "color:#FFFFFF;background:#999999")
+        ),actionButton("saveConfig", "Save Sonfiguration", style = "with:100pc;color:#FFFFFF;background:#007bff;position: absolute;
+  left: 43%;"),
+        h3("Inspect Result Folder"),
+        #actionButton("open_output", "Open Output Folder in Explorer", style = "color:#FFFFFF;background:#28a745"),
+        shinyjs::hidden(
+          actionButton("open_output", "Open Output dFolder in Explorer",
+                       style = "color:#FFFFFF;background:#28a745;position: absolute;
+  left: 43%;")
+        )
       )
     ),
     
@@ -303,6 +319,8 @@ body <- dashboardBody(
                  # Choose the file 
                  fileInput("image",  label = h5(shinyfields1$lab1), buttonLabel = "Browse...",
                            placeholder = "No file selected"),
+                 #shinyFilesButton("pick_file", "Datei wählen", "Bitte Datei auswählen", multiple = TRUE),
+                 verbatimTextOutput("file_out")
                ),
                wellPanel(
                  h4(strong(shinyfields1$save_template, style = "color:black")),
@@ -340,7 +358,8 @@ body <- dashboardBody(
     # =============================
     tabItem(
       fluidRow(column(8,wellPanel(
-        textInput("siteNumberMapsMatching", label=HTML(shinyfields2$inf6), value = ''),
+        textInput("range_matching", label=HTML(shinyfields2$inf6), value = '1-1'),
+        textOutput("range_warning"),
         selectInput("matchingType", label = HTML(shinyfields2$matchingType), c("Template matching" = 1, "Contour matching" = 2), 1),
         selectInput("sNumberPosition", "Page Number Position", c("top" = 1, "bottom" = 2), selected = 1),))),
       tabName = "tab2",
@@ -370,12 +389,47 @@ body <- dashboardBody(
                  
                )
         ), # col 4
-        column(8, textInput("siteNumberMapsMatchingR", label=HTML(shinyfields2$inf7), value = ''),
-               actionButton("listMapsMatching",  label = "List maps"),
-               actionButton("listAlign",  label = "List aligned maps"),
-               uiOutput('listMaps', style="width:30%;float:left"),
-               uiOutput('listAlign', style="width:30%;float:left"),
+        column(4,  
+               wellPanel(
+                 # Eine Zeile mit den Buttons
+                 tags$div(
+                   style = "display:flex; gap:15px; align-items:center; margin-bottom:10px;",
+                   
+                   actionButton("showRecords", "Show records"),
+                   
+                   tags$a(
+                     href   = "records.csv",
+                     target = "_blank",
+                     class  = "btn btn-warning btn-sm",
+                     style  = "color:white; text-decoration:none;",
+                     "Save records.csv"
+                   )
+                 ),
+                 
+                 # Tabelle darunter
+                 DT::dataTableOutput("records_tbl")
+               ,
+                
+               textInput("range_list", label=HTML(shinyfields2$inf7), value = '1-2'),
+               tags$div(
+                 style = "display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;",
+                 
+                 tags$div(
+                   style="flex:1; min-width:300px;",
+                   actionButton("listMatchingButton", label = "List maps"),
+                   uiOutput("listMaps")
+                 ),
+                 
+                 tags$div(
+                   style="flex:1; min-width:300px;",
+                   actionButton("listAlignButton", label = "List aligned maps"),
+                   uiOutput("listAlign")
+                 )
+               ),
+               
                #uiOutput('listCropped', style="width:30%;float:left")
+                h3("Inspect Result Folder"),
+              actionButton("open_output_map", "Open Map Output Folder in Explorer")),
         )
       ) # END fluid Row
     ),  # END tabItem 2
@@ -605,6 +659,7 @@ body <- dashboardBody(
       ),
     )
   ) # END tabItems
+  
 ) # END BODY
 
 

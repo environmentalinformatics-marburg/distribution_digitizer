@@ -1,0 +1,84 @@
+/* Erhöhe die Spezifität der Selektoren */
+.content-wrappe {
+  background-color: lightblue !important;
+}
+
+.main-header {
+  color: darkblue !important;
+  font-size: 2em !important; /* !important für höhere Priorität */
+}
+
+.infobox_tab_0 {
+  display:none; 
+  position:absolute; 
+  background-color: #02f0f0 !important;
+  padding: 25px; 
+  border: 1px solid #ccc; 
+  border-radius: 4px; 
+  color: black;
+  z-index: 999;
+}
+
+.sidebar-menu li > a {
+  position: relative;
+  font-size: 15px;
+}
+/* Für das h2-Element die Schriftart und Größe ändern */
+h2 {
+  font-family: 'Yusei Magic', sans-serif !important;
+  font-size: 2.35em !important;
+}
+
+/* Columngrößen anpassen */
+.row .col-sm-3 {
+  width: 99% !important;
+}
+
+.col-sm-4 {
+  width: 29% !important;
+}
+
+.col-sm-3 #working_dir {
+  width: 100% !important;
+}
+
+.form-control {
+  display: block !important;
+}
+
+#image {
+  background-image: url("img/0045.png") !important;
+}
+
+#numberprintedPages {
+  width: max-content !important;
+  margin-top: 8px !important;
+}
+
+/* Sichtbarkeit des Textes auf Eingabefeldern */
+.shiny-input-container {
+  color: #333333 !important;
+}
+
+#crop {
+  margin: 15px !important;
+}
+
+#plot2, #plot3, #plot1 {
+  float: right !important;
+  margin: 15px !important;
+}
+
+#plot {
+  float: left !important;
+}
+
+.col-sm-3 {
+  width: 90% !important;
+  display: block !important;
+}
+
+.h3, h3 {
+  font-size: 15px !important;
+  width: max-content !important;
+}
