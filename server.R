@@ -89,6 +89,10 @@ if(!require(raster)){
 }
 
 library(sf)
+
+# Erlaube große Uploads (z. B. TIFF-Dateien bis 500 MB)
+options(shiny.maxRequestSize = 500*1024^2)
+
 Sys.setenv(TESSDATA_PREFIX = "C:/Program Files/Tesseract-OCR/tessdata")
 
 # Global variables
@@ -439,11 +443,17 @@ server <- shinyServer(function(input, output, session) {
   output$plot1 <- renderPlot({
     req(input$image)
     req(input$plot_brush)
-    d <- data()
     if(!is.null(input$image$datapath) && input$image$datapath!=""){
       plot_png(input$image$datapath, input$plot_brush, input$imgIndexTemplate)
     }
   })
+  
+  # Show hint only when cropped preview (plot1) is visible
+  output$showCropHint <- reactive({
+    # show only if brush exists and image loaded
+    !is.null(input$plot_brush) && !is.null(input$image)
+  })
+  outputOptions(output, "showCropHint", suspendWhenHidden = FALSE)
   
   # Function to save the cropped tepmlate map image
   output$saveTemplate <- downloadHandler(
@@ -1614,29 +1624,49 @@ server <- shinyServer(function(input, output, session) {
   
   # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------#
   #Function to show the ccrop process in the app 
-  plot_png <- function(path, plot_brush, index, add=FALSE)
-  {
+  plot_png <- function(path, plot_brush, index, add = FALSE) {
     require('png')
-    #fname=paste0(workingDir, "/", tempImage)
-    fname=tempImage
-    png = png::readPNG(fname, native=T) # read the file
-    # this for tests png <- image_read('DD_shiny/0045.png')
+    fname <- tempImage
+    if (!file.exists(fname)) return()
     
-    # get the resolution, [x, y]
-    res = dim(png)[2:1] 
-    # initialize an empty plot area if add==FALSE
-    if (!add) 
-      plot(1,1,xlim=c(1,res[1]),ylim=c(1,res[2]),asp=1,type='n',xaxs='i',yaxs='i',xaxt='n',yaxt='n',
-           xlab='',ylab='',bty='n')
-    img <- as.raster(readPNG(fname))
-    # rasterImage(img,1,1,res[1],res[2])
-    #grid.raster(img[1:600,1:500,]) wichtig img[y1:y2,x2:y2]
-    x1 = plot_brush$xmin
-    x2 = plot_brush$xmax
-    y2 = plot_brush$ymin
-    y1 = plot_brush$ymax
-    grid.raster(img[y2:y1,x1:x2,])
+    img <- as.raster(png::readPNG(fname))
+    res <- dim(img)[2:1]
+    
+    # Prüfen, ob Brush-Koordinaten vorhanden und gültig sind
+    if (is.null(plot_brush) ||
+        any(is.na(c(plot_brush$xmin, plot_brush$xmax, plot_brush$ymin, plot_brush$ymax)))) {
+      plot(1, 1, type = "n", xlim = c(1, res[1]), ylim = c(1, res[2]),
+           xlab = "", ylab = "", asp = 1, axes = FALSE)
+      text(mean(res[1]), mean(res[2]), "Ziehe einen Bereich im linken Bild", col = "gray40")
+      return()
+    }
+    
+    x1 <- round(plot_brush$xmin)
+    x2 <- round(plot_brush$xmax)
+    y1 <- round(plot_brush$ymax)
+    y2 <- round(plot_brush$ymin)
+    
+    # Bereich auf gültige Pixelgrenzen beschränken
+    x1 <- max(1, min(x1, res[1]))
+    x2 <- max(1, min(x2, res[1]))
+    y1 <- max(1, min(y1, res[2]))
+    y2 <- max(1, min(y2, res[2]))
+    
+    # Nur wenn der Bereich ausreichend groß ist
+    if (x2 - x1 < 2 || y1 - y2 < 2) {
+      plot(1, 1, type = "n", xlim = c(1, res[1]), ylim = c(1, res[2]),
+           xlab = "", ylab = "", asp = 1, axes = FALSE)
+      text(mean(res[1]), mean(res[2]), "Auswahl zu klein", col = "gray40")
+      return()
+    }
+    
+    plot(1, 1, xlim = c(1, x2 - x1), ylim = c(1, y1 - y2),
+         asp = 1, type = "n", xaxs = "i", yaxs = "i",
+         xaxt = "n", yaxt = "n", xlab = "", ylab = "", bty = "n")
+    
+    grid::grid.raster(img[y2:y1, x1:x2, ])
   }
+  
   
   # Render the image in the plot with given dynamical 10%
   output$plot <- renderImage({

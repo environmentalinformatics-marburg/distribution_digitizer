@@ -343,12 +343,31 @@ body <- dashboardBody(
                )
         ), # col 4
         column(8,
+               fluidRow(
+                 column(6,
+                        plotOutput("plot",
+                                   click = "plot_click",
+                                   hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
+                                   brush = brushOpts(id = "plot_brush"))
+                 ),
+                 column(6,
+                        plotOutput("plot1", height = "500px"),
+                        conditionalPanel(
+                          condition = "output.showCropHint",   # wird vom Server gesteuert
+                          tags$p(
+                            style = "color:#007bff; font-style:italic; margin-top:10px;",
+                            "💡 Tip: For best results, align the cropped map precisely using tools such as ",
+                            tags$b("ScanTailor"), ", ", tags$b("ImageJ"), " or ", tags$b("GIMP"), 
+                            " before processing it with the Distribution Digitizer."
+                          )
+                        )
+                        
+                 )
+               ),
                uiOutput('listMapTemplates', style="width:35%;float:left"),
-               uiOutput('listSymbolTemplates', style="width:35%;float:left"),
-               plotOutput("plot", click = "plot_click",  # Equiv, to click=clickOpts(id="plot_click")
-                          hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
-                          brush = brushOpts(id = "plot_brush")),
+               uiOutput('listSymbolTemplates', style="width:35%;float:left")
         )
+        
       ) # END fluid Row
     ),  # END tabItem 1
     
