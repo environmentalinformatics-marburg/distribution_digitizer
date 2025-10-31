@@ -169,6 +169,13 @@ set_tessdata_prefix_once <- function(tess_path) {
 
 
 server <- shinyServer(function(input, output, session) {
+
+  options(shiny.autoreload = FALSE)
+  current_tab <- reactiveVal("tab0")
+  
+  observeEvent(input$tablist, {
+    current_tab(input$tablist)
+  })
   # ganz oben im server:
   outDir <- reactiveVal(NULL)
 
@@ -2058,7 +2065,16 @@ server <- shinyServer(function(input, output, session) {
     print(e)
   })
 }
+ 
+  observe({
+    isolate({
+      if (!is.null(current_tab())) {
+        updateTabItems(session, "tablist", selected = current_tab())
+      }
+    })
+  })
   
+   
 })
 
   
