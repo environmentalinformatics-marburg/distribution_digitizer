@@ -309,10 +309,8 @@ body <- dashboardBody(
     # Tab 1 Create Templates #---------------------------------------------------------------------
     tabItem(
       tabName = "tab1",
-      actionButton("listMTemplates",  label = "List saved map templates"),
-      actionButton("listSTemplates",  label = "List saved symbol templates"),
       fluidRow(
-        column(4,
+        column(11, 
                wellPanel(
                  h3(strong(shinyfields1$head, style = "color:black")),
                  p(shinyfields1$inf4, style = "color:black"),
@@ -322,15 +320,7 @@ body <- dashboardBody(
                  #shinyFilesButton("pick_file", "Datei wählen", "Bitte Datei auswählen", multiple = TRUE),
                  verbatimTextOutput("file_out")
                ),
-               wellPanel(
-                 h4(strong(shinyfields1$save_template, style = "color:black")),
-                 # Add number to the file name of the created template file
-                 fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-                                 p(strong(paste0(shinyfields1$inf, workingDir, "/data/templates/maps/"), style = "color:black")),
-                                 p(shinyfields1$inf1, style = "color:black"),                
-                                 # Save the template map image with the given index
-                                 downloadButton('saveTemplate', 'Save map template', style="color:#FFFFFF;background:#999999"))),
-               ),
+               
                wellPanel(
                  h4(strong(shinyfields1$save_symbol, style = "color:black")),
                  # Add number to the file name of the created template file
@@ -342,31 +332,78 @@ body <- dashboardBody(
                                  downloadButton('saveSymbol', 'Save map symbol/Legende', style="color:#FFFFFF;background:#999999")))
                )
         ), # col 4
-        column(8,
-               fluidRow(
-                 column(6,
-                        plotOutput("plot",
-                                   click = "plot_click",
-                                   hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
-                                   brush = brushOpts(id = "plot_brush"))
-                 ),
-                 column(6,
-                        plotOutput("plot1", height = "500px"),
-                        conditionalPanel(
-                          condition = "output.showCropHint",   # wird vom Server gesteuert
-                          tags$p(
-                            style = "color:#007bff; font-style:italic; margin-top:10px;",
-                            "💡 Tip: For best results, align the cropped map precisely using tools such as ",
-                            tags$b("ScanTailor"), ", ", tags$b("ImageJ"), " or ", tags$b("GIMP"), 
-                            " before processing it with the Distribution Digitizer."
-                          )
-                        )
-                        
-                 )
-               ),
-               uiOutput('listMapTemplates', style="width:35%;float:left"),
-               uiOutput('listSymbolTemplates', style="width:35%;float:left")
+        column(
+          width = 8,
+          div(
+            class = "plot-flex-row",  # Flexbox-Container
+            div(
+              id = "leftPlotPanel",
+              plotOutput(
+                "plot",
+                click = "plot_click",
+                hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
+                brush = brushOpts(id = "plot_brush")
+              )
+            ),
+            div(
+              id = "rightPlotPanel",
+              plotOutput("plot1"),
+              conditionalPanel(
+                condition = "output.showCropHint",
+                # --- Neuer Hinweis zur Anzahl der Templates ---
+                tags$p(
+                  "⚠️ Important:",tags$br(),
+                  "Please select only map pages that are already well-scanned and correctly aligned — this will significantly improve the accuracy of the template matching process!",
+                  tags$br(),
+                ),
+                tags$p(
+                  style = "color:#333; font-weight:bold; margin-top:10px;",
+                  "👉 When cropping the map area, make sure to select the region carefully so that the entire map border is included —",
+                  "but extend the selection only a few pixels beyond the frame.",
+                  "No page text or captions should appear inside the cropped template image."
+                ),
+                tags$p(
+                  style = "color:#333; font-weight:bold; margin-top:10px;",
+                  "👉 For best results, create at least two template maps.",
+                ),
+                
+                # --- Bildanzeige ---
+                tags$div(
+                  style = "text-align:center; margin:10px 0;",
+                  tags$img(
+                    src = "assets/templates_struct_1.JPG",   # <- Pfad relativ zu www/
+                    alt = "Template folder structure example",
+                    style = "max-width:100%; border:1px solid #ccc; border-radius:8px;"
+                )),
+                tags$p(
+                  "👉 If your book contains different types or layouts of maps, you should create separate template groups under the templates directory.",
+                  tags$br(), 
+                  "Each group (e.g. t_1, t_2, t_3) should have the same internal structure as a single-type template set."
+                ),
+                # --- Bildanzeige ---
+                tags$div(
+                  style = "text-align:center; margin:10px 0;",
+                  tags$img(
+                    src = "assets/templates_struct_2.JPG",   # <- Pfad relativ zu www/
+                    alt = "Template folder structure example",
+                    style = "max-width:100%; border:1px solid #ccc; border-radius:8px;"
+                )),
+
+                wellPanel(
+                  h4(strong(shinyfields1$save_template, style = "color:black")),
+                  # Add number to the file name of the created template file
+                  fluidRow(column(8, #numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
+                                  # Save the template map image with the given index
+                                  downloadButton('saveTemplate', 'Save map template', style="color:#FFFFFF;background:#999999"))),
+                )
+              )
+            )
+          ),
+          
         )
+        
+        
+        
         
       ) # END fluid Row
     ),  # END tabItem 1
