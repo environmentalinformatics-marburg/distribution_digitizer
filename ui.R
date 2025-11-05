@@ -241,19 +241,22 @@ body <- dashboardBody(
           column(6,
                  
                  configFolderInput(
-                   id = "input_dir",
+                   id = "dataInputDir",
                    label = "Input Directory",
                    value = config$dataInputDir,
                    infoText = info$dataInputDir_infoBox
                  ),
                  
                  configFolderInput(
-                   id = "output_dir",
+                   id = "dataOutputDir",
                    label = "Output Directory",
                    value = config$dataOutputDir,
                    infoText = info$dataOutputDir_infoBox,
                    color = "#007bff"
                  ),
+                 
+                 
+                 
                  fluidRow(
                    column(10, tags$div(id = "d_pFormat", style = "position:relative;",
                                        selectInput("pFormat", "Image Format", 

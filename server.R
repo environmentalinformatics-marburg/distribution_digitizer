@@ -183,24 +183,28 @@ server <- shinyServer(function(input, output, session) {
   # Erlaube Navigieren auf bestimmten Laufwerken/Roots
   roots <- c(Home = "~", D = "D:/")  # passe an: C="C:/", Netzlaufwerke etc.
   # --- Input Directory ---
-  observeEvent(input$input_dir_open, {
-    dir_path <- input$input_dir_path
+  # --- Input Directory ---
+  observeEvent(input$dataInputDir_open, {
+    dir_path <- input$dataInputDir
     if (nzchar(dir_path) && dir.exists(dir_path)) {
-      shell.exec(normalizePath(dir_path))
+      # Variante mit system2 (bringt Explorer ins Vordergrund)
+      shell(paste("start explorer /e,", shQuote(normalizePath(dir_path))), wait = FALSE)
     } else {
       showNotification("⚠️ Folder not found or invalid path.", type = "error")
     }
   })
   
   # --- Output Directory ---
-  observeEvent(input$output_dir_open, {
-    dir_path <- input$output_dir_path
+  observeEvent(input$dataOutputDir_open, {
+    dir_path <- input$dataOutputDir
     if (nzchar(dir_path) && dir.exists(dir_path)) {
-      shell.exec(normalizePath(dir_path))
+      # Variante mit system2 (bringt Explorer ins Vordergrund)
+      shell(paste("start explorer /e,", shQuote(normalizePath(dir_path))), wait = FALSE)
     } else {
       showNotification("⚠️ Folder not found or invalid path.", type = "error")
     }
   })
+  
   
   
   # Dateiauswahl mit Startordner
