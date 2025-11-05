@@ -5,9 +5,11 @@ if(!require(leaflet)){
   install.packages("leaflet",dependencies = T)
   library(leaflet)
 }
-workingDir <- "D:/distribution_digitizer"
 
+workingDir <- "D:/distribution_digitizer"
 setwd(workingDir)
+
+source("R/helpers_ui.R")
 
 # Reading configuration files
 config_list<- read.csv2(paste0(workingDir,'/config/config.csv'), header = FALSE, sep = ';',stringsAsFactors = FALSE)
@@ -171,8 +173,7 @@ body <- dashboardBody(
     )
   ),
 
-  p(paste0(info$workingDir_info, " ", workingDir), style = "color:black"),
-  p(paste0(info$dataOutputDir_info, " ", config$dataOutputDir), style = "color:black"),
+  h3(paste0(info$workingDir_info, " ", workingDir), style = "color:black"),
 
 
   tabItems(
@@ -194,7 +195,8 @@ body <- dashboardBody(
                           ),
                           # zusätzliche Info-Box für "title", die erscheint, wenn man über das Eingabefeld fährt
                           div(id = "title_infoBox", class="infobox_tab_0" ,
-                              info$title_infoBox)
+                              info$title_infoBox), # Optionaler Button, öffnet den Pfad im Explorer
+
                    )
                  ),
 
@@ -238,34 +240,20 @@ body <- dashboardBody(
           # Right column
           column(6,
                  
-                 fluidRow(
-                   column(10, 
-                          # Wrapper um das textInput, damit wir das Style anwenden können
-                          tags$div(style="display:flex; gap:10px; align-items:center;",
-                                   textInput("dataInputDir",  "Input Directory",  config$dataInputDir, width="100%"),
-                                   
-                          ),
-                          # zusätzliche Info-Box für "allPrintedPages", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "dataInputDir_infoBox", class="infobox_tab_0",
-                              info$dataInputDir_infoBox)
-                   )
+                 configFolderInput(
+                   id = "input_dir",
+                   label = "Input Directory",
+                   value = config$dataInputDir,
+                   infoText = info$dataInputDir_infoBox
                  ),
                  
-                 fluidRow(
-                   column(10, 
-                          # Wrapper um das textInput, damit wir das Style anwenden können
-                          tags$div(style = "position:relative;",
-                                   textInput("dataOutputDir", "Output Directory", config$dataOutputDir),
-                                   
-                          ),
-                          # zusätzliche Info-Box für "allPrintedPages", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "dataOutputDir_infoBox", class="infobox_tab_0",
-                              info$dataOutputDir_infoBox)
-                   )
+                 configFolderInput(
+                   id = "output_dir",
+                   label = "Output Directory",
+                   value = config$dataOutputDir,
+                   infoText = info$dataOutputDir_infoBox,
+                   color = "#007bff"
                  ),
-                 
-                 
-                 
                  fluidRow(
                    column(10, tags$div(id = "d_pFormat", style = "position:relative;",
                                        selectInput("pFormat", "Image Format", 
@@ -292,18 +280,19 @@ body <- dashboardBody(
                     )
                    ),
                    
-                 
+                
           )
         ),actionButton("saveConfig", "Save Sonfiguration", style = "with:100pc;color:#FFFFFF;background:#007bff;position: absolute;
   left: 43%;"),
-        h3("Inspect Result Folder"),
+     
         #actionButton("open_output", "Open Output Folder in Explorer", style = "color:#FFFFFF;background:#28a745"),
         shinyjs::hidden(
-          actionButton("open_output", "Open Output dFolder in Explorer",
+          h3("Inspect Result Folder"),
+          actionButton("open_output", "Open Output Directory in Explorer",
                        style = "color:#FFFFFF;background:#28a745;position: absolute;
   left: 43%;")
         )
-      )
+      ), includeHTML("www/start_instructions.html")
     ),
     
     # Tab 1 Create Templates #---------------------------------------------------------------------

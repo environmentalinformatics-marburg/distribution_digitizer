@@ -90,6 +90,7 @@ if(!require(raster)){
 
 library(sf)
 
+volumes <- c(Home = fs::path_home(), "C:" = "C:/", "D:" = "D:/")  # anpassen nach Bedarf
 # Erlaube große Uploads (z. B. TIFF-Dateien bis 500 MB)
 options(shiny.maxRequestSize = 500*1024^2)
 
@@ -181,6 +182,27 @@ server <- shinyServer(function(input, output, session) {
 
   # Erlaube Navigieren auf bestimmten Laufwerken/Roots
   roots <- c(Home = "~", D = "D:/")  # passe an: C="C:/", Netzlaufwerke etc.
+  # --- Input Directory ---
+  observeEvent(input$input_dir_open, {
+    dir_path <- input$input_dir_path
+    if (nzchar(dir_path) && dir.exists(dir_path)) {
+      shell.exec(normalizePath(dir_path))
+    } else {
+      showNotification("⚠️ Folder not found or invalid path.", type = "error")
+    }
+  })
+  
+  # --- Output Directory ---
+  observeEvent(input$output_dir_open, {
+    dir_path <- input$output_dir_path
+    if (nzchar(dir_path) && dir.exists(dir_path)) {
+      shell.exec(normalizePath(dir_path))
+    } else {
+      showNotification("⚠️ Folder not found or invalid path.", type = "error")
+    }
+  })
+  
+  
   # Dateiauswahl mit Startordner
   shinyFileChoose(
     input, "pick_file",
