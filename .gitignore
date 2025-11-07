@@ -10,6 +10,12 @@ data/temp/
 temp/
 tmp/
 
+# --- Input templates (nicht versionieren) ---
+data/input/templates/**/maps/
+data/input/templates/**/align_ref/
+data/input/templates/**/geopoints/
+data/input/templates/**/symbols/
+
 # --- Shiny generated / runtime data ---
 www/pages/
 www/data/
