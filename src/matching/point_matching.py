@@ -169,6 +169,7 @@ def map_points_matching(workingDir, outDir, point_threshold):
     os.makedirs(outputTiffDir, exist_ok=True)
 
     coord_csv_path = os.path.join(outDir, 'maps', 'csvFiles', 'coordinates.csv')
+
     current_id = get_last_id(coord_csv_path) + 1
 
     with open(coord_csv_path, 'a', newline='') as coord_csvfile:

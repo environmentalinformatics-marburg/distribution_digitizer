@@ -1,0 +1,69 @@
+/* Get a fancy font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Yusei+Magic&display=swap');
+
+/* style.css */
+body {
+  background-color: lightblue !important;
+}
+
+
+  
+.main-panel h1 {
+  color: darkblue !important;
+  font-size: 2em !important; /* !important für höhere Priorität */
+}
+/* Change header text to imported font */
+h2 {
+  font-family: 'Yusei Magic', sans-serif;
+  font-size: 2.35em;
+}
+
+.row .col-sm-3 {
+    width: 99%;
+}
+.col-sm-4 {
+    width: 29%;
+}
+.col-sm-8 {
+   /* width: 70%;*/
+}
+.col-sm-3 #working_dir{
+	width: 100%;
+}
+.form-control{
+  display:block;
+}
+#image{
+  background-image: url("img/0045.png");
+}
+/*#plot{
+  background-image: url("img/0045.png");
+}*/
+#numberprintedPages{
+   width: max-content;
+   margin-top: 8px;
+}
+/* Make text visible on inputs */
+.shiny-input-container {
+  color: #333333;
+}
+#crop{
+  margin:15px;
+}
+#plot2,#plot3,#plot1{
+  float:right;
+  margin: 15px;
+}
+
+#plot{
+  float:left;
+
+}
+.col-sm-3 {
+    width: 90%;
+    display: block;
+}
+.h3, h3 {
+    font-size: 15px;
+    width: max-content;
+}

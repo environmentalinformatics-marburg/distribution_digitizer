@@ -77,60 +77,61 @@ def align_images(image_path, template_path, output_dir, max_features=500, keep_p
         return False  # Error
 
 
-def align_images_directory(working_dir, outDir):
-  """
-  Aligns images in the specified working directory.
+def align_images_directory(working_dir, outDir, nMapTypes=1):
+    """
+    Aligns matched maps for each map type (1, 2, 3, ...).
 
-  Args:
-  - working_dir (str): Working directory containing input images.
+    Expected structure:
+      data/input/templates/<type>/align_ref/
+      <outDir>/<type>/maps/matching/
+      <outDir>/<type>/maps/align/
+    """
+    try:
+        working_dir = working_dir.rstrip("/\\")
+        outDir = outDir.rstrip("/\\")
+        print(f"➡️ Starting alignment for {nMapTypes} map type(s)...")
 
-  Returns:
-  - None
-  """
-  try:
-    # OUTPUT
-    #print("Working directory align:")
-    #print(working_dir)
-    output_dir = ""
-    input_dir = ""
-    
-    if(os.path.exists(outDir)):
-      if outDir.endswith("/"):
-        output_dir = outDir + "maps/align/"
-        input_dir = outDir + "maps/matching/"
-      else:
-        output_dir = outDir + "/maps/align/"
-        input_dir = outDir + "/maps/matching/"
-    else:
-      if working_dir.endswith("/"):
-        output_dir = working_dir+ "data/output/maps/align/"
-        input_dir = working_dir + "data/output/maps/matching/"
-      else: 
-        output_dir = working_dir+ "/data/output/maps/align/"
-        input_dir = working_dir + "/data/output/maps/matching/"
-      
-    # Output directory for aligned images
-    #os.makedirs(output_dir, exist_ok=True)
-  
-    # Directory for template images
-    template_dir = working_dir + "/data/input/templates/align_ref/"
-  
-    # Directory for input images
-  
-  
-    # Directory for converted PNG images after the matching process
-    output_png_dir = working_dir + "/www/data/align_png/"
-    #os.makedirs(output_png_dir, exist_ok=True)
-  
-    for template_path in glob.glob(template_dir + '*.tif'):
-        for image_path in glob.glob(input_dir + '*.tif'):
-            print(image_path)
-            success = align_images(image_path, template_path, output_dir)
-            if not success:
-                return False  # Exit the loop if there's an error
-  
-    return True  # Success
-  
-  except Exception as e:
-        print("An error occurred in align_images_directory:", e)
-        return False  # Error
+        for i in range(1, int(nMapTypes) + 1):
+            type_id = str(i)
+            print(f"\n🔧 Processing map type {type_id}")
+
+            template_dir = os.path.join(working_dir, "data", "input", "templates", type_id, "align_ref")
+            input_dir = os.path.join(outDir, type_id, "maps", "matching")
+            output_dir = os.path.join(outDir, type_id, "maps", "align")
+
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Skip missing dirs gracefully
+            if not os.path.isdir(template_dir):
+                print(f"⚠️ Missing template folder for type {type_id}: {template_dir}")
+                continue
+            if not os.path.isdir(input_dir):
+                print(f"⚠️ Missing input folder for type {type_id}: {input_dir}")
+                continue
+
+            template_files = sorted(glob.glob(os.path.join(template_dir, "*.tif")))
+            image_files = sorted(glob.glob(os.path.join(input_dir, "*.tif")))
+
+            if not template_files:
+                print(f"⚠️ No templates found in {template_dir}")
+                continue
+            if not image_files:
+                print(f"⚠️ No maps to align in {input_dir}")
+                continue
+
+            # --- Für jeden Kartentyp nur den besten Referenz-Template nehmen ---
+            best_template = template_files[0]  # ggf. nur eine Referenz vorhanden
+            print(f"🧭 Using reference template: {os.path.basename(best_template)}")
+
+            for image_path in image_files:
+                print(f"  🖼️ Aligning {os.path.basename(image_path)} → {type_id}")
+                success = align_images(image_path, best_template, output_dir)
+                if not success:
+                    print(f"❌ Failed to align {os.path.basename(image_path)}")
+
+        print("\n✅ Alignment completed for all map types.")
+        return True
+
+    except Exception as e:
+        print("❌ An error occurred in align_images_directory:", e)
+        return False

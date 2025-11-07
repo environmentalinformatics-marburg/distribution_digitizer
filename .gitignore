@@ -1,9 +1,52 @@
-# History files
+# ============================================================
+# Distribution Digitizer - Git Ignore Rules
+# ============================================================
+
+# --- Input & Output Data (do NOT track) ---
+data/input/pages/
+data/input/pages_all/
+data/output/
+data/temp/
+temp/
+tmp/
+
+# --- Shiny generated / runtime data ---
+www/pages/
+www/data/
+www/align_png/
+www/matching_png/
+www/png/
+www/generated/
+
+# --- Allow other assets in www (CSS, JS, images etc.) ---
+!www/
+!www/*.css
+!www/*.js
+!www/*.html
+!www/*.png
+!www/*.jpg
+!www/*.svg
+!www/README.pdf
+
+# --- R temporary & IDE files ---
 .Rhistory
-
-# Session Data files
 .RData
+.Rproj.user/
+.Ruserdata
+*.Rproj
 
+# --- Python cache & temp files ---
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.bak
+*.tmp
 
+# --- OS files ---
+.DS_Store
+Thumbs.db
 
-
+# --- Backup files ---
+*.old
+*.orig

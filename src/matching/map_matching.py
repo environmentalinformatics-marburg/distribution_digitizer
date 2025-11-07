@@ -25,7 +25,8 @@ import pytesseract
 from pytesseract import Output
 import shutil
 import re
-
+import sys
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 # Set path to tesseract.exe
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
@@ -90,17 +91,62 @@ def find_page_number(image, page_position):
   # Return 0 if no suitable number is found
   return result
 
-# Function to match template and process the result
+def filter_overlapping_matches(loc, res, w, h, iou_thresh=0.6):
+    """
+    Filter overlapping template matches using IoU (Intersection-over-Union).
+    Keeps only the best (highest correlation) match for strongly overlapping regions.
+
+    Args:
+        loc (tuple): Result of np.where(res >= threshold)
+        res (ndarray): Correlation matrix from cv2.matchTemplate
+        w, h (int): Template width and height
+        iou_thresh (float): Minimum IoU to treat two boxes as duplicates (0.6 = 60%)
+
+    Returns:
+        list of (x, y, score): Filtered matches
+    """
+    candidates = [(x, y, float(res[y, x])) for (x, y) in zip(loc[1], loc[0])]
+    candidates.sort(key=lambda z: z[2], reverse=True)
+
+    kept = []
+
+    def iou(boxA, boxB):
+        # box = (x, y, w, h)
+        xA = max(boxA[0], boxB[0])
+        yA = max(boxA[1], boxB[1])
+        xB = min(boxA[0] + boxA[2], boxB[0] + boxB[2])
+        yB = min(boxA[1] + boxA[3], boxB[1] + boxB[3])
+        interArea = max(0, xB - xA) * max(0, yB - yA)
+        boxAArea = boxA[2] * boxA[3]
+        boxBArea = boxB[2] * boxB[3]
+        iou_val = interArea / float(boxAArea + boxBArea - interArea + 1e-6)
+        return iou_val
+
+    for (x, y, score) in candidates:
+        box = (x, y, w, h)
+        duplicate = False
+        for (kx, ky, ks) in kept:
+            if iou(box, (kx, ky, w, h)) > iou_thresh:
+                duplicate = True
+                break
+        if not duplicate:
+            kept.append((x, y, score))
+
+    return kept
+
+
 def match_template(previous_page_path, next_page_path, current_page_path,
                    template_map_file, output_dir, output_page_records,
-                   records, threshold, page_position):
+                   records, threshold, page_position, map_group="1"):
     """
-    Find the maps using template matching, save them, and write the map coordinates in CSV files.
+    Template matching for maps.
+    Saves results directly inside output/<i>/maps/matching and pagerecords.
     """
     try:
-        print(current_page_path)
-        print(template_map_file)
+        print("🗺️ Page:", current_page_path)
+        print("📌 Template:", template_map_file)
 
+        start_time = time.time()
         img = np.array(Image.open(current_page_path))
         imgc = img.copy()
 
@@ -109,60 +155,78 @@ def match_template(previous_page_path, next_page_path, current_page_path,
 
         res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
         loc = np.where(res >= threshold)
-
+        candidates = [(x, y, float(res[y, x])) for (x, y) in zip(loc[1], loc[0])]
+        candidates.sort(key=lambda z: z[2], reverse=True)  # Sortiere nach Score (bester zuerst)
+        
+        if not candidates:
+            return  # kein Treffer
+        
+        # Nur den besten behalten
+        kept = [candidates[0]]
         saved_maps = []
         count = 0
         page_number = find_page_number(current_page_path, page_position)
 
-        for pt in zip(*loc[::-1]):
-            x, y = pt[0], pt[1]
+        # --- output folders (already per map_group handled) ---
+        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(output_page_records, exist_ok=True)
 
-            too_close = any(abs(y - sy) < (h / 2) for sx, sy in saved_maps)
+        # --- Jetzt nur noch gefilterte Treffer verwenden ---
+        for (x, y, score) in kept:
+            size = w * h * (2.54 / 400) ** 2
+            threshold_last = str(threshold).split(".")[-1]
 
-            if not too_close:
-                size = w * h * (2.54/400) * (2.54/400)
+            base_name = (
+                f"{page_number}-thr{threshold_last}_"
+                f"{os.path.basename(current_page_path).rsplit('.', 1)[0]}_"
+                f"{os.path.basename(template_map_file).rsplit('.', 1)[0]}_"
+                f"y{y}_x{x}_n{count}"
+            )
 
-                rows_records = [[str(page_number), previous_page_path, next_page_path,
-                                 current_page_path, x, y, w, h, size,
-                                 threshold, (time.time() - start_time)]]
+            img_save_path = os.path.join(output_dir, base_name + ".tif")
+            csv_save_path = os.path.join(output_page_records, base_name + ".csv")
 
-                is_empty = os.stat(records).st_size == 0
-                with open(records, 'a', newline='') as csv_file:
-                    csvwriter = csv.writer(csv_file)
-                    if is_empty:
-                        csvwriter.writerow(fields)
-                    csvwriter.writerows(rows_records)
+            # --- Erweiterung: 10 % extra Höhe nach unten ---
+            extra_h = int(h * 0.1)
+            y_end = min(y + h + extra_h, imgc.shape[0])
+            crop = imgc[y:y_end, x:x+w, :]
+            cv2.imwrite(img_save_path, crop)
+            cv2.rectangle(imgc, (x, y), (x+w, y+h), (0,255,0), 2)
 
-                threshold_last = str(threshold).split(".")
-                # ✅ Y-position at the very end of the filename
-                img_map_path = (
-                    str(page_number) + '-' + str(threshold_last[1]) + '__' +
-                    os.path.basename(current_page_path).rsplit('.', 1)[0] +
-                    os.path.basename(template_map_file).rsplit('.', 1)[0] +
-                    '_' + str(count) +
-                    '_y' + str(y)
-                )
+            record_row = [
+                page_number, previous_page_path, next_page_path, current_page_path,
+                img_save_path, x, y, w, h, size, threshold,
+                round(time.time() - start_time, 3), map_group
+            ]
 
-                cv2.imwrite(output_dir + img_map_path + '.tif',
-                            imgc[y:(y + h), x:(x + w), :])
+            # --- In die globale CSV schreiben ---
+            is_empty = not os.path.exists(records) or os.stat(records).st_size == 0
+            with open(records, 'a', newline='') as csv_file:
+                writer = csv.writer(csv_file)
+                if is_empty:
+                    writer.writerow([
+                        "page_number","previous_page","next_page","current_page",
+                        "matched_image","x","y","w","h","size_cm2","threshold",
+                        "duration_s","map_group"
+                    ])
+                writer.writerow(record_row)
 
-                cv2.rectangle(imgc, pt, (pt[0] + w, pt[1] + h),
-                              (0, 255, 0), 2)
+            # --- Einzel-CSV für diesen Treffer ---
+            with open(csv_save_path, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    "page_number","previous_page","next_page","current_page",
+                    "matched_image","x","y","w","h","size_cm2","threshold",
+                    "duration_s","map_group"
+                ])
+                writer.writerow(record_row)
 
-                rows = [[str(page_number), previous_page_path, next_page_path,
-                         current_page_path, output_dir + img_map_path + '.tif',
-                         x, y, w, h, size, threshold, (time.time() - start_time)]]
-                csv_path = output_page_records + img_map_path + '.csv'
-                with open(csv_path, 'w', newline='') as page_record:
-                    pageCsvwriter = csv.writer(page_record)
-                    pageCsvwriter.writerow(fields_page_record)
-                    pageCsvwriter.writerows(rows)
-
-                saved_maps.append((x, y))
-                count += 1
+            saved_maps.append((x, y))
+            count += 1
 
     except Exception as e:
-        print("An error occurred in match_template:", e)
+        print("❌ Error in match_template:", e)
+
 
 
 def match_template_contours(previous_page_path, next_page_path, current_page_path,
@@ -271,140 +335,174 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
 #working_dir="D:/distribution_digitizer"
 # Function to perform the main template matching in a loop
 
-def main_template_matching(working_dir, outDir, threshold, page_position, matchingType, pageSel="ALL"):
+def main_template_matching(
+    working_dir,
+    outDir,
+    threshold,
+    page_position,
+    matchingType,
+    pageSel="1-1",
+    nMapTypes=1
+):
     """
-    Perform the main template matching process.
+    Perform template matching for each numeric map type (1, 2, 3, ...).
+    Expected structure:
+        data/input/templates/<type>/maps/
+        output/<type>/maps/matching/
+    """
 
-    Args:
-    - working_dir (str): Working directory
-    - outDir (str): Output directory
-    - threshold (float): Threshold value for template matching
-    - page_position (int): The position of the page number. 1=top, 2=bottom
-    - matchingType (int): 1 = template, 2 = contours
-    - pageSel (str|int): "ALL" = all pages,
-                         int = first N pages,
-                         "start-end" = range of pages (inclusive),
-                         "*.tif" = single page file
-    """
-    # --- sanitize Shiny inputs ---
     threshold = float(threshold)
     page_position = int(page_position)
     matchingType = int(matchingType)
     pageSel = str(pageSel).strip()
 
-    #print("DEBUG threshold:", threshold, type(threshold))
-    #print("DEBUG sNumberPosition:", page_position, type(page_position))
-    #print("DEBUG matchingType:", matchingType, type(matchingType))
-    #print("DEBUG pageSel raw:", pageSel, type(pageSel))
-    
-
     try:
-        # --- Output dirs ---
-        if outDir.endswith("/"):
-            output_dir = outDir + "maps/matching/"
-            output_page_records = outDir + "pagerecords/"
-            records = outDir + "records.csv"
-        else:
-            output_dir = outDir + "/maps/matching/"
-            output_page_records = outDir + "/pagerecords/"
-            records = outDir + "/records.csv"
+        # --- Normalize paths ---
+        working_dir = working_dir.rstrip("/\\")
+        outDir = outDir.rstrip("/\\")
+        pages_dir = os.path.join(working_dir, "data", "input", "pages")
+        templates_root = os.path.join(working_dir, "data", "input", "templates")
 
-        if working_dir.endswith("/"):
-            templates = working_dir + "data/input/templates/maps/"
-            input_dir = working_dir + "data/input/pages/"
-        else:
-            templates = working_dir + "/data/input/templates/maps/"
-            input_dir = working_dir + "/data/input/pages/"
+        # --- Prepare list of numeric map groups ---
+        map_groups = [str(i) for i in range(1, int(nMapTypes) + 1)
+                      if os.path.isdir(os.path.join(templates_root, str(i)))]
+        if not map_groups:
+            print(f"❌ No numeric template groups (1..{nMapTypes}) found in {templates_root}")
+            return
+        print(f"✅ Found template groups: {map_groups}")
 
-        tif_files = sorted(glob.glob(os.path.join(input_dir, '*.tif')))
-        print("DEBUG input_dir:", input_dir)
-        print("DEBUG number of tif files found:", len(tif_files))
-
-        # Remove old matching results
-        if os.path.exists(output_dir):
-            shutil.rmtree(output_dir)
-        os.makedirs(output_dir, exist_ok=True)
-
-        # Remove old page records
-        if os.path.exists(output_page_records):
-            shutil.rmtree(output_page_records)
-        os.makedirs(output_page_records, exist_ok=True)
-
-        # Remove old records.csv
-        if os.path.exists(records):
-            os.remove(records)
-            
-        # --- collect all pages ---
-        tif_files = sorted(glob.glob(os.path.join(input_dir, '*.tif')))
+        # --- Collect all pages ---
+        tif_files = sorted(glob.glob(os.path.join(pages_dir, "*.tif")))
+        if not tif_files:
+            print(f"❌ No .tif pages found in {pages_dir}")
+            return
 
         # --- Page selection ---
-        if str(pageSel).upper() == "ALL" or str(pageSel).strip() == "":
-            # Case 1: All pages
+        if pageSel.upper() == "ALL" or pageSel == "":
             pages = tif_files
-        
-        elif str(pageSel).lower().endswith(".tif"):
-            # Case 2: Exact filename
-            candidate = os.path.join(input_dir, pageSel)
-            if not os.path.exists(candidate):
-                raise FileNotFoundError(f"❌ Page file not found: {candidate}")
-            pages = [candidate]
-        
-        elif "-" in str(pageSel):
-            # Case 3: Range "start-end"
-            parts = str(pageSel).split("-")
-            if len(parts) != 2 or not parts[0].isdigit() or not parts[1].isdigit():
-                raise ValueError(f"❌ Invalid range format: {pageSel}")
-        
-            start = int(parts[0])
-            end = int(parts[1])
-            if start > end:
-                raise ValueError(f"❌ Invalid range: start ({start}) > end ({end})")
-        
-            # Convert 1-based page numbers to 0-based indices
-            pages = tif_files[start-1:end]
-        
+        elif pageSel.lower().endswith(".tif"):
+            candidate = os.path.join(pages_dir, pageSel)
+            pages = [candidate] if os.path.exists(candidate) else []
+        elif "-" in pageSel:
+            start, end = [int(x) for x in pageSel.split("-")]
+            pages = tif_files[start - 1:end]
         else:
-            raise ValueError(f"❌ Invalid pageSel argument: {pageSel}")
+            raise ValueError(f"Invalid pageSel: {pageSel}")
 
-        print(f"➡️ Processing {len(pages)} page(s):")
-        for p in pages:
-            print("   ", p)
+        print(f"➡️ Processing {len(pages)} page(s)")
 
-        # --- start matching ---
-        with open(records, 'w', newline='') as csv_file:
-            csvwriter = csv.writer(csv_file)
+        # --- Matching loop over each map type ---
+                # --- Matching loop over each map type ---
+        for group in map_groups:
+            print(f"\n🔍 Processing map type: {group}")
 
-            for template_map_file in glob.glob(os.path.join(templates, '*.tif')):
-                for index, current_page_path in enumerate(pages):
-                    prev_path = pages[index - 1] if index > 0 else 'None'
-                    next_path = pages[index + 1] if index < len(pages) - 1 else 'None'
+            maps_dir = os.path.join(templates_root, group, "maps")
+            if not os.path.isdir(maps_dir):
+                print(f"⚠️ No 'maps' directory found for group {group}")
+                continue
 
-                    print("prev", prev_path)
-                    print("current", current_page_path)
-                    print("next", next_path)
+            # Sammle alle Templates (*.tif) in diesem maps-Verzeichnis
+            template_files = sorted(glob.glob(os.path.join(maps_dir, "*.tif")))
+            if not template_files:
+                print(f"⚠️ No .tif templates found in {maps_dir}")
+                continue
+
+            # Bereite Output-Struktur vor
+            output_base = os.path.join(outDir, group)
+            output_dir = os.path.join(output_base, "maps", "matching")
+            output_page_records = os.path.join(output_base, "pagerecords")
+            records = os.path.join(output_base, "records.csv")
+
+            os.makedirs(output_dir, exist_ok=True)
+            os.makedirs(output_page_records, exist_ok=True)
+
+            # --- Alte Ergebnisse löschen, aber nur Dateien ---
+            for folder in [output_dir, output_page_records]:
+                for f in os.listdir(folder):
+                    fp = os.path.join(folder, f)
+                    if os.path.isfile(fp):
+                        os.remove(fp)
+            if os.path.exists(records):
+                os.remove(records)
+
+            print(f"📁 Output directory for map group {group}: {output_dir}")
+
+            # --- Matching pro Template ---
+                   # ============================================================
+        # Optimierte Variante:
+        # Jede Seite nur einmal öffnen und alle Template-Gruppen prüfen
+        # ============================================================
+
+        # --- Templates aller Gruppen vorab laden ---
+        all_templates = {}
+        for group in map_groups:
+            maps_dir = os.path.join(templates_root, group, "maps")
+            if not os.path.isdir(maps_dir):
+                print(f"⚠️ No 'maps' directory found for group {group}")
+                continue
+            templates = sorted(glob.glob(os.path.join(maps_dir, "*.tif")))
+            if not templates:
+                print(f"⚠️ No .tif templates found in {maps_dir}")
+                continue
+            all_templates[group] = templates
+            print(f"✅ {len(templates)} templates loaded for group {group}")
+
+        if not all_templates:
+            print("❌ No templates found in any group.")
+            return
+
+        # --- Output-Struktur vorbereiten ---
+        for group in map_groups:
+            base = os.path.join(outDir, group)
+            os.makedirs(os.path.join(base, "maps", "matching"), exist_ok=True)
+            os.makedirs(os.path.join(base, "pagerecords"), exist_ok=True)
+
+        # --- Matching pro Seite (jede Seite einmal öffnen) ---
+        for i, current_page_path in enumerate(pages):
+            print(f"\n🗎 Processing page {os.path.basename(current_page_path)}")
+
+            prev_path = pages[i - 1] if i > 0 else None
+            next_path = pages[i + 1] if i < len(pages) - 1 else None
+
+            # Seite einmal laden
+            img = np.array(Image.open(current_page_path))
+            imgc = img.copy()
+
+            # Durch alle Gruppen und Templates iterieren
+            for group, template_files in all_templates.items():
+                output_base = os.path.join(outDir, group)
+                output_dir = os.path.join(output_base, "maps", "matching")
+                output_page_records = os.path.join(output_base, "pagerecords")
+                records = os.path.join(output_base, "records.csv")
+
+                for template_file in template_files:
+                    print(f"🔍 Matching {os.path.basename(template_file)} (group {group})")
 
                     params = {
                         "previous_page_path": prev_path,
                         "next_page_path": next_path,
                         "current_page_path": current_page_path,
-                        "template_map_file": template_map_file,
+                        "template_map_file": template_file,
                         "output_dir": output_dir,
                         "output_page_records": output_page_records,
                         "records": records,
                         "threshold": threshold,
-                        "page_position": page_position
+                        "page_position": page_position,
+                        "map_group": group
                     }
+
                     if matchingType == 1:
                         match_template(**params)
                     elif matchingType == 2:
                         match_template_contours(**params)
 
-    except Exception as e:
-        print("❌ An error occurred in main_template_matching:", e)
+        print("\n✅ Matching completed for all pages and map types.")
 
+    except Exception as e:
+        print("❌ Error in main_template_matching:", e)
 
 #working_dir="D:/distribution_digitizer"
-#outDir="D:/test/output_2025-09-18_13-08-43/"
-#main_template_matching(working_dir, outDir,  0.18, 1, 1, "0088.tif")
-#main_template_matching(working_dir, outDir,  0.18, 1, 2, "1-2")
+#outDir="D:/test/output_2025-11-07_14-01-05/"
+#main_template_matching(working_dir, outDir,  0.18, 1, 1, "0043.tif", 2)
+#main_template_matching(working_dir, outDir,  0.18, 1, 1, "1-2", 2)
 

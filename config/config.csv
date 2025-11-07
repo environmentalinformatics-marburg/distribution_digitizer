@@ -1,2 +1,10 @@
-workingDir;workingDirInformation;title;autor;pYear;tesserAct;dataInputDir;dataOutputDir;allPrintedPages;sNumberPosition;mapCaptureType;speciesOnMap;matchingType;approximatelySpecieMap;middle;regExYear;keywordReadSpecies;keywordBefore;keywordThen;pFormat;pColor
-D:/distribution_digitizer;Your working directory is the local digitizer repository!;Pakistan;Vasilii;2022;C:/Program Files/Tesseract-OCR/tessdata;D:/distribution_digitizer/data/input;D:/test/this//output_2025-06-17_14-41-47;200;1;1;1;1;1;0;0;Range;0;2;1;1
+workingDir;D:/distribution_digitizer
+title;Pakistan
+author;Vasilii
+pYear;2022
+tesserAct;C:/Program Files/Tesseract-OCR
+nMapTypes;2
+dataInputDir;D:/distribution_digitizer/data/input
+dataOutputDir;D:/test/output_2025-11-07_18-18-30
+pFormat;1
+pColor;1
