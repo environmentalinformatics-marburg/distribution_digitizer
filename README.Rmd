@@ -1,3 +1,15 @@
+---
+title: "Distribution Digitizer – Installation Guide (2025)"
+author: "Your Name"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+    latex_engine: xelatex
+geometry: margin=1in
+fontsize: 11pt
+---
+
 # Distribution Digitizer – Installation Guide (2025)
 
 This document provides the complete installation instructions for the **Distribution Digitizer** under **Windows 10/11**, including:
