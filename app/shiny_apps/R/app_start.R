@@ -159,12 +159,35 @@ if (!is.null(selected_output_path) && dir.exists(selected_output_path)) {
   cat("❌ No output folder selected or folder does not exist.\n")
 }
 
+install.packages("shiny")
+install.packages("shinydashboard")
+install.packages("shinyjs")
+install.packages("DT", dependencies = TRUE)
+install.packages("remotes")
+install.packages("rdrop2", dependencies = TRUE)
+remotes::install_github("karthik/rdrop2")
+
+install.packages("RInno")
+remotes::install_github("ficonsulting/RInno")
+install.packages("shinyalert")
+#einfach 3 geben
+install.packages(c("rmarkdown", "tinytex"))
+tinytex::install_tinytex()
 
 options(shiny.autoreload = TRUE)
 shiny::runApp("D:/distribution_digitizer/app/app.R")
 options(shiny.launch.browser = TRUE)
 shiny::runApp()
-
+library(RInno)
+create_app(
+  app_name = "DistributionDigitizer",
+  app_dir  = "D:/distribution_digitizer"
+)
+tinytex::install_tinytex(force = TRUE)
+install.packages("devtools")
+library(devtools)
+install_github("shinyworks/shinydesktop", dependencies = TRUE)
 setwd("D:/distribution_digitizer")
 options(shiny.port = 8888, shiny.host = "127.0.0.1")
 shiny::runApp("app", launch.browser = TRUE, display.mode = "normal", test.mode = FALSE)
+rmarkdown::render("d:/distribution_digitizer/README.Rmd")

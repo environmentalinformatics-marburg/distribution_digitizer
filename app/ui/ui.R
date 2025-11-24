@@ -6,8 +6,6 @@ if(!require(leaflet)){
   library(leaflet)
 }
 
-#workingDir <- "D:/distribution_digitizer"
-#setwd(workingDir)
 
 source("ui/helpers_ui.R")
 
@@ -458,7 +456,7 @@ body <- dashboardBody(
         column(4,  
                wellPanel(
                  # Eine Zeile mit den Buttons
-                 tags$div(
+                  tags$div(
                    style = "display:flex; gap:15px; align-items:center; margin-bottom:10px;",
                    
                    actionButton("showRecords", "Show records"),
@@ -473,25 +471,48 @@ body <- dashboardBody(
                  ),
                  
                  # Tabelle darunter
-                 DT::dataTableOutput("records_tbl")
-               ,
-                
-               textInput("range_list", label=HTML(shinyfields2$inf7), value = '1-2'),
-               tags$div(
-                 style = "display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;",
-                 
-                 tags$div(
-                   style="flex:1; min-width:300px;",
-                   actionButton("listMatchingButton", label = "List maps"),
-                   uiOutput("listMaps")
-                 ),
-                 
-                 tags$div(
-                   style="flex:1; min-width:300px;",
-                   actionButton("listAlignButton", label = "List aligned maps"),
-                   uiOutput("listAlign")
-                 )
-               ),
+                DT::dataTableOutput("records_tbl")
+                ,
+                textInput("range_list", label=HTML(shinyfields2$inf7), value = '1-2'),
+                tags$div(
+                   style = "display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;",
+                   
+                   # --- Map Type Selection + Matching/Align List Panels -------------------------
+                   tags$div(
+                     style = "display:flex; gap:25px; flex-wrap:wrap;",
+                     
+                     # --- Block 1: Matching Results --------------------------------------------
+                     tags$div(
+                       style = "flex:1; min-width:300px;",
+                       
+                       # Dropdown: Map Type
+                       selectInput(
+                         "map_type",
+                         label = "Select map type:",
+                         choices = mapTypes,        # kommt aus global.R
+                         selected = mapTypes[1]
+                       ),
+                       
+                       # Button: Show Matching Maps
+                       actionButton("listMatchingButton", "List maps"),
+                       
+                       # Output
+                       uiOutput("listMaps")
+                     ),
+                     
+                     # --- Block 2: Align Results -----------------------------------------------
+                     tags$div(
+                       style = "flex:1; min-width:300px;",
+                       
+                       # Button: Show Align Results
+                       actionButton("listAlignButton", "List aligned maps"),
+                       
+                       # Output
+                       uiOutput("listAlign")
+                     )
+                   )
+                   
+                ),
                
                #uiOutput('listCropped', style="width:30%;float:left")
                 h3("Inspect Result Folder"),

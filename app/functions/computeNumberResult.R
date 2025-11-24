@@ -20,6 +20,12 @@ computeNumberResult <- function(base_output_dir,
                                 nMapTypes = 1,
                                 subfolder = "maps/align",
                                 png_subdir = "data/align_png") {
+  print("DEBUG computeNumberResult:")
+  print(paste("  base_output_dir =", base_output_dir))
+  print(paste("  working_dir     =", working_dir))
+  print(paste("  nMapTypes       =", nMapTypes))
+  print(paste("  subfolder       =", subfolder))
+  print(paste("  png_subdir      =", png_subdir))
   tryCatch({
     
     all_files <- c()
@@ -27,17 +33,23 @@ computeNumberResult <- function(base_output_dir,
     
     for (i in seq_len(nMapTypes)) {
       type_dir <- file.path(base_output_dir, as.character(i), subfolder)
-      
       if (dir.exists(type_dir)) {
         files_i <- list.files(type_dir, pattern = "\\.tif{1,2}$", full.names = TRUE)
         n_files <- length(files_i)
         all_files <- c(all_files, files_i)
         
         summary_lines <- c(summary_lines,
-                           paste0("🗺️ Map type ", i, ": ", n_files, " aligned maps found"))
+                           paste0("🗺️ Map type ", i, ": ", n_files, " maps found"))
         
         # --- Optional: Konvertiere TIF → PNG ---
-        png_target <- file.path(working_dir, "www", png_subdir)
+        png_target <- file.path(
+          working_dir, 
+          "www", 
+          "data", 
+          as.character(i),       # << HIER kommt der Kartentyp
+          basename(png_subdir)   # = "matching_png"
+        )
+
         convertTifToPngSave(type_dir, png_target)
       } else {
         cat("⚠️ Directory not found for type", i, ":", type_dir, "\n")
