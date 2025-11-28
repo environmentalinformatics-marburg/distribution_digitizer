@@ -133,7 +133,8 @@ set_tessdata_prefix_once <- function(tess_path) {
 
 
 server <- shinyServer(function(input, output, session) {
-
+  #addResourcePath("root", "D:/distribution_digitizer/www")
+  
   options(shiny.autoreload = FALSE)
   current_tab <- reactiveVal("tab0")
   
@@ -143,7 +144,7 @@ server <- shinyServer(function(input, output, session) {
  
 
   # Erlaube Navigieren auf bestimmten Laufwerken/Roots
-  roots <- c(Home = "~", D = "D:/")  # passe an: C="C:/", Netzlaufwerke etc.
+  #roots <- c(Home = "~", D = "D:/")  # passe an: C="C:/", Netzlaufwerke etc.
   # --- Input Directory ---
   # --- Input Directory ---
   observeEvent(input$dataInputDir_open, {
@@ -197,25 +198,35 @@ server <- shinyServer(function(input, output, session) {
     }
   }
   
-  observeEvent(input$open_output, {
-    open_dir(outDir())   # <-- Pfad anpassen
-  })
+  open_dir <- function(path) {
+    p <- normalizePath(path, winslash = "/", mustWork = FALSE)
+    
+    if (.Platform$OS.type == "windows") {
+      shell.exec(p)
+    } else if (Sys.info()[["sysname"]] == "Darwin") {
+      system2("open", p)
+    } else {
+      system2("xdg-open", p)
+    }
+  }
 
-  observeEvent(input$open_output_map, {
-    # Basis-Ausgabeverzeichnis (z. B. aus deiner Config oder Funktion)
-    base_out <- outDir()
+  observeEvent(input$open_output, {
     
-    # Ziel-Unterordner
-    target_path <- file.path(base_out, "maps", "matching")
+    # Template-Ordner bestimmen (z. B. 1 oder 2)
+    template_dir <- file.path(outDir(), input$map_type)
     
-    # Prüfen, ob er existiert – falls nicht, erstelle ihn
-    if (!dir.exists(target_path)) {
-      dir.create(target_path, recursive = TRUE, showWarnings = FALSE)
+    # Falls nicht existiert → Meldung
+    if (!dir.exists(template_dir)) {
+      showNotification(
+        paste("Ordner existiert nicht:", template_dir),
+        type = "error", duration = 5
+      )
+      return()
     }
     
-    # Ordner im Explorer öffnen
-    open_dir(target_path)
+    open_dir(template_dir)
   })
+  
   
   set_tessdata_prefix_once(config$tesseract_path)
   # prüfen:
@@ -303,32 +314,7 @@ server <- shinyServer(function(input, output, session) {
   })
   
   # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------
-  #Function to show the ccrop process in the app 
-  plot_png <- function(path, plot_brush, index, add=FALSE)
-  {
-    require('png')
-    #fname=paste0(workingDir, "/", tempImage)
-    fname=tempImage
-    png = png::readPNG(fname, native=T) # read the file
-    # this for tests png <- image_read('DD_shiny/0045.png')
-    
-    # get the resolution, [x, y]
-    res = dim(png)[2:1] 
-    # initialize an empty plot area if add==FALSE
-    if (!add) 
-      plot(1,1,xlim=c(1,res[1]),ylim=c(1,res[2]),asp=1,type='n',xaxs='i',yaxs='i',xaxt='n',yaxt='n',
-           xlab='',ylab='',bty='n')
-    img <- as.raster(readPNG(fname))
-    # rasterImage(img,1,1,res[1],res[2])
-    #grid.raster(img[1:600,1:500,]) wichtig img[y1:y2,x2:y2]
-    x1 = plot_brush$xmin
-    x2 = plot_brush$xmax
-    y2 = plot_brush$ymin
-    y1 = plot_brush$ymax
-    grid.raster(img[y2:y1,x1:x2,])
-  }
-  
-
+ 
   # Hilfsfunktion
   to_chr <- function(x) if (is.null(x) || is.na(x)) "" else as.character(x)
   
@@ -360,7 +346,11 @@ server <- shinyServer(function(input, output, session) {
       run_out <- strip_trailing(run_out)
       run_out <- pretty_path(run_out)
       prepare_base_output(run_out,  nMapTypes = as.integer(input$nMapTypes))
-      prepare_www_output(workingDir, file.path(workingDir, "www", "data"), nMapTypes = as.integer(input$nMapTypes))
+      prepare_www_output(
+        workingDir,
+        file.path(workingDir, "app", "www", "output"),
+        nMapTypes = as.integer(input$nMapTypes)
+      )
       
       cfg_dir  <- file.path(workingDir, "config")
       if (!dir.exists(cfg_dir)) dir.create(cfg_dir, recursive = TRUE, showWarnings = FALSE)
@@ -440,9 +430,7 @@ server <- shinyServer(function(input, output, session) {
   output$plot1 <- renderPlot({
     req(input$image)
     req(input$plot_brush)
-    if(!is.null(input$image$datapath) && input$image$datapath!=""){
-      plot_png(input$image$datapath, input$plot_brush, input$imgIndexTemplate)
-    }
+    plot_png(input$plot_brush)
   })
   
   # Show hint only when cropped preview (plot1) is visible
@@ -454,38 +442,59 @@ server <- shinyServer(function(input, output, session) {
   
   # Function to save the cropped tepmlate map image
   output$saveTemplate <- downloadHandler(
+    
+    # ✔ Nur der Dateiname, ohne Pfad!
     filename = function() {
-      paste(workingDir, '/data/templates/maps/map', '_',input$imgIndexTemplate,'.tif', sep='')
+      paste0("map_", input$imgIndexTemplate, ".tif")
     },
+    
     content = function(file) {
       
-      x1 = input$plot_brush$xmin
-      x2 = input$plot_brush$xmax
-      y2 = input$plot_brush$ymin
-      y1 = input$plot_brush$ymax
+      # ---- Crop Koordinaten ----
+      x1 <- input$plot_brush$xmin
+      x2 <- input$plot_brush$xmax
+      y2 <- input$plot_brush$ymin
+      y1 <- input$plot_brush$ymax
       
       tempI <- image_read(input$image$datapath)
       
-      widht=(x2*rescale-x1*rescale)
-      height=(y1*rescale-y2*rescale)
+      width  <- (x2*rescale - x1*rescale)
+      height <- (y1*rescale - y2*rescale)
       
-      geometrie <- paste0(widht, "x", height, "+",x1*rescale,"+", y2*rescale)
-      #"100x150+0+0")
+      geometrie <- paste0(width, "x", height, "+", x1*rescale, "+", y2*rescale)
+      
       tempI <- image_crop(tempI, geometrie)
-      image_write(tempI, file, format = "tif")
-      #writePNG(tempImage, target = file)
-      # unlink(paste0(workingDir,"/", tempImage))
-      i = input$imgIndexTemplate +1
-      updateNumericInput(session, "imgIndexTemplate", value = i)
       
+      # ---- Speicherort definieren ----
+      save_dir <- file.path(workingDir, "output", "templates", "maps")
       
-    }) 
+      if (!dir.exists(save_dir)) {
+        dir.create(save_dir, recursive = TRUE)
+      }
+      
+      # finaler Dateipfad
+      save_path <- file.path(save_dir, paste0("map_", input$imgIndexTemplate, ".tif"))
+      
+      # ---- Speichern ----
+      image_write(tempI, save_path, format = "tif")
+      
+      # ---- zurück an den Download-Handler ----
+      file.copy(save_path, file)
+      
+      # ---- Index hochzählen ----
+      updateNumericInput(session, "imgIndexTemplate", value = input$imgIndexTemplate + 1)
+    }
+  )
+  
   
   observeEvent(input$listMTemplates, {
     output$listMapTemplates = renderUI({
       # Check if the directory already exists
       findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")
-      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/map_templates_png/"))
+      convertTifToPngSave(
+        findTemplateResult, 
+        file.path(workingDir, "app", "www", "output", "map_templates_png")
+      )
       prepareImageView("/map_templates_png/", '.png')
     })
   })
@@ -521,7 +530,10 @@ server <- shinyServer(function(input, output, session) {
     output$listSymbolTemplates = renderUI({
       
       findTemplateResult = paste0(workingDir, "/data/input/templates/symbols/")
-      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/symbol_templates_png/"))
+      convertTifToPngSave(
+        findTemplateResult, 
+        file.path(workingDir, "app", "www", "output", "symbol_templates_png")
+      )
       prepareImageView("/symbol_templates_png/", '.png')
     })
   })
@@ -637,12 +649,12 @@ server <- shinyServer(function(input, output, session) {
     if(input$siteNumberMapsMatching != ''){
       #print(input$siteNumberMapsMatching)
       output$listCropped = renderUI({
-        prepareImageView("/data/cropped_png/", input$siteNumberMapsMatching)
+        prepareImageView("/output/cropped_png/", input$siteNumberMapsMatching)
       })
     }
     else{
       output$listCropped = renderUI({
-        prepareImageView("/data/cropped_png/", '.png')
+        prepareImageView("/output/cropped_png/", '.png')
       })
     }
   })
@@ -673,12 +685,12 @@ server <- shinyServer(function(input, output, session) {
     if(input$siteNumberPointsMatching != ''){
       #print(input$siteNumberPointsMatching)
       output$listPM = renderUI({
-        prepareImageView("/data/pointMatching_png/", input$siteNumberPointsMatching)
+        prepareImageView("/output/pointMatching_png/", input$siteNumberPointsMatching)
       })
     }
     else{
       output$listPM = renderUI({
-        prepareImageView("/data/pointMatching_png/", '.png')
+        prepareImageView("/output/pointMatching_png/", '.png')
       })
     }
   })
@@ -699,12 +711,12 @@ server <- shinyServer(function(input, output, session) {
     if(input$siteNumberPointsMatching != ''){
       #print(input$siteNumberPointsMatching)
       output$listPF = renderUI({
-        prepareImageView("/data/pointFiltering_png/", input$siteNumberPointsMatching)
+        prepareImageView("/output/pointFiltering_png/", input$siteNumberPointsMatching)
       })
     }
     else{
       output$listPF = renderUI({
-        prepareImageView("/data/pointFiltering_png/", '.png')
+        prepareImageView("/output/pointFiltering_png/", '.png')
       })
     }
   })
@@ -713,12 +725,12 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listMapsMatching2, {
     if(input$siteNumberPointsMatching != ''){
       output$listMapsMatching2 = renderUI({
-        prepareImageView("/data/matching_png/", input$siteNumberPointsMatching)
+        prepareImageView("/output/matching_png/", input$siteNumberPointsMatching)
       })
     }
     else{
       output$listMapsMatching2 = renderUI({
-        prepareImageView("/data/matching_png/", '.png')
+        prepareImageView("/output/matching_png/", '.png')
       })
     }
   })
@@ -737,12 +749,12 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listPointsCD, {
     if(input$siteNumberPointsMatching != ''){
       output$listPCD = renderUI({
-        prepareImageView("/data/CircleDetection_png/", input$siteNumberPointsMatching)
+        prepareImageView("/output/CircleDetection_png/", input$siteNumberPointsMatching)
       })
     }
     else{
       output$listPCD = renderUI({
-        prepareImageView("/data/CircleDetection_png/", '.png')
+        prepareImageView("/output/CircleDetection_png/", '.png')
       })
     }
     
@@ -772,12 +784,12 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listMasks, {
     if(input$siteNumberMasks!= ''){
       output$listMS = renderUI({
-        prepareImageView("/data/masking_png/", input$siteNumberMasks)
+        prepareImageView("/output/masking_png/", input$siteNumberMasks)
       })
     }
     else{
       output$listMS = renderUI({
-        prepareImageView("/data/masking_png/", '.png')
+        prepareImageView("/output/masking_png/", '.png')
       })
     }
   })
@@ -785,12 +797,12 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listMasksB, {
     if(input$siteNumberMasks!= ''){
       output$listMSB = renderUI({
-        prepareImageView("/data/masking_png/", input$siteNumberMasks)
+        prepareImageView("/output/masking_png/", input$siteNumberMasks)
       })
     }
     else{
       output$listMSB = renderUI({
-        prepareImageView("/data/masking_black_png/", '.png')
+        prepareImageView("/output/masking_black_png/", '.png')
       })
     }
   })
@@ -798,12 +810,12 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$listMasksCD, {
     if(input$siteNumberMasks!= ''){
       output$listMCD = renderUI({
-        prepareImageView("/data/maskingCentroids/", input$siteNumberMasks)
+        prepareImageView("/output/maskingCentroids/", input$siteNumberMasks)
       })
     }
     else{
       output$listMCD = renderUI({
-        prepareImageView("/data/maskingCentroids/", '.png')
+        prepareImageView("/output/maskingCentroids/", '.png')
       })
     }
   })
@@ -1197,7 +1209,7 @@ server <- shinyServer(function(input, output, session) {
   
   # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------#
   #Function to show the ccrop process in the app 
-  plot_png <- function(path, plot_brush, index, add = FALSE) {
+  plot_png <- function(plot_brush) {
     require('png')
     fname <- tempImage
     if (!file.exists(fname)) return()
@@ -1205,12 +1217,11 @@ server <- shinyServer(function(input, output, session) {
     img <- as.raster(png::readPNG(fname))
     res <- dim(img)[2:1]
     
-    # Prüfen, ob Brush-Koordinaten vorhanden und gültig sind
     if (is.null(plot_brush) ||
         any(is.na(c(plot_brush$xmin, plot_brush$xmax, plot_brush$ymin, plot_brush$ymax)))) {
       plot(1, 1, type = "n", xlim = c(1, res[1]), ylim = c(1, res[2]),
            xlab = "", ylab = "", asp = 1, axes = FALSE)
-      text(mean(res[1]), mean(res[2]), "Ziehe einen Bereich im linken Bild", col = "gray40")
+      text(mean(res[1]), mean(res[2]), "Draw a crop area in the left image", col = "gray40")
       return()
     }
     
@@ -1219,17 +1230,15 @@ server <- shinyServer(function(input, output, session) {
     y1 <- round(plot_brush$ymax)
     y2 <- round(plot_brush$ymin)
     
-    # Bereich auf gültige Pixelgrenzen beschränken
     x1 <- max(1, min(x1, res[1]))
     x2 <- max(1, min(x2, res[1]))
     y1 <- max(1, min(y1, res[2]))
     y2 <- max(1, min(y2, res[2]))
     
-    # Nur wenn der Bereich ausreichend groß ist
     if (x2 - x1 < 2 || y1 - y2 < 2) {
       plot(1, 1, type = "n", xlim = c(1, res[1]), ylim = c(1, res[2]),
            xlab = "", ylab = "", asp = 1, axes = FALSE)
-      text(mean(res[1]), mean(res[2]), "Auswahl zu klein", col = "gray40")
+      text(mean(res[1]), mean(res[2]), "Selection too small", col = "gray40")
       return()
     }
     
@@ -1241,26 +1250,26 @@ server <- shinyServer(function(input, output, session) {
   }
   
   
+  
   # Render the image in the plot with given dynamical 10%
   output$plot <- renderImage({
-    req(input$image)
-    if (file.exists(input$image$datapath)) {
-      temp <- image_read(input$image$datapath)
-      file <- image_convert(temp, "png")
-      temp_scale <- image_scale(file, paste0(scale,"%"))
-      fname = paste0(workingDir, "/", tempImage)
-      workingDir = workingDir
-      image_write(temp_scale, path = fname, format = "png", )
-      req(file)
-      list(src = fname, alt="alternative text")
-      
-    } else {
-      NULL
-    }
-    #only if input$image is given
     
+    req(input$image)
+    
+    # Lade und skaliere das Bild
+    img <- image_read(input$image$datapath)
+    img <- image_convert(img, "png")
+    img <- image_scale(img, paste0(scale, "%"))
+    
+    # Speichere IMMER in app/temp.png
+    temp_path <- file.path(getwd(), tempImage)
+    image_write(img, path = temp_path, format = "png")
+    
+    list(src = temp_path, alt = "uploaded image")
     
   }, deleteFile = FALSE)
+    #only if input$image is given
+    
   
   
   ######
@@ -1324,7 +1333,7 @@ server <- shinyServer(function(input, output, session) {
       # Build full filesystem path
       # www/data/<map_type>/<dirName>/
       # -----------------------------
-      fs_dir <- file.path(workingDir, "www", "data",
+      fs_dir <- file.path(workingDir, "app", "www", "output",
                           map_type_clean, dirName_clean)
       
       cat("FS DIR =", fs_dir, "\n")
@@ -1357,14 +1366,18 @@ server <- shinyServer(function(input, output, session) {
       lapply(sel, function(i) {
         
         # Shiny-relative paths (served via addResourcePath)
-        rel_img  <- file.path("data", map_type_clean,
+        rel_img  <- file.path("output", map_type_clean,
                               dirName_clean, files[i])
         
         # Extract page number from filename
         # Example: 0039_map_1_... → take chars 8–11
-        page_png <- paste0("pages/",
-                           substr(files[i], 8, 11),
-                           ".png")
+        # 🔥 Seitenzahl (erste 4 Ziffern) extrahieren
+        # 0043_map_1_xxx → 0043
+        # --- Extract correct 4-digit page number (e.g., 0039) ---
+        page_number <- regmatches(files[i], regexpr("[0-9]{4}", files[i]))
+        
+        # --- Build correct link to the corresponding page PNG ---
+        page_png <- file.path( "pages", paste0(page_number, ".png"))
         
         HTML(paste0(
           '<div class="shiny-map-image">',

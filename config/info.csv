@@ -1,10 +1,11 @@
 workingDir_info;Your Working Directory is -;
 dataOutputDir_info;The folder where the processed and digitized outputs will be saved-;
 title_infoBox;Enter the full book title as it appears on the cover or title page.;
-author_infoBox;Here you can enter the author's full name as it appears in the book..;
+author_infoBox;Here you can enter the author's full name as it appears in the book.;
 pYear_infoBox;Provide the year in which the book was published.;
 tesserAct_infoBox;Specify the installation path of Tesseract OCR (e.g., C:/Program Files/Tesseract-OCR).;
-dataInputDir_infoBox;Select or enter the folder where your scanned input files are stored.;
-dataOutputDir_infoBox;Choose the folder where the processed and digitized output will be saved.;
+dataInputDir_infoBox;Input folder where the original scanned pages and templates are stored.💡 Please type or paste the full folder path manually. The Open button only opens the path you entered in the Explorer..;
+dataOutputDir_infoBox;Output folder where the processed and digitized results will be saved.💡 Please type or paste the full folder path manually. The Open button only opens the path you entered in the Explorer.;
 pFormat_infoBox;Select the desired image format (e.g., tif, png, jpg) for your digitized pages.;
-pColor_infoBox;Choose whether the scanned pages are black & white or in color.
+pColor_infoBox;Choose whether the scanned pages are black & white or in color.;
+nMapTypes_infoBox;Specify how many different map types your book contains (e.g. 1 = all maps look similar, 3 = three distinct layouts).;

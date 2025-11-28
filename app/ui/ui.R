@@ -162,14 +162,14 @@ body <- dashboardBody(
     tags$script(src = "custom.js")
   ),
   # Second title panel for the README link
-  tags$h4(
-    tags$a(
-      href = "README.pdf",
-      target = "_blank",
-      "📘 Read the program description and usage instructions - README.pdf",
-      title = "Read the program description and usage instructions"
-    )
-  ),
+ # tags$h4(
+ #   tags$a(
+  #    href = "README.pdf",
+ #     target = "_blank",
+  #    "📘 Read the program description and usage instructions - README.pdf",
+  #    title = "Read the program description and usage instructions"
+  #  )
+  #),
 
   h3(paste0(info$workingDir_info, " ", workingDir), style = "color:black"),
 
@@ -181,8 +181,11 @@ body <- dashboardBody(
     tabItem(
       tabName = "tab0",
       wellPanel(
-        h3("General configuration fields"),
+        
+        includeHTML(file.path("www", "start_instructions.html")),
+        
         fluidRow(
+          h4("✅ General Configuration Settings"),
           # Left column
           column(6,
                  fluidRow(
@@ -197,7 +200,6 @@ body <- dashboardBody(
 
                    )
                  ),
-
 
                  fluidRow(
                    column(10, 
@@ -246,7 +248,7 @@ body <- dashboardBody(
                                    )
                           ),
                           div(id = "nMapTypes_infoBox", class = "infobox_tab_0",
-                              "Specify how many different map types your book contains (e.g. 1 = all maps look similar, 3 = three distinct layouts).")
+                              info$nMapTypes_infoBox)
                    )
                  ),
                  
@@ -310,7 +312,7 @@ body <- dashboardBody(
                        style = "color:#FFFFFF;background:#28a745;position: absolute;
   left: 43%;")
         )
-      ), includeHTML(file.path("..", "www", "start_instructions.html"))
+      )
 
     ),
     
@@ -516,7 +518,7 @@ body <- dashboardBody(
                
                #uiOutput('listCropped', style="width:30%;float:left")
                 h3("Inspect Result Folder"),
-              actionButton("open_output_map", "Open Map Output Folder in Explorer")),
+              actionButton("open_output", "Open Map Output Folder in Explorer")),
         )
       ) # END fluid Row
     ),  # END tabItem 2

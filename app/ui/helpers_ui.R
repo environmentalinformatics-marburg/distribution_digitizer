@@ -23,13 +23,6 @@ configFolderInput <- function(id, label, value = "", infoText = "", color = "#28
         )
       ),
       
-      # --- Hinweistext (bleibt immer sichtbar) ---
-      tags$small(
-        style = "color:gray; font-style:italic; display:block; margin-bottom:3px;",
-        "💡 Please type or paste the full folder path manually. 
-         The 'Open' button only opens the entered path in Explorer."
-      ),
-      
       # --- Info-Box: startet immer mit display:none ---
       tags$div(
         id = paste0(id, "_infoBox"),

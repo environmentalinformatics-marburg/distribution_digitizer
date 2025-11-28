@@ -50,7 +50,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         working_dir = workingDir,
         nMapTypes = as.integer(input$nMapTypes),
         subfolder = "maps/matching",
-        png_subdir = "data/matching_png"
+        png_subdir = "output/matching_png"
       )
     }, error = function(e) {
       cat("An error occurred during mapMatching processing:\n")
@@ -79,7 +79,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         working_dir = workingDir,
         nMapTypes = as.integer(input$nMapTypes),
         subfolder = "maps/align",
-        png_subdir = "data/align_png"
+        png_subdir = "output/align_png"
       )
       
     }, error = function(e) {
@@ -103,7 +103,11 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       
       countFiles <- paste0(length(files), "")
       # convert the tif images to png and save in www
-      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/readSpecies_png/"))
+      convertTifToPngSave(
+        findTemplateResult, 
+        #file.path(workingDir, "app", "www", "data", "matching_png")
+        file.path(workingDir, "app", "www", "output", "readSpecies_png")
+      )
       
       message <- paste0("Ended on: ", 
                         format(current_time(), "%H:%M:%S \n"), " The number maps ", " are \n", 
@@ -159,7 +163,8 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       #workingDir = "D:/distribution_digitizer/"
       
       # convert the tif images to png and save in www
-      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointMatching_png/"))
+      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "pointMatching_png"))
+      
     }, error = function(e) {
       cat("An error occurred during pointMatching processing:\n")
       print(e)
@@ -185,7 +190,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       message <- paste0("Ended on: ", 
                         format(current_time(), "%H:%M:%S \n"), " The number PF maps ", " are \n", 
                         countFiles, " and saved in directory \n", findTemplateResult)
-      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/pointFiltering_png/"))
+      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "pointFiltering_png"))
       
     }, error = function(e) {
       cat("An error occurred during pointFiltering processing:\n")
@@ -214,7 +219,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
                         format(current_time(), "%H:%M:%S \n"), " The number CD maps", " are \n", 
                         countFiles, " and saved in directory \n", findTemplateResult)
       
-      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/CircleDetection_png/"))
+      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "CircleDetection_png"))
     }, error = function(e) {
       cat("An error occurred during pointCircleDetection processing:\n")
       print(e)
@@ -243,10 +248,11 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
                         format(current_time(), "%H:%M:%S \n"), " The number masks ", " are \n", 
                         countFiles, " and saved in directory \n", findTemplateResult)
       
-      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_png/"))
-      
+    
+      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "masking_png"))
       findTemplateResult = paste0(current_out_dir, "/masking_black/")
-      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/masking_black_png/"))
+      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "masking_black_png"))
+      
     }, error = function(e) {
       cat("An error occurred during masking processing:\n")
       print(e)
@@ -268,8 +274,8 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       message <- paste0("Ended on: ", 
                         format(current_time(), "%H:%M:%S \n"), " The number centroids masks ", " are \n", 
                         countFiles, " and saved in directory \n", findTemplateResult)
-      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/maskingCentroids/"))
       
+      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "maskingCentroids_png"))
     }, error = function(e) {
       cat("An error occurred during masking Centroids processing:\n")
       print(e)
@@ -308,7 +314,8 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
                         format(current_time(), "%H:%M:%S \n"), " The number georeferencing masks ", " are \n", 
                         countFiles, " and saved in directory \n", findTemplateResult)
       # convert the tif images to png and save this in /www directory
-      convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/georeferencing_png/"))
+     
+      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "georeferencing_png"))
       
     }, error = function(e) {
       cat("An error occurred during georeferencing processing:\n")
@@ -351,12 +358,15 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
                         countFiles, " and saved in directory \n", findTemplateResult)
       
       shFiles <- list.files(findTemplateResult, pattern = ".sh", recursive = TRUE, full.names = TRUE)
-      
+      dir.create(file.path(workingDir, "app", "www", "output", "polygonize"),
+                 recursive = TRUE, showWarnings = FALSE)
       # copy the shape files into www directory
       for (f in shFiles) {
         # Source and destination file paths
         baseName = basename(f)
-        destination_file <- paste0(workingDir, "/www/data/polygonize/", baseName)
+        destination_file <- file.path(workingDir, "app", "www", "output", "polygonize", baseName)
+        
+
         #print(destination_file)
         # Copy the file
         file.copy(from = f, to = destination_file, overwrite = TRUE)
@@ -391,7 +401,11 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         #main_point_filtering(workingDir, current_out_dir)
         
         # prepare pages as png for the spatia view
-        convertTifToPngSave(paste0(workingDir, "/data/input/pages/"),paste0(workingDir, "/www/data/pages/"))
+        convertTifToPngSave( file.path(workingDir, "output", "input",  "pages"),  file.path(workingDir, "app", "www", "output", "pages"))
+        
+      
+        
+        
         source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
         mergeFinalData(workingDir, current_out_dir)
         spatialFinalData(current_out_dir)

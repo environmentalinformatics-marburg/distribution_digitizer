@@ -19,7 +19,7 @@ current_time <- function() Sys.time()
 message("GLOBAL:: workingDir = ", workingDir)
 # global reactive values
 outDir <- shiny::reactiveVal(NULL)
-addResourcePath("data", file.path(workingDir, "www", "data"))
+#addResourcePath("data", file.path(workingDir, "www", "data"))
 # ---- CONFIG DIRECTORY --------------------------------------
 
 configDir <- normalizePath(
@@ -91,7 +91,7 @@ shinyfields8   <- load_shinyfields("shinyfields_georef_coords_from_csv_file.csv"
 # ---- GLOBAL PATHS USED IN SERVER.R --------------------------
 
 inputDir  <- file.path(workingDir, "data/input/")
-wwwDir    <- file.path(workingDir, "www/")
+#wwwDir    <- file.path(workingDir, "www/")
 dataDir   <- file.path(workingDir, "data/")
 tempImage <- "temp.png"
 

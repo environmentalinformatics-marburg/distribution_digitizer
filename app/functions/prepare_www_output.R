@@ -7,7 +7,7 @@
 # can easily navigate and view them inside the Shiny app.
 #
 # Arguments:
-#   www_output - the path to the "www/data" output directory
+#   www_output - the path to the "www/output" output directory
 #
 # Behavior:
 #   1. Removes any existing content of the www_output directory 
@@ -19,7 +19,7 @@
 #   5. Any errors encountered are caught and printed to the console.
 #
 # Usage:
-#   prepare_www_output(file.path(workingDir, "www/data"), nMapTypes)
+#   prepare_www_output(workingDir, file.path(workingDir, "app", "www", "output"), nMapTypes)
 # -------------------------------------------------------------------
 prepare_www_output <- function(workingDir, www_output, nMapTypes = 1) {
   tryCatch({
@@ -63,7 +63,8 @@ prepare_www_output <- function(workingDir, www_output, nMapTypes = 1) {
     
     # --- 5. Verkleinere und konvertiere TIFs nach www/pages/ (wie bisher) ---
     input_pages <- file.path(workingDir, "data", "input", "pages")
-    output_pages <- file.path(workingDir, "www", "pages")
+    #output_pages <- file.path(workingDir, "www", "pages")
+    output_pages <- file.path(workingDir, "app", "www", "pages")
     
     if (!dir.exists(output_pages)) {
       dir.create(output_pages, recursive = TRUE, showWarnings = FALSE)
@@ -74,7 +75,7 @@ prepare_www_output <- function(workingDir, www_output, nMapTypes = 1) {
       return()
     }
     
-    tif_files <- list.files(input_pages, pattern = "\\.tif{1,2}$", ignore.case = TRUE, full.names = TRUE)
+    tif_files <- list.files(input_pages, pattern = "\\.(tif|tiff)$", ignore.case = TRUE, full.names = TRUE)
     
     if (length(tif_files) == 0) {
       cat("ℹ️ No TIF files found in:", input_pages, "\n")

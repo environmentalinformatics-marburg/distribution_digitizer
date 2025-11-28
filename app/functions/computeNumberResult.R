@@ -19,7 +19,7 @@ computeNumberResult <- function(base_output_dir,
                                 working_dir,
                                 nMapTypes = 1,
                                 subfolder = "maps/align",
-                                png_subdir = "data/align_png") {
+                                png_subdir = "output/align_png") {
   print("DEBUG computeNumberResult:")
   print(paste("  base_output_dir =", base_output_dir))
   print(paste("  working_dir     =", working_dir))
@@ -34,7 +34,7 @@ computeNumberResult <- function(base_output_dir,
     for (i in seq_len(nMapTypes)) {
       type_dir <- file.path(base_output_dir, as.character(i), subfolder)
       if (dir.exists(type_dir)) {
-        files_i <- list.files(type_dir, pattern = "\\.tif{1,2}$", full.names = TRUE)
+        files_i <- list.files(type_dir, pattern = "\\.(tif|tiff)$", full.names = TRUE)
         n_files <- length(files_i)
         all_files <- c(all_files, files_i)
         
@@ -44,13 +44,20 @@ computeNumberResult <- function(base_output_dir,
         # --- Optional: Konvertiere TIF → PNG ---
         png_target <- file.path(
           working_dir, 
+          "app",
           "www", 
-          "data", 
-          as.character(i),       # << HIER kommt der Kartentyp
-          basename(png_subdir)   # = "matching_png"
+          "output",
+          as.character(i),
+          basename(png_subdir)
         )
-
+        
+        # Ordner sicher erstellen
+        if (!dir.exists(png_target)) {
+          dir.create(png_target, recursive = TRUE, showWarnings = FALSE)
+        }
+        
         convertTifToPngSave(type_dir, png_target)
+        
       } else {
         cat("⚠️ Directory not found for type", i, ":", type_dir, "\n")
       }
@@ -129,7 +136,9 @@ convertTifToPngSave <- function(pathToTiffImages,
       return(invisible(NULL))
     }
     
-    tifs <- list.files(pathToTiffImages, pattern = "\\.tif{1,2}$", ignore.case = TRUE, full.names = TRUE)
+    #tifs <- list.files(pathToTiffImages, pattern = "\\.tif{1,2}$", ignore.case = TRUE, full.names = TRUE)
+    tifs <- list.files(pathToTiffImages, pattern = "\\.(tif|tiff)$", ignore.case = TRUE, full.names = TRUE)
+    
     
     if (length(tifs) == 0) {
       cat("ℹ️ No TIF files found in:", pathToTiffImages, "\n")
@@ -150,7 +159,7 @@ convertTifToPngSave <- function(pathToTiffImages,
       wd <- normalizePath(wd, winslash = "/", mustWork = FALSE)
       
       from_csv <- file.path(od, records_csv_name)
-      to_dir   <- file.path(wd, "www")
+      to_dir   <- file.path(wd, "app", "www")
       to_csv   <- file.path(to_dir, records_csv_name)
       
       cat("📋 CSV COPY DEBUG: from =", from_csv, " | to =", to_csv, "\n")
