@@ -147,61 +147,108 @@ def point_match(tiffile, file, outputpcdir, point_threshold, template_id, templa
 def get_last_id(csv_path):
     try:
         with open(csv_path, 'r') as csvfile:
-            last_line = csvfile.readlines()[-1]
-            last_id = int(last_line.split(',')[0])
-            return last_id
-    except (IndexError, FileNotFoundError):
+            lines = [line.strip() for line in csvfile.readlines() if line.strip()]
+
+        # Keine Datenzeilen? (nur header)
+        if len(lines) <= 1:
+            return 0
+
+        # Letzte Zeile (unterste Datenzeile)
+        last_line = lines[-1]
+
+        first_value = last_line.split(',')[0].strip()
+
+        # Falls versehentlich Text statt Zahl → ID = 0
+        if not first_value.isdigit():
+            return 0
+
+        return int(first_value)
+
+    except FileNotFoundError:
         return 0
+    except Exception as e:
+        print("get_last_id() error:", e)
+        return 0
+
 
 def map_points_matching(workingDir, outDir, point_threshold):
     print("Points matching:")
-    outputTiffDir = ""
-    inputTiffDir = ""
-    if os.path.exists(outDir):
-        inputTiffDir = os.path.join(outDir, "maps", "align")
-        outputTiffDir = os.path.join(outDir, "maps", "pointMatching")
-    else:
-        inputTiffDir = os.path.join(workingDir, "data", "output", "maps", "align")
-        outputTiffDir = os.path.join(workingDir, "data", "output", "maps", "pointMatching")
 
-    pointTemplates = os.path.join(workingDir, "data", "input/templates/symbols/")
-    copy_tiff_images(inputTiffDir, outputTiffDir)
-    os.makedirs(outputTiffDir, exist_ok=True)
+    # --- finde Ordner 1, 2, 3 ... im Output ---
+    map_type_dirs = []
+    for name in os.listdir(outDir):
+        full = os.path.join(outDir, name)
+        if os.path.isdir(full) and name.isdigit():
+            map_type_dirs.append(full)
 
-    coord_csv_path = os.path.join(outDir, 'maps', 'csvFiles', 'coordinates.csv')
+    if not map_type_dirs:
+        print("⚠️ No map-type folders found in output/")
+        return
 
-    current_id = get_last_id(coord_csv_path) + 1
+    # --- jeden map-type Ordner einzeln verarbeiten ---
+    for map_dir in map_type_dirs:
+        map_type = os.path.basename(map_dir)  # "1", "2", "3", ...
+        print(f"\n=== Processing map type folder: {map_type} ===")
 
-    with open(coord_csv_path, 'a', newline='') as coord_csvfile:
-        coord_fieldnames = ['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'Red', 'Green', 'Blue', 'georef']
-        coord_writer = csv.DictWriter(coord_csvfile, fieldnames=coord_fieldnames)
+        # Templates für diesen Typ:
+        pointTemplates = os.path.join(workingDir, "data", "input", "templates", map_type, "symbols")
 
-        if current_id == 1:
-            coord_writer.writeheader()
+        print("TEMPLATE PATH:", pointTemplates)
+        print("TEMPLATES FOUND:", glob.glob(os.path.join(pointTemplates, "*.tif")))
 
-        for file in glob.glob(os.path.join(pointTemplates, '*.tif')):
-            template_name = os.path.basename(file).rsplit('.', 1)[0]
-            color = "#000000"
-            # Updated color mapping including white for non-matching templates
-            if template_name.startswith('b_'):
-                color = '#0000FF'  # Blue
-            elif template_name.startswith('a_'):
-                color = '#FF0000'  # Red
-            elif template_name.startswith('c_'):
-                color = '#00FF00'  # Green
-            #elif template_name.startswith('d_'):
-            #    color = '#FFA500'  # Orange
-           # elif template_name.startswith('e_'):
-            #    color = '#FFFF00'  # Yellow
-           # else:
-            #    color = '#FFFFFF'  # White
+        inputTiffDir  = os.path.join(map_dir, "maps", "align")
+        outputTiffDir = os.path.join(map_dir, "maps", "pointMatching")
+        csvDir        = os.path.join(map_dir, "maps", "csvFiles")
 
-            print(f"Processing template: {template_name}, Color: {color}")  # Debugging line to check the template and color
+        os.makedirs(outputTiffDir, exist_ok=True)
+        os.makedirs(csvDir, exist_ok=True)
 
-            for tiffile in glob.glob(os.path.join(outputTiffDir, '*.tif')):
-                num_points, output_file_path, color_str, current_id = point_match(
-                    tiffile, file, outputTiffDir, point_threshold, 1, template_name, color, coord_writer, current_id)
+        copy_tiff_images(inputTiffDir, outputTiffDir)
+
+        coord_csv_path = os.path.join(csvDir, "coordinates.csv")
+        current_id = get_last_id(coord_csv_path) + 1
+
+        with open(coord_csv_path, "a", newline="") as coord_csvfile:
+            coord_fieldnames = [
+                "ID", "File", "Detection method",
+                "X_WGS84", "Y_WGS84", "template",
+                "Red", "Green", "Blue", "georef"
+            ]
+            coord_writer = csv.DictWriter(coord_csvfile, fieldnames=coord_fieldnames)
+
+            if current_id == 1:
+                coord_writer.writeheader()
+
+            # --- alle Templates für diesen map_type durchgehen ---
+            for file in glob.glob(os.path.join(pointTemplates, "*.tif")):
+                template_name = os.path.basename(file).rsplit(".", 1)[0]
+                print(f"Processing template: {template_name} — {file}")
+
+                # Default-Farbkodierung (optional)
+                if template_name.startswith('b_'):
+                    color = '#0000FF'
+                elif template_name.startswith('a_'):
+                    color = '#FF0000'
+                elif template_name.startswith('c_'):
+                    color = '#00FF00'
+                else:
+                    color = '#FFFFFF'
+
+                # --- Matching auf alle align-TIFs anwenden ---
+                for tiffile in glob.glob(os.path.join(outputTiffDir, "*.tif")):
+                    num_points, output_file_path, color_str, current_id = point_match(
+                        tiffile, file, outputTiffDir, point_threshold,
+                        template_id=1,
+                        template_name=template_name,
+                        color=color,
+                        coord_writer=coord_writer,
+                        current_id=current_id
+                    )
+
+    print("\n✓ Point-matching completed for all map types.")
+
+
 
 # Usage example:
 #
-# map_points_matching("D:/distribution_digitizer/", "D:/test/output_2024-07-12_08-18-21/", 0.75)
+#map_points_matching("D:/distribution_digitizer/", "D:/test/output_2025-11-28_14-08-49/", 0.75)
