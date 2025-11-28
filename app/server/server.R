@@ -634,51 +634,24 @@ server <- shinyServer(function(input, output, session) {
     })
   })
   
-  ####################
-  # 2.2 Crop map legend species#----------------------------------------------------------------------#
-  ####################
-  
-  # Start read  legend species
-  observeEvent(input$mapReadRpecies, {
-    # call the function for cropping
-    manageProcessFlow("mapReadRpecies", "cropping map species", "align")
-  })
-  
-  # List map legend species
-  observeEvent(input$listCropped, {
-    if(input$siteNumberMapsMatching != ''){
-      #print(input$siteNumberMapsMatching)
-      output$listCropped = renderUI({
-        prepareImageView("/output/cropped_png/", input$siteNumberMapsMatching)
-      })
-    }
-    else{
-      output$listCropped = renderUI({
-        prepareImageView("/output/cropped_png/", '.png')
-      })
-    }
-  })
-  
+
   
   ####################
-  # 2.3 Crop species name of the page content #----------------------------------------------------------------------#
-  ####################
-  
-  # Start Crop page species
-  observeEvent(input$pageReadRpecies, {
-    # call the function for cropping
-    manageProcessFlow("pageReadRpecies", "read page species", "output")
-  })
-  
-  
-  ####################
-  # 3. Points Matching  #----------------------------------------------------------------------#
+  # 2. Points Matching  #----------------------------------------------------------------------#
   ####################
   
   # Start points detection with matching 
   observeEvent(input$pointMatching, {
+    current_out_dir <- outDir()
     # call the function for cropping
-    manageProcessFlow("pointMatching", "points matching", "pointMatching")
+    manageProcessFlow(
+      processing    = "pointMatching",
+      allertText1   = "points matching",
+      allertText2   = "pointMatching",
+      input         = input,
+      session       = session,
+      current_out_dir = current_out_dir     # << HIER!
+    ) 
   })
   
   observeEvent(input$listPointsM, {
@@ -698,7 +671,7 @@ server <- shinyServer(function(input, output, session) {
   
   
   ####################
-  # 3.1 Points Filtering  #----------------------------------------------------------------------#
+  # 2.1 Points Filtering  #----------------------------------------------------------------------#
   ####################
   # Start Process point filtering 
   
@@ -736,7 +709,7 @@ server <- shinyServer(function(input, output, session) {
   })
   
   ####################
-  # 3.2 Circle Detection  #----------------------------------------------------------------------#
+  # 2.2 Circle Detection  #----------------------------------------------------------------------#
   ####################
   # Process circle detection
   
@@ -758,6 +731,42 @@ server <- shinyServer(function(input, output, session) {
       })
     }
     
+  })
+  
+  ####################
+  # 3.2 Crop map legend species#----------------------------------------------------------------------#
+  ####################
+  
+  # Start read  legend species
+  observeEvent(input$mapReadRpecies, {
+    # call the function for cropping
+    manageProcessFlow("mapReadRpecies", "cropping map species", "align")
+  })
+  
+  # List map legend species
+  observeEvent(input$listCropped, {
+    if(input$siteNumberMapsMatching != ''){
+      #print(input$siteNumberMapsMatching)
+      output$listCropped = renderUI({
+        prepareImageView("/output/cropped_png/", input$siteNumberMapsMatching)
+      })
+    }
+    else{
+      output$listCropped = renderUI({
+        prepareImageView("/output/cropped_png/", '.png')
+      })
+    }
+  })
+  
+  
+  ####################
+  # 3.3 Crop species name of the page content #----------------------------------------------------------------------#
+  ####################
+  
+  # Start Crop page species
+  observeEvent(input$pageReadRpecies, {
+    # call the function for cropping
+    manageProcessFlow("pageReadRpecies", "read page species", "output")
   })
   
   

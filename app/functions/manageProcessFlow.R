@@ -88,6 +88,50 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
+  
+  
+  if(processing == "pointMatching") {
+    tryCatch({
+      # Processing points matching
+      fname=paste0(workingDir, "/", "src/matching/point_matching.py")
+      print(" Processing point python script:")
+      print(fname)
+      source_python(fname)
+      
+      map_points_matching(workingDir, current_out_dir, input$threshold_for_PM)
+      
+      #map_type_dirs <- list.dirs(current_out_dir, recursive = FALSE, full.names = TRUE)
+     # map_type_dirs <- map_type_dirs[grepl("/[0-9]+$", map_type_dirs)]
+      
+     # all_files <- c()
+      
+     # for (map_dir in map_type_dirs) {
+     #   pm_dir <- file.path(map_dir, "maps", "pointMatching")
+     #   if (dir.exists(pm_dir)) {
+     #     png_target <- file.path(workingDir, "app", "www", "output", "pointMatching_png", basename(map_dir))
+     #     dir.create(png_target, recursive = TRUE, showWarnings = FALSE)
+          
+     #     convertTifToPngSave(pm_dir, png_target)
+     #     all_files <- c(all_files, list.files(pm_dir, full.names = TRUE))
+     #   }
+     # }
+      
+     # countFiles <- length(all_files)
+     # print(paste("Total matched point images:", countFiles))
+      
+      #current_out_dir = "D:/test/output_2024-07-12_08-18-21/"
+      #workingDir = "D:/distribution_digitizer/"
+      
+      # convert the tif images to png and save in www
+     # convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "pointMatching_png"))
+      
+    }, error = function(e) {
+      cat("An error occurred during pointMatching processing:\n")
+      print(e)
+    })
+  }
+  
+  
   if(processing == "mapReadRpecies" ){
     tryCatch({
       
@@ -145,31 +189,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
-  
-  if(processing == "pointMatching") {
-    tryCatch({
-      # Processing points matching
-      fname=paste0(workingDir, "/", "src/matching/point_matching.py")
-      print(" Processing point python script:")
-      print(fname)
-      source_python(fname)
-      map_points_matching(workingDir, current_out_dir, input$threshold_for_PM)
-      findTemplateResult = paste0(current_out_dir, "/maps/pointMatching/")
-      print(findTemplateResult)
-      cat("\nSuccessfully executed")
-      files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-      countFiles <- paste0(length(files), "")
-      #current_out_dir = "D:/test/output_2024-07-12_08-18-21/"
-      #workingDir = "D:/distribution_digitizer/"
-      
-      # convert the tif images to png and save in www
-      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "pointMatching_png"))
-      
-    }, error = function(e) {
-      cat("An error occurred during pointMatching processing:\n")
-      print(e)
-    })
-  }
+
   
   if(processing == "pointFiltering") {
     tryCatch({
