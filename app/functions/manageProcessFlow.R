@@ -93,37 +93,36 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
   if(processing == "pointMatching") {
     tryCatch({
       # Processing points matching
-      fname=paste0(workingDir, "/", "src/matching/point_matching.py")
-      print(" Processing point python script:")
+      fname <- paste0(workingDir, "/", "src/matching/point_matching.py")
+      print("Processing point matching Python script:")
       print(fname)
       source_python(fname)
       
-      map_points_matching(workingDir, current_out_dir, input$threshold_for_PM)
+      # Pass nMapTypes to the Python function
+      map_points_matching(
+        workingDir = workingDir,
+        outDir = current_out_dir,
+        threshold = input$threshold_for_PM,
+        nMapTypes = as.integer(input$nMapTypes)  # <-- Hinzugefügt
+      )
       
-      #map_type_dirs <- list.dirs(current_out_dir, recursive = FALSE, full.names = TRUE)
-     # map_type_dirs <- map_type_dirs[grepl("/[0-9]+$", map_type_dirs)]
+      # Optional: Konvertiere TIFs zu PNGs (falls nötig)
+      # findTemplateResult <- file.path(current_out_dir, "maps", "pointMatching")
+      # if (dir.exists(findTemplateResult)) {
+      #   convertTifToPngSave(
+      #     findTemplateResult,
+      #     file.path(workingDir, "app", "www", "output", "pointMatching_png")
+      #   )
+      # }
       
-     # all_files <- c()
-      
-     # for (map_dir in map_type_dirs) {
-     #   pm_dir <- file.path(map_dir, "maps", "pointMatching")
-     #   if (dir.exists(pm_dir)) {
-     #     png_target <- file.path(workingDir, "app", "www", "output", "pointMatching_png", basename(map_dir))
-     #     dir.create(png_target, recursive = TRUE, showWarnings = FALSE)
-          
-     #     convertTifToPngSave(pm_dir, png_target)
-     #     all_files <- c(all_files, list.files(pm_dir, full.names = TRUE))
-     #   }
-     # }
-      
-     # countFiles <- length(all_files)
-     # print(paste("Total matched point images:", countFiles))
-      
-      #current_out_dir = "D:/test/output_2024-07-12_08-18-21/"
-      #workingDir = "D:/distribution_digitizer/"
-      
-      # convert the tif images to png and save in www
-     # convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "pointMatching_png"))
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "maps/pointMatching",
+        png_subdir = "output/pointMatching_png"
+      )
+
       
     }, error = function(e) {
       cat("An error occurred during pointMatching processing:\n")
@@ -131,31 +130,162 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
-  
-  if(processing == "mapReadRpecies" ){
+  if(processing == "pointFiltering") {
     tryCatch({
       
-      # Croping
-      fname <- paste0(workingDir, "/", "src/read_species/map_read_species.R")
-      print("Croping the species names from the map botton R script:")
+      fname=paste0(workingDir, "/", "src/matching/point_filtering.py")
+      #fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
+      print(" Process pixel filtering  python script:")
       print(fname)
-      source(fname)
-      species <- read_legends(workingDir, current_out_dir)
-      cat("\nSuccessfully executed")
-      findTemplateResult <- paste0(current_out_dir, "/maps/readSpecies/")
-      files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-      
-      countFiles <- paste0(length(files), "")
-      # convert the tif images to png and save in www
-      convertTifToPngSave(
-        findTemplateResult, 
-        #file.path(workingDir, "app", "www", "data", "matching_png")
-        file.path(workingDir, "app", "www", "output", "readSpecies_png")
+      source_python(fname)
+      #source_python(fname2)
+      main_point_filtering(
+        working_dir = workingDir,
+        output_dir = current_out_dir,
+        kernel_size = 5, #input$filterK,
+        blur_radius = 9, #input$filterG,
+        nMapTypes = 2#as.integer(input$nMapTypes)
       )
       
-      message <- paste0("Ended on: ", 
-                        format(current_time(), "%H:%M:%S \n"), " The number maps ", " are \n", 
-                        countFiles, " and saved in directory \n", findTemplateResult)
+      cat("\nSuccessfully executed")
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "maps/pointFiltering",
+        png_subdir = "output/pointFiltering_png"
+      )
+
+      # convert the tif images to png and save in www
+     # findTemplateResult = paste0(current_out_dir, "/maps/pointFiltering/")
+     # files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
+     # countFiles <- paste0(length(files), "")
+     # message <- paste0("Ended on: ", 
+     #                   format(current_time(), "%H:%M:%S \n"), " The number PF maps ", " are \n", 
+     #                   countFiles, " and saved in directory \n", findTemplateResult)
+      #convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "pointFiltering_png"))
+      
+    }, error = function(e) {
+      cat("An error occurred during pointFiltering processing:\n")
+      print(e)
+    })
+  }
+  
+  if(processing == "masking") {
+    tryCatch({
+      
+      # --- 1. Masking (normale) ---
+      fname <- paste0(workingDir, "/", "src/masking/masking.py")
+      print("Processing normal masking Python script:")
+      print(fname)
+      source_python(fname)
+      
+      # --- 2. Masking (schwarz) ---
+      fname2 <- paste0(workingDir, "/", "src/masking/creating_masks.py")
+      print("Processing black masking Python script:")
+      print(fname2)
+      source_python(fname2)
+      
+      # --- 3. Für jeden Map-Typ (1, 2, ...) ---
+      # mainGeomask und mainGeomaskB werden in den Python-Dateien mit nMapTypes aufgerufen
+      mainGeomask(
+        workingDir = workingDir,
+        outDir = current_out_dir,
+        n = input$morph_ellipse,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      
+      mainGeomaskB(
+        workingDir = workingDir,
+        outDir = current_out_dir,
+        n = input$morph_ellipse,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      
+      # --- 4. Zähle Masken und kopiere PNGs ---
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "masking",
+        png_subdir = "output/masking_png"
+      )
+      
+      # --- 5. Black Masking ---
+      message_black <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "masking_black",
+        png_subdir = "output/masking_black_png"
+      )
+      
+    }, error = function(e) {
+      cat("An error occurred during masking processing:\n")
+      print(e)
+    })
+  }
+  
+  
+  if(processing == "maskingCentroids"){
+    tryCatch({
+      
+      # --- 1. Masking Centroids ---
+      fname <- paste0(workingDir, "/", "src/masking/mask_centroids.py")
+      print("Processing masking centroids Python script:")
+      print(fname)
+      source_python(fname)
+      
+      # --- 2. Für jeden Map-Typ (1, 2, ...) ---
+      MainMaskCentroids(
+        workingDir = workingDir,
+        outDir = current_out_dir,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      
+      # --- 3. Zähle Masken und kopiere PNGs ---
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "masking_black/pointFiltering",
+        png_subdir = "output/maskingCentroids_png"
+      )
+      
+    }, error = function(e) {
+      cat("An error occurred during masking Centroids processing:\n")
+      print(e)
+    })
+  }
+  
+  
+  if(processing == "mapReadRpecies"){
+    tryCatch({
+      
+      # --- 1. Read species ---
+      fname <- paste0(workingDir, "/", "src/read_species/map_read_species.R")
+      print("Reading species names from the map bottom R script:")
+      print(fname)
+      source(fname)
+      
+      # --- 2. Für jeden Map-Typ (1, 2, ...) ---
+      species <- read_legends(
+        working_dir = workingDir,
+        out_dir = current_out_dir,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      
+      cat("\nSuccessfully executed")
+      
+      # --- 3. Zähle Bilder und kopiere PNGs ---
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "maps/readSpecies",
+        png_subdir = "output/readSpecies_png"
+      )
+      
     }, error = function(e) {
       cat("An error occurred during mapReadRpecies processing:\n")
       print(e)
@@ -191,33 +321,6 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
   
 
   
-  if(processing == "pointFiltering") {
-    tryCatch({
-      
-      fname=paste0(workingDir, "/", "src/matching/point_filtering.py")
-      fname2 = paste0(workingDir, "/", "src/matching/coords_to_csv.py")
-      print(" Process pixel filtering  python script:")
-      print(fname)
-      source_python(fname)
-      source_python(fname2)
-      main_point_filtering(workingDir, current_out_dir, input$filterK, input$filterG)
-      
-      cat("\nSuccessfully executed")
-      # convert the tif images to png and save in www
-      findTemplateResult = paste0(current_out_dir, "/maps/pointFiltering/")
-      files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-      countFiles <- paste0(length(files), "")
-      message <- paste0("Ended on: ", 
-                        format(current_time(), "%H:%M:%S \n"), " The number PF maps ", " are \n", 
-                        countFiles, " and saved in directory \n", findTemplateResult)
-      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "pointFiltering_png"))
-      
-    }, error = function(e) {
-      cat("An error occurred during pointFiltering processing:\n")
-      print(e)
-    })
-  }
-  
   if(processing == "pointCircleDetection") {
     tryCatch({
       
@@ -246,62 +349,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
-  if(processing == "masking"){
-    tryCatch({
-      
-      fname=paste0(workingDir, "/", "src/masking/masking.py")
-      print(" Process masking normale python script:")
-      print(fname)
-      source_python(fname)
-      mainGeomask(workingDir, current_out_dir, input$morph_ellipse)
-      
-      fname=paste0(workingDir, "/", "src/masking/creating_masks.py")
-      print(" Process masking black python script:")
-      print(fname)
-      source_python(fname)
-      mainGeomaskB(workingDir, current_out_dir, input$morph_ellipse)
-      
-      findTemplateResult = paste0(current_out_dir, "/masking/")
-      files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-      countFiles <- paste0(length(files), "")
-      message <- paste0("Ended on: ", 
-                        format(current_time(), "%H:%M:%S \n"), " The number masks ", " are \n", 
-                        countFiles, " and saved in directory \n", findTemplateResult)
-      
-    
-      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "masking_png"))
-      findTemplateResult = paste0(current_out_dir, "/masking_black/")
-      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "masking_black_png"))
-      
-    }, error = function(e) {
-      cat("An error occurred during masking processing:\n")
-      print(e)
-    })
-  }
-  
-  if(processing == "maskingCentroids"){
-    tryCatch({
-      
-      fname=paste0(workingDir, "/", "src/masking/mask_centroids.py")
-      print(" Process masking Centroids python script:")
-      print(fname)
-      source_python(fname)
-      MainMaskCentroids(workingDir, current_out_dir)
-      
-      findTemplateResult = paste0(current_out_dir, "/masking_black/pointFiltering/")
-      files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-      countFiles <- paste0(length(files), "")
-      message <- paste0("Ended on: ", 
-                        format(current_time(), "%H:%M:%S \n"), " The number centroids masks ", " are \n", 
-                        countFiles, " and saved in directory \n", findTemplateResult)
-      
-      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "maskingCentroids_png"))
-    }, error = function(e) {
-      cat("An error occurred during masking Centroids processing:\n")
-      print(e)
-    })
-  }
-  
+ 
   if(processing == "georeferencing"){
     tryCatch({
       

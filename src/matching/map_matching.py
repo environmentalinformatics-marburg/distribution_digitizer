@@ -136,43 +136,88 @@ def filter_overlapping_matches(loc, res, w, h, iou_thresh=0.6):
 
 
 def match_template(previous_page_path, next_page_path, current_page_path,
-                   template_map_file, output_dir, output_page_records,
+                   template_map_files, output_dir, output_page_records,
                    records, threshold, page_position, map_group="1"):
     """
-    Template matching for maps.
-    Saves results directly inside output/<i>/maps/matching and pagerecords.
+    Template matching for maps (simple version).
+
+    - template_map_files: LIST of template paths
+    - for each template: take best match
+    - do NOT save if y is too close to an already saved map
+      (distance < 0.25 * template height)
     """
+
     try:
         print("🗺️ Page:", current_page_path)
-        print("📌 Template:", template_map_file)
 
         start_time = time.time()
         img = np.array(Image.open(current_page_path))
         imgc = img.copy()
 
-        tmp = np.array(Image.open(template_map_file))
-        h, w, c = tmp.shape
-
-        res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
-        loc = np.where(res >= threshold)
-        candidates = [(x, y, float(res[y, x])) for (x, y) in zip(loc[1], loc[0])]
-        candidates.sort(key=lambda z: z[2], reverse=True)  # Sortiere nach Score (bester zuerst)
-        
-        if not candidates:
-            return  # kein Treffer
-        
-        # Nur den besten behalten
-        kept = [candidates[0]]
-        saved_maps = []
-        count = 0
         page_number = find_page_number(current_page_path, page_position)
 
-        # --- output folders (already per map_group handled) ---
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(output_page_records, exist_ok=True)
 
-        # --- Jetzt nur noch gefilterte Treffer verwenden ---
-        for (x, y, score) in kept:
+        saved_y_markers = []   # <-- THIS is the key
+        count = 0
+
+        # ------------------------------------------------------------
+        # Loop over ALL templates
+        # ------------------------------------------------------------
+        for template_map_file in template_map_files:
+            print("📌 Template:", template_map_file)
+
+            tmp = np.array(Image.open(template_map_file))
+            h, w, c = tmp.shape
+
+            res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
+            loc = np.where(res >= threshold)
+
+            candidates = [(x, y, float(res[y, x]))
+                          for (x, y) in zip(loc[1], loc[0])]
+            
+            print(f"   DEBUG: {len(candidates)} raw candidates found")
+
+            # zeige die besten 10 Kandidaten (y + score)
+            for i, (xx, yy, sc) in enumerate(
+                    sorted(candidates, key=lambda z: z[2], reverse=True)[:10]
+                ):
+                print(f"     cand[{i}]: y={yy}, score={sc:.3f}")
+                
+            if not candidates:
+                continue
+
+            # best match only
+            candidates.sort(key=lambda z: z[2], reverse=True)
+            y_tol = int(h * 0.25)
+            chosen = None
+            
+            for (x, y, score) in candidates:
+                print(f"   DEBUG: checking candidate y={y} against saved_y_markers={saved_y_markers}")
+            
+                too_close = False
+                for y_prev in saved_y_markers:
+                    if abs(y - y_prev) <= y_tol:
+                        too_close = True
+                        break
+            
+                if not too_close:
+                    chosen = (x, y, score)
+                    break  # ← erster gültiger Treffer reicht
+            
+            if chosen is None:
+                print("⚠️ No suitable candidate found after Y-filtering")
+                continue
+            
+            x, y, score = chosen
+
+
+            # ------------------------------------------------------------
+            # SAVE map
+            # ------------------------------------------------------------
+            saved_y_markers.append(y)
+
             size = w * h * (2.54 / 400) ** 2
             threshold_last = str(threshold).split(".")[-1]
 
@@ -186,12 +231,11 @@ def match_template(previous_page_path, next_page_path, current_page_path,
             img_save_path = os.path.join(output_dir, base_name + ".tif")
             csv_save_path = os.path.join(output_page_records, base_name + ".csv")
 
-            # --- Erweiterung: 10 % extra Höhe nach unten ---
             extra_h = int(h * 0.1)
             y_end = min(y + h + extra_h, imgc.shape[0])
-            crop = imgc[y:y_end, x:x+w, :]
+            crop = imgc[y:y_end, x:x + w, :]
+
             cv2.imwrite(img_save_path, crop)
-            cv2.rectangle(imgc, (x, y), (x+w, y+h), (0,255,0), 2)
 
             record_row = [
                 page_number, previous_page_path, next_page_path, current_page_path,
@@ -199,33 +243,33 @@ def match_template(previous_page_path, next_page_path, current_page_path,
                 round(time.time() - start_time, 3), map_group
             ]
 
-            # --- In die globale CSV schreiben ---
             is_empty = not os.path.exists(records) or os.stat(records).st_size == 0
             with open(records, 'a', newline='') as csv_file:
                 writer = csv.writer(csv_file)
                 if is_empty:
                     writer.writerow([
                         "page_number","previous_page","next_page","current_page",
-                        "matched_image","x","y","w","h","size_cm2","threshold",
-                        "duration_s","map_group"
+                        "matched_image","x","y","w","h","size_cm2",
+                        "threshold","duration_s","map_group"
                     ])
                 writer.writerow(record_row)
 
-            # --- Einzel-CSV für diesen Treffer ---
             with open(csv_save_path, 'w', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow([
                     "page_number","previous_page","next_page","current_page",
-                    "matched_image","x","y","w","h","size_cm2","threshold",
-                    "duration_s","map_group"
+                    "matched_image","x","y","w","h","size_cm2",
+                    "threshold","duration_s","map_group"
                 ])
                 writer.writerow(record_row)
 
-            saved_maps.append((x, y))
+            print(f"💾 Saved map at y={y}")
             count += 1
-
+            print(f"🧪 DEBUG SUMMARY for page {os.path.basename(current_page_path)}")
+            print(f"    saved_y_markers = {saved_y_markers}")
     except Exception as e:
         print("❌ Error in match_template:", e)
+
 
 
 
@@ -475,26 +519,26 @@ def main_template_matching(
                 output_page_records = os.path.join(output_base, "pagerecords")
                 records = os.path.join(output_base, "records.csv")
 
-                for template_file in template_files:
-                    print(f"🔍 Matching {os.path.basename(template_file)} (group {group})")
+                # for template_file in template_files:
+                #     print(f"🔍 Matching {os.path.basename(template_file)} (group {group})")
+                # 
+                params = {
+                    "previous_page_path": prev_path,
+                    "next_page_path": next_path,
+                    "current_page_path": current_page_path,
+                    "template_map_files": template_files,
+                    "output_dir": output_dir,
+                    "output_page_records": output_page_records,
+                    "records": records,
+                    "threshold": threshold,
+                    "page_position": page_position,
+                    "map_group": group
+                     }
 
-                    params = {
-                        "previous_page_path": prev_path,
-                        "next_page_path": next_path,
-                        "current_page_path": current_page_path,
-                        "template_map_file": template_file,
-                        "output_dir": output_dir,
-                        "output_page_records": output_page_records,
-                        "records": records,
-                        "threshold": threshold,
-                        "page_position": page_position,
-                        "map_group": group
-                    }
-
-                    if matchingType == 1:
-                        match_template(**params)
-                    elif matchingType == 2:
-                        match_template_contours(**params)
+                if matchingType == 1:
+                    match_template(**params)
+                elif matchingType == 2:
+                    match_template_contours(**params)
 
         print("\n✅ Matching completed for all pages and map types.")
 

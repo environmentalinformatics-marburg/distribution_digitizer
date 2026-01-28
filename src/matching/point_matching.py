@@ -4,7 +4,6 @@
 # Description: This script performs point matching between TIFF images and templates, 
 # applies non-maximum suppression, and saves the results. It also includes a function to copy TIFF images and convert colors.
 
-
 import cv2
 import PIL
 from PIL import Image
@@ -14,6 +13,7 @@ import numpy as np
 import csv
 import shutil
 
+
 def copy_tiff_images(input_dir, output_dir):
     # Create the output directory if it does not exist
     os.makedirs(output_dir, exist_ok=True)
@@ -22,6 +22,7 @@ def copy_tiff_images(input_dir, output_dir):
             source_path = os.path.join(input_dir, file)
             dest_path = os.path.join(output_dir, file)
             shutil.copyfile(source_path, dest_path)
+
 
 def non_max_suppression_fast(points, overlapThresh):
     if len(points) == 0:
@@ -58,12 +59,14 @@ def non_max_suppression_fast(points, overlapThresh):
 
     return points[pick].astype("int")
 
+
 def hex_to_rgb(hex_color):
     """ Convert hex color to RGB tuple. """
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
-def point_match(tiffile, file, outputpcdir, point_threshold, template_id, template_name, color, coord_writer, current_id, nms_thresh=0.3):
+
+def point_match(tiffile, file, outputpcdir, threshold, template_id, template_name, color, coord_writer, current_id, nms_thresh=0.3):
     print(f"Processing template: {template_name} with color: {color}")  # Debugging output
     
     # Load the image and the template
@@ -74,7 +77,7 @@ def point_match(tiffile, file, outputpcdir, point_threshold, template_id, templa
 
     # Perform template matching
     res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
-    loc = np.where(res >= point_threshold)
+    loc = np.where(res >= threshold)
 
     points = []
     for pt in zip(*loc[::-1]):
@@ -144,6 +147,7 @@ def point_match(tiffile, file, outputpcdir, point_threshold, template_id, templa
  
     return 0, output_file_path, color, current_id
 
+
 def get_last_id(csv_path):
     try:
         with open(csv_path, 'r') as csvfile:
@@ -171,7 +175,17 @@ def get_last_id(csv_path):
         return 0
 
 
-def map_points_matching(workingDir, outDir, point_threshold):
+def map_points_matching(workingDir, outDir, threshold, nMapTypes=1):
+    """
+    Perform point matching for multiple map types (1 or 2).
+    Matches each map in <outDir>/<type>/maps/align/ against templates in <workingDir>/data/input/templates/<type>/symbols/
+
+    Args:
+        workingDir (str): Base working directory.
+        outDir (str): Output directory (e.g., output_2025-09-26_13-16-11).
+        threshold (float): Threshold for template matching.
+        nMapTypes (int): Number of map types (1 or 2). Used to limit processing.
+    """
     print("Points matching:")
 
     # --- finde Ordner 1, 2, 3 ... im Output ---
@@ -180,6 +194,9 @@ def map_points_matching(workingDir, outDir, point_threshold):
         full = os.path.join(outDir, name)
         if os.path.isdir(full) and name.isdigit():
             map_type_dirs.append(full)
+
+    # --- Nur die ersten nMapTypes verarbeiten ---
+    map_type_dirs = map_type_dirs[:int(nMapTypes)]
 
     if not map_type_dirs:
         print("⚠️ No map-type folders found in output/")
@@ -237,7 +254,7 @@ def map_points_matching(workingDir, outDir, point_threshold):
                 # --- Matching auf alle align-TIFs anwenden ---
                 for tiffile in glob.glob(os.path.join(outputTiffDir, "*.tif")):
                     num_points, output_file_path, color_str, current_id = point_match(
-                        tiffile, file, outputTiffDir, point_threshold,
+                        tiffile, file, outputTiffDir, threshold,
                         template_id=1,
                         template_name=template_name,
                         color=color,
@@ -246,9 +263,3 @@ def map_points_matching(workingDir, outDir, point_threshold):
                     )
 
     print("\n✓ Point-matching completed for all map types.")
-
-
-
-# Usage example:
-#
-#map_points_matching("D:/distribution_digitizer/", "D:/test/output_2025-11-28_14-08-49/", 0.75)

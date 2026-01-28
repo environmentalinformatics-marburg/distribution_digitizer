@@ -45,26 +45,58 @@ def create_centroid_mask(image_path, output_dir, csv_writer):
     if len(centroids) == 0:
         csv_writer.writerow([len(centroids), os.path.basename(image_path), 0, 0, 0, 0, 0, 0])
 
-def MainMaskCentroids(workingDir, outDir):
-    try:
-        inputDirs = [
-            os.path.join(outDir, "maps", "pointFiltering/")
-        ]
-        outputDirs = [
-            os.path.join(outDir, "masking_black", "pointFiltering/")
-        ]
-        csv_path = os.path.join(outDir, "coordinates_transformed.csv")
+def MainMaskCentroids(workingDir, outDir, nMapTypes=1):
+    """
+    Create centroid masks for all TIFF files in the input directory.
+    Processes multiple map types (1, 2, ...).
 
-        with open(csv_path, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(['ID', 'File', 'X_WGS84', 'Y_WGS84', 'Blue', 'Green', 'Red', 'georef'])
-            
-            for inputDir, outputDir in zip(inputDirs, outputDirs):
-                for file in glob.glob(inputDir + '*.tif'):
-                    print(file)
+    Args:
+        workingDir (str): Working directory containing input and output directories.
+        outDir (str): Output directory (e.g., output_2025-09-26_13-16-11).
+        nMapTypes (int): Number of map types (1 or 2). Used to limit processing.
+    """
+    try:
+        # --- Finde alle map-type Ordner ---
+        map_type_dirs = []
+        for name in os.listdir(outDir):
+            full = os.path.join(outDir, name)
+            if os.path.isdir(full) and name.isdigit():
+                map_type_dirs.append(full)
+
+        # --- Nur die ersten nMapTypes verarbeiten ---
+        map_type_dirs = map_type_dirs[:int(nMapTypes)]
+
+        if not map_type_dirs:
+            print("⚠️ No map-type folders found in output/")
+            return
+
+        # --- Jeden map-type Ordner einzeln verarbeiten ---
+        for map_dir in map_type_dirs:
+            map_type = os.path.basename(map_dir)
+            print(f"\n=== Processing map type folder: {map_type} ===")
+
+            # Input und Output für diesen Typ
+            inputDir = os.path.join(map_dir, "maps", "pointFiltering")
+            outputDir = os.path.join(map_dir, "masking_black", "pointFiltering")
+            csv_path = os.path.join(map_dir, "maps", "csvFiles", "coordinates_transformed.csv")
+
+            # Erstelle den Output-Ordner
+            os.makedirs(outputDir, exist_ok=True)
+
+            # Erstelle die CSV-Datei
+            with open(csv_path, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(['ID', 'File', 'X_WGS84', 'Y_WGS84', 'Blue', 'Green', 'Red', 'georef'])
+                
+                # --- Alle TIFs verarbeiten ---
+                for file in glob.glob(os.path.join(inputDir, "*.tif")):
+                    print(f"Processing: {os.path.basename(file)}")
                     if os.path.exists(file):
                         create_centroid_mask(file, outputDir, writer)
                     else:
                         print("Die Datei existiert nicht:", file)
+
+        print("\n✓ Centroid masking completed for all map types.")
+
     except Exception as e:
         print("An error occurred in MainMaskCentroids:", e)

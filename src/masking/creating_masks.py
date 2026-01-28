@@ -1,53 +1,47 @@
-import PIL
-import numpy as np
-import cv2
-import os
-import glob
-from PIL import Image
+def mainGeomaskB(workingDir, outDir, n, nMapTypes=1):
+    """
+    Generate black geographical masks for all TIFF files in the input directory.
+    Processes multiple map types (1, 2, ...).
 
+    Args:
+        workingDir (str): Working directory containing input and output directories.
+        outDir (str): Output directory (e.g., output_2025-09-26_13-16-11).
+        n (int): Size parameter for the morphological structuring element.
+        nMapTypes (int): Number of map types (1 or 2). Used to limit processing.
+    """
+    try:
+        # --- Finde alle map-type Ordner ---
+        map_type_dirs = []
+        for name in os.listdir(outDir):
+            full = os.path.join(outDir, name)
+            if os.path.isdir(full) and name.isdigit():
+                map_type_dirs.append(full)
 
-def geomask(file, outputdir, n):
-  try:
-    #create black and white masks 
-    image = np.array(PIL.Image.open(file))
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    ret, thresh = cv2.threshold(gray,120,255,cv2.THRESH_TOZERO_INV)
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (n,n))
-    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=3)
-    (thr, blackAndWhiteImage) = cv2.threshold(opening, 0, 255, cv2.THRESH_BINARY)
-    orig_fn ='/content/drive/MyDrive/Output/new_mask1.tif'
-    PIL.Image.fromarray(blackAndWhiteImage).save(os.path.join(outputdir, os.path.basename(file)))
-  except Exception as e:
-        print("An error occurred in geomask:", e)
+        # --- Nur die ersten nMapTypes verarbeiten ---
+        map_type_dirs = map_type_dirs[:int(nMapTypes)]
 
+        if not map_type_dirs:
+            print("⚠️ No map-type folders found in output/")
+            return
 
-# workingDir="D:/distribution_digitizer/"
-# outDir="D:/test/output_2024-03-14_05-40-48/output_2024-03-14_05-54-08/"
-def mainGeomaskB(workingDir, outDir, n):
-  """
-  Generate geographical masks for all TIFF files in the input directory.
+        # --- Jeden map-type Ordner einzeln verarbeiten ---
+        for map_dir in map_type_dirs:
+            map_type = os.path.basename(map_dir)
+            print(f"\n=== Processing map type folder: {map_type} ===")
 
-  Args:
-      workingDir (str): Working directory containing input and output directories.
-      n (int): Size parameter for the morphological structuring element.
+            # Input und Output für diesen Typ
+            inputDir = os.path.join(map_dir, "maps", "pointFiltering")
+            outputDir = os.path.join(map_dir, "masking_black")
 
-  Returns:
-      None
-  """
-  try:
-    # Define input and output directories
-    inputDir = outDir+"/maps/pointFiltering/"
-    outputDir = outDir+"/masking_black/"
-  
-    # Create the output directory if it doesn't exist
-    os.makedirs(outputDir, exist_ok=True)
-  
-    # Loop through TIFF files in the input directory
-    for file in glob.glob(inputDir + '*.tif'):
-      print(file)
-      # call a geo-mask using the geomask function
-      geomask(file, outputDir, n)
-      
-  except Exception as e:
-        print("An error occurred in masking_black:", e)
-  
+            # Erstelle den Output-Ordner
+            os.makedirs(outputDir, exist_ok=True)
+
+            # --- Alle TIFs verarbeiten ---
+            for file in glob.glob(os.path.join(inputDir, "*.tif")):
+                print(f"Processing: {os.path.basename(file)}")
+                geomask(file, outputDir, n)
+
+        print("\n✓ Black masking completed for all map types.")
+
+    except Exception as e:
+        print("An error occurred in mainGeomaskB:", e)

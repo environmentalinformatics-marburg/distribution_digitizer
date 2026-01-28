@@ -677,7 +677,17 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$pointFiltering, {
     # call the function for filtering
-    manageProcessFlow("pointFiltering", "points filtering", "pointFiltering")
+    #manageProcessFlow("pointFiltering", "points filtering", "pointFiltering")
+    current_out_dir <- outDir()
+    # call the function for cropping
+    manageProcessFlow(
+      processing    = "pointFiltering",
+      allertText1   = "points filtering",
+      allertText2   = "pointFiltering",
+      input         = input,
+      session       = session,
+      current_out_dir = current_out_dir     # << HIER!
+    )
   })
   
   observeEvent(input$listPointsF, {
@@ -708,67 +718,6 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   
-  ####################
-  # 2.2 Circle Detection  #----------------------------------------------------------------------#
-  ####################
-  # Process circle detection
-  
-  observeEvent(input$pointCircleDetection, {
-    # call the function for circle detection
-    manageProcessFlow("pointCircleDetection", "points circle detection", "pointCircleDetection")
-    
-  })
-  
-  observeEvent(input$listPointsCD, {
-    if(input$siteNumberPointsMatching != ''){
-      output$listPCD = renderUI({
-        prepareImageView("/output/CircleDetection_png/", input$siteNumberPointsMatching)
-      })
-    }
-    else{
-      output$listPCD = renderUI({
-        prepareImageView("/output/CircleDetection_png/", '.png')
-      })
-    }
-    
-  })
-  
-  ####################
-  # 3.2 Crop map legend species#----------------------------------------------------------------------#
-  ####################
-  
-  # Start read  legend species
-  observeEvent(input$mapReadRpecies, {
-    # call the function for cropping
-    manageProcessFlow("mapReadRpecies", "cropping map species", "align")
-  })
-  
-  # List map legend species
-  observeEvent(input$listCropped, {
-    if(input$siteNumberMapsMatching != ''){
-      #print(input$siteNumberMapsMatching)
-      output$listCropped = renderUI({
-        prepareImageView("/output/cropped_png/", input$siteNumberMapsMatching)
-      })
-    }
-    else{
-      output$listCropped = renderUI({
-        prepareImageView("/output/cropped_png/", '.png')
-      })
-    }
-  })
-  
-  
-  ####################
-  # 3.3 Crop species name of the page content #----------------------------------------------------------------------#
-  ####################
-  
-  # Start Crop page species
-  observeEvent(input$pageReadRpecies, {
-    # call the function for cropping
-    manageProcessFlow("pageReadRpecies", "read page species", "output")
-  })
-  
   
   ####################
   # 4. Masking #----------------------------------------------------------------------#
@@ -776,18 +725,31 @@ server <- shinyServer(function(input, output, session) {
   
   observeEvent(input$masking, {
     # call the function for filtering
-    manageProcessFlow("masking", "masking white background", "masking")
-    
+    manageProcessFlow(
+      processing = "masking",
+      allertText1 = "masking white background",
+      allertText2 = "masking",
+      input = input,  # ✅ input muss übergeben werden
+      session = session,
+      current_out_dir = outDir()
+    )
   })
-  
   
   ####################
   # 4.1 Masking centroids #----------------------------------------------------------------------#
   ####################
   
+  
   observeEvent(input$maskingCentroids, {
     # call the function for filtering
-    manageProcessFlow("maskingCentroids", "masking centroids", "maskingCentroids")
+    manageProcessFlow(
+      processing = "maskingCentroids",
+      allertText1 = "masking centroids",
+      allertText2 = "maskingCentroids",
+      input = input,  # ✅ input muss übergeben werden
+      session = session,
+      current_out_dir = outDir()
+    )
   })
   
   observeEvent(input$listMasks, {
@@ -829,6 +791,76 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   
+  ####################
+  # 2.2 Circle Detection  #----------------------------------------------------------------------#
+  ####################
+  # Process circle detection
+  
+  observeEvent(input$pointCircleDetection, {
+    # call the function for circle detection
+    manageProcessFlow("pointCircleDetection", "points circle detection", "pointCircleDetection")
+    
+  })
+  
+  observeEvent(input$listPointsCD, {
+    if(input$siteNumberPointsMatching != ''){
+      output$listPCD = renderUI({
+        prepareImageView("/output/CircleDetection_png/", input$siteNumberPointsMatching)
+      })
+    }
+    else{
+      output$listPCD = renderUI({
+        prepareImageView("/output/CircleDetection_png/", '.png')
+      })
+    }
+    
+  })
+  
+  ####################
+  # 3.2 Crop map legend species#----------------------------------------------------------------------#
+  ####################
+  
+  # Start read  legend species
+  observeEvent(input$mapReadRpecies, {
+    # call the function for filtering
+    manageProcessFlow(
+      processing = "mapReadRpecies",
+      allertText1 = "cropping map species",
+      allertText2 = "align",
+      input = input,  # ✅ input muss übergeben werden
+      session = session,
+      current_out_dir = outDir()
+    )
+  })
+  
+  # List map legend species
+  observeEvent(input$listCropped, {
+    if(input$siteNumberMapsMatching != ''){
+      #print(input$siteNumberMapsMatching)
+      output$listCropped = renderUI({
+        prepareImageView("/output/cropped_png/", input$siteNumberMapsMatching)
+      })
+    }
+    else{
+      output$listCropped = renderUI({
+        prepareImageView("/output/cropped_png/", '.png')
+      })
+    }
+  })
+  
+  
+  ####################
+  # 3.3 Crop species name of the page content #----------------------------------------------------------------------#
+  ####################
+  
+  # Start Crop page species
+  observeEvent(input$pageReadRpecies, {
+    # call the function for cropping
+    manageProcessFlow("pageReadRpecies", "read page species", "output")
+  })
+  
+  
+
   
   ####################
   # 5. Georeferencing #----------------------------------------------------------------------#

@@ -180,22 +180,92 @@ def template_matching(image_path, template_path, method=cv2.TM_CCOEFF_NORMED):
     _, _, _, max_loc = cv2.minMaxLoc(result)
     return result, max_loc
 
-def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius):
-    input_dir = os.path.join(output_dir, "maps/pointMatching/")
-    output_tif_dir = os.path.join(output_dir, "maps/pointFiltering/")
-    os.makedirs(output_tif_dir, exist_ok=True)
+def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMapTypes=1):
+    """
+    Process point filtering for multiple map types (1 or 2).
+    Processes all TIFF files in <output_dir>/maps/pointMatching/ and saves results in <output_dir>/maps/pointFiltering/.
 
-    csv_path = os.path.join(output_dir, "maps/csvFiles/", "coordinates.csv")
-    initialize_csv_file(csv_path, "X_WGS84", "Y_WGS84")
-    
-    for file in glob.glob(input_dir + '*.tif'):
-        print(file)
-        centroids, output_file = detect_edges_and_centroids(file, output_tif_dir, int(kernel_size), int(blur_radius))
-        print("Centroids detected:")
-        if centroids:
-            append_to_csv(csv_path, centroids, os.path.basename(file), "point_filtering", 0, "none")
-        else:
-            PIL.Image.fromarray(np.array(PIL.Image.open(file)), 'RGB').save(output_file)
+    Args:
+        working_dir (str): Base working directory.
+        output_dir (str): Output directory (e.g., output_2025-09-26_13-16-11).
+        kernel_size (int): Size of the morphological kernel.
+        blur_radius (int): Radius for Gaussian blur.
+        nMapTypes (int): Number of map types (1 or 2). Used to limit processing.
+    """
+    # --- Finde alle map-type Ordner ---
+    map_type_dirs = []
+    for name in os.listdir(output_dir):
+        full = os.path.join(output_dir, name)
+        if os.path.isdir(full) and name.isdigit():
+            map_type_dirs.append(full)
 
-# Usage example:
-# main_point_filtering("D:/distribution_digitizer/", "D:/test/output_2024-07-12_08-18-21/", 9, 5)
+    # --- Nur die ersten nMapTypes verarbeiten ---
+    map_type_dirs = map_type_dirs[:int(nMapTypes)]
+
+    if not map_type_dirs:
+        print("⚠️ No map-type folders found in output/")
+        return
+
+    # --- Jeden map-type Ordner einzeln verarbeiten ---
+    for map_dir in map_type_dirs:
+        map_type = os.path.basename(map_dir)
+        print(f"\n=== Processing map type folder: {map_type} ===")
+
+        # Input und Output für diesen Typ
+        input_tif_dir = os.path.join(map_dir, "maps", "pointMatching")
+        output_tif_dir_type = os.path.join(map_dir, "maps", "pointFiltering")
+        csv_dir_type = os.path.join(map_dir, "maps", "csvFiles")
+
+        os.makedirs(output_tif_dir_type, exist_ok=True)
+        os.makedirs(csv_dir_type, exist_ok=True)
+
+        # CSV-Datei für diesen Typ
+        csv_path_type = os.path.join(csv_dir_type, "coordinates.csv")
+        current_id = get_last_id(csv_path_type) + 1
+
+        with open(csv_path_type, "a", newline="") as coord_csvfile:
+            coord_fieldnames = [
+                "ID", "File", "Detection method",
+                "X_WGS84", "Y_WGS84", "template",
+                "Red", "Green", "Blue", "georef"
+            ]
+            coord_writer = csv.DictWriter(coord_csvfile, fieldnames=coord_fieldnames)
+
+            if current_id == 1:
+                coord_writer.writeheader()
+
+            # --- Alle TIFs verarbeiten ---
+            for file in glob.glob(os.path.join(input_tif_dir, "*.tif")):
+                print(f"Processing: {os.path.basename(file)}")
+                centroids, output_file = detect_edges_and_centroids(file, output_tif_dir_type, int(kernel_size), int(blur_radius))
+                print("Centroids detected:")
+                if centroids:
+                    coord_writer.writerow({
+                        'ID': current_id,
+                        'File': os.path.basename(file),
+                        'Detection method': 'point_filtering',
+                        'X_WGS84': centroids[0][0],
+                        'Y_WGS84': centroids[0][1],
+                        'template': 'b_1',
+                        'Red': centroids[0][2],
+                        'Green': centroids[0][3],
+                        'Blue': centroids[0][4],
+                        'georef': 0
+                    })
+                    current_id += 1
+                else:
+                    coord_writer.writerow({
+                        'ID': current_id,
+                        'File': os.path.basename(file),
+                        'Detection method': 'point_filtering',
+                        'X_WGS84': 0,
+                        'Y_WGS84': 0,
+                        'template': 'b_1',
+                        'Red': 0,
+                        'Green': 0,
+                        'Blue': 0,
+                        'georef': 0
+                    })
+                    current_id += 1
+
+    print("\n✓ Point filtering completed for all map types.")
