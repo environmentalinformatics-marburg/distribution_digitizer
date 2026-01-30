@@ -9,7 +9,8 @@ clean_species <- function(species) {
   return(species)
 }
 
-
+# Call the function with specified arguments
+# Function to read the species
 read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
   
   results <- "The following species were found: "
@@ -17,55 +18,37 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
   # Source Python script for additional processing if needed
   source_python(file.path(working_dir, "src/read_species/map_crop_species.py"))
   
-  # Directory setup
-
-  
-  # --- Finde alle map-type Ordner ---
-  map_type_dirs <- list.dirs(out_dir, full.names = TRUE, recursive = FALSE)
-  map_type_dirs <- map_type_dirs[grepl("/[0-9]+$", map_type_dirs)]
-  
-  # --- Nur die ersten nMapTypes verarbeiten ---
-  map_type_dirs <- map_type_dirs[seq_len(nMapTypes)]
-  
-  if (length(map_type_dirs) == 0) {
-    cat("⚠️ No map-type folders found in output/\n")
-    return(results)
-  }
-  
-  # --- Jeden map-type Ordner einzeln verarbeiten ---
-  for (map_dir in map_type_dirs) {
-    map_type <- basename(map_dir)
-    cat("\n=== Processing map type folder:", map_type, "===\n")
+  # --- NEU: über Map-Typen (1..nMapTypes) iterieren ---
+  for (type_id in seq_len(as.integer(nMapTypes))) {
     
-    # CSV-Datei für diesen Typ
-    csv_file_path_type <- file.path(map_dir, "maps", "csvFiles", "coordinates.csv")
+    out_dir_type <- file.path(out_dir, as.character(type_id))
     
-    # Load the CSV file
-    df <- read.csv(csv_file_path_type, stringsAsFactors = FALSE)
+    # Directory setup (pro Typ!)
+    pagerecords <- file.path(out_dir_type, "pagerecords")
+    records_pages <- list.files(path = pagerecords, pattern = ".csv", full.names = TRUE, recursive = TRUE)
+    csv_file_path <- file.path(out_dir_type, "maps", "csvFiles", "coordinates.csv")
+    
+    # Falls es den Typ-Ordner nicht gibt oder keine Seiten-CSV vorhanden sind: skip
+    if (!dir.exists(out_dir_type)) next
+    if (!dir.exists(pagerecords) || length(records_pages) == 0) next
+    if (!file.exists(csv_file_path)) next
+    
+    # Load the CSV file once at the beginning (pro Typ!)
+    df <- read.csv(csv_file_path, stringsAsFactors = FALSE)
     
     # Initialize the species column
     df$species <- NA
-    pagerecords <- file.path(out_dir, map_dir, "pagerecords")
-    records_pages <- list.files(path = pagerecords, pattern = ".csv", full.names = TRUE, recursive = TRUE)
-    cat("\n=== rpagerecords:", pagerecords, "===\n")
+    
     # Process each records page
     for (j in seq_along(records_pages)) {
       records_page <- read.csv(records_pages[j], sep = ",", check.names = FALSE, quote = "\"", na.strings = c("NA", "NaN", " "))
       file_name <- records_page$file_name
-      cat("\n=== Processing file_name:", file_name, "===\n")
       map_name <- records_page$map_name
       
       if (!is.na(records_page$y[1]) && !is.na(records_page$h[1])) {
         # Extract species information
-        species <- crop_specie(
-          working_dir = working_dir,
-          out_dir = out_dir,
-          path_to_page = file.path(pagerecords, file_name),
-          path_to_map = file.path(map_dir, "maps", "align", map_name),
-          y = as.integer(records_page$y[1]),
-          h = as.integer(records_page$h[1]),
-          attempt = 1
-        )
+        species <- crop_specie(working_dir, out_dir_type, file_name, map_name,
+                               as.integer(records_page$y[1]), as.integer(records_page$h[1]))
         print("Here the specie:")
         print(species)
         
@@ -123,16 +106,12 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
       }
     }
     
-    # Save the final DataFrames to the CSV files
-    write.csv(df, csv_file_path_type, row.names = FALSE)
-    
-    cat("CSV files have been updated for map type", map_type, "\n")
+    # Save the final DataFrames to the CSV files (pro Typ!)
+    write.csv(df, csv_file_path, row.names = FALSE)
   }
   
-  cat("All CSV files have been updated.\n")
+  cat("CSV files have been updated.\n")
   print("END")
   
   return(results)
 }
-
-# Call the function with specified arguments

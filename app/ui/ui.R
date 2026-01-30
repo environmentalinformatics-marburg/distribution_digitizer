@@ -34,7 +34,16 @@ if (file.exists(fileFullPath)){
 #2 shinyfields_detect_maps.csv
 fileFullPath = (paste0(workingDir,'/config/shinyfields_detect_maps.csv'))
 if (file.exists(fileFullPath)){
-  shinyfields2 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+ # shinyfields2 <- read.csv(fileFullPath,header = TRUE, sep = ';')
+  shinyfields2 <- read.csv2(
+    fileFullPath,
+    header = TRUE,
+    stringsAsFactors = FALSE,
+    fileEncoding = "UTF-8"
+  )
+  names(shinyfields2)
+  shinyfields2$inf7
+  str(shinyfields2)
 } else{
   stop(paste0("file:", fileFullPath, "not found, please create them and start the app"))
 }
@@ -431,202 +440,358 @@ body <- dashboardBody(
       tabName = "tab2",
       # actionButton("listCropped",  label = "List cropped maps"),
       fluidRow(
-        column(4,
-               wellPanel(
-                 # submit action button
-                 h3(strong(shinyfields2$head, style = "color:black")),
-                 p(shinyfields2$inf1, style = "color:black"),
-                 fluidRow(column(8, numericInput("threshold_for_TM", label = shinyfields2$threshold, value = 0.18, min = 0, max = 1, step = 0.05))),
-                 # Start map matchings
-                 fluidRow(column(3,actionButton("templateMatching",  
-                                                label = shinyfields2$start1, 
-                                                style="color:#FFFFFF;background:#28a745"))),
-                 p(shinyfields2$inf2, style = "color:black"), 
-                 
-               ),
-               wellPanel(
-                 # maps align 
-                 h4(shinyfields2$head_sub, style = "color:black"),
-                 p(shinyfields2$inf3, style = "color:black"),
-                 fluidRow(column(3,  actionButton("alignMaps",
-                                                  label = shinyfields2$start2,
-                                                  style = "color:#FFFFFF;background:#007bff"
-                 ))),
-                 
-               )
-        ), # col 4
-        column(4,  
-               wellPanel(
-                 # Eine Zeile mit den Buttons
-                  tags$div(
-                   style = "display:flex; gap:15px; align-items:center; margin-bottom:10px;",
-                   
-                   actionButton("showRecords", "Show records"),
-                   
-                   tags$a(
-                     href   = "records.csv",
-                     target = "_blank",
-                     class  = "btn btn-warning btn-sm",
-                     style  = "color:white; text-decoration:none;",
-                     "Save records.csv"
-                   )
-                 ),
-                 
-                 # Tabelle darunter
-                DT::dataTableOutput("records_tbl")
-                ,
-                textInput("range_list", label=HTML(shinyfields2$inf7), value = '1-2'),
-                tags$div(
-                   style = "display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;",
-                   
-                   # --- Map Type Selection + Matching/Align List Panels -------------------------
-                   tags$div(
-                     style = "display:flex; gap:25px; flex-wrap:wrap;",
-                     
-                     # --- Block 1: Matching Results --------------------------------------------
-                     tags$div(
-                       style = "flex:1; min-width:300px;",
-                       
-                       # Dropdown: Map Type
-                       selectInput(
-                         "map_type",
-                         label = "Select map type:",
-                         choices = mapTypes,        # kommt aus global.R
-                         selected = mapTypes[1]
-                       ),
-                       
-                       # Button: Show Matching Maps
-                       actionButton("listMatchingButton", "List maps"),
-                       
-                       # Output
-                       uiOutput("listMaps")
-                     ),
-                     
-                     # --- Block 2: Align Results -----------------------------------------------
-                     tags$div(
-                       style = "flex:1; min-width:300px;",
-                       
-                       # Button: Show Align Results
-                       actionButton("listAlignButton", "List aligned maps"),
-                       
-                       # Output
-                       uiOutput("listAlign")
-                     )
-                   )
-                   
-                ),
-               
-               #uiOutput('listCropped', style="width:30%;float:left")
-                h3("Inspect Result Folder"),
-              actionButton("open_output", "Open Map Output Folder in Explorer")),
+        fluidRow(
+          
+          # ================= LEFT: MATCHING =================
+          column(
+            6,
+            
+            wellPanel(
+              h3(strong(shinyfields2$head, style = "color:black")),
+              p(shinyfields2$inf1, style = "color:black"),
+              
+              numericInput(
+                "threshold_for_TM",
+                label = shinyfields2$threshold,
+                value = 0.18, min = 0, max = 1, step = 0.05
+              ),
+              
+              actionButton(
+                "templateMatching",
+                label = shinyfields2$start1,
+                style = "color:#FFFFFF;background:#28a745"
+              ),
+              
+              p(shinyfields2$inf2, style = "color:black")
+            ),
+            
+            shinyjs::hidden(
+              div(
+                id = "matching_results_block",
+                
+                wellPanel(
+                  h4("Matching results"),
+                  
+                  selectInput(
+                    "map_type_matching",
+                    label = "Select map type:",
+                    choices = mapTypes,
+                    selected = mapTypes[1]
+                  ),
+                  textInput(
+                    "range_list_matching",
+                    label = HTML(shinyfields2$inf7),
+                    value = "1-2"
+                  ),
+                  actionButton("listMatchingButton", "List maps"),
+                  uiOutput("listMaps")
+                )
+              )
+            )
+          ),
+          
+          # ================= RIGHT: ALIGN =================
+          column(
+            6,
+            
+            wellPanel(
+              h3(strong(shinyfields2$head_sub, style = "color:black")),
+              p(shinyfields2$inf3, style = "color:black"),
+              
+              actionButton(
+                "alignMaps",
+                label = shinyfields2$start2,
+                style = "color:#FFFFFF;background:#007bff"
+              )
+            ),
+            
+            shinyjs::hidden(
+              div(
+                id = "align_results_block",
+                
+                wellPanel(
+                  h4("Aligned results"),
+                  
+                  selectInput(
+                    "map_type_align",
+                    label = "Select map type:",
+                    choices = mapTypes,
+                    selected = mapTypes[1]
+                  ),
+                  textInput(
+                    "range_list_align",
+                    label = HTML(shinyfields2$inf7),
+                    value = "1-2"
+                  ),
+                  actionButton("listAlignButton", "List aligned maps"),
+                  uiOutput("listAlign")
+                )
+              )
+            )
+            
+          )
         )
+        
       ) # END fluid Row
     ),  # END tabItem 2
     
     
     
-    # Tab 3 Points Matching  #----------------------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Tab 3 – Points Matching
+    # ----------------------------------------------------------------------
     tabItem(
       tabName = "tab3",
-      fluidRow(column(3,textInput("siteNumberPointsMatching", label=shinyfields6$input, value = ''))),
-      actionButton("listMapsMatching2",  label = "List maps"),
-      actionButton("listPointsM",  label = "List points matching"),
-      actionButton("listPointsF",  label = "List points filterng"),
-      actionButton("listPointsCD", label = "List points circle detection"),
+      
+      # ============================================================
+      # TOP: Info
+      # ============================================================
+
+      
+      # ============================================================
+      # TOP: Range + Map type
+      # ============================================================
       fluidRow(
-        column(4,
-               wellPanel(
-                 h3(strong(shinyfields3$head, style = "color:black")),
-                 p(shinyfields3$inf1, style = "color:black"),
-                 p(shinyfields3$inf2, style = "color:black"),
-               ),
-               wellPanel(
-                 # ----------------------------------------# 3.1 Points detection Using template  FILE=shinyfields_detect_points #---------------------------------------------------------------------
-                 h4(shinyfields3$head_sub, style = "color:black"),
-                 p(shinyfields3$inf3, style = "color:black"),
-                 # Threshold for point matching
-                 fluidRow(column(8,numericInput("threshold_for_PM", label = shinyfields3$threshold, value = 0.75, min = 0, max = 1, step = 0.05))),
-                 p(shinyfields3$inf4, style = "color:black"),
-                 fluidRow(column(3, actionButton("pointMatching",  label = shinyfields3$lab, style="color:#FFFFFF;background:#999999"))),
-               ),
-               wellPanel(
-                 # ----------------------------------------# 3.2 Points detection Using filtering  FILE=shinyfields_detect_points_using_filtering #---------------------------------------------------
-                 h4(shinyfields4$head, style = "color:black"),
-                 fluidRow(column(8,numericInput("filterK", label = shinyfields4$lab1, value = 5))),#, width = NULL, placeholder = NULL)
-                 p(shinyfields4$inf1, style = "color:black"),
-                 fluidRow(column(8,numericInput("filterG", label = shinyfields4$lab2, value = 9))),#, width = NULL, placeholder = NULL)
-                 p(shinyfields4$inf2, style = "color:black"),
-                 fluidRow(column(3, actionButton("pointFiltering",  label = shinyfields4$lab3, style="color:#FFFFFF;background:#999999"))),
-               ),
-               wellPanel(
-                 # ----------------------------------------# 3.3 Points detection Using circle detection  FILE=shinyfields_detect_points_using_circle_detection #------------------------------------
-                 h4(shinyfields4.1$head, style = "color:black"),
-                 fluidRow(column(8,numericInput("Gaussian", label = shinyfields4.1$lab1, value = 5, min = 0))),
-                 p(shinyfields4.1$inf1, style = "color:black"),
-                 fluidRow(column(8,numericInput("minDist", label = shinyfields4.1$lab2, value = 1, min = 0))),
-                 p(shinyfields4.1$inf2, style = "color:black"),
-                 fluidRow(column(8,numericInput("thresholdEdge", label = shinyfields4.1$lab3, value = 100, min = 0))),
-                 p(shinyfields4.1$inf3, style = "color:black"),
-                 fluidRow(column(8,numericInput("thresholdCircles", label = shinyfields4.1$lab4, value = 21, min = 0))),
-                 p(shinyfields4.1$inf4, style = "color:black"),
-                 fluidRow(column(8,numericInput("minRadius", label = shinyfields4.1$lab5, value = 3, min = 0))),
-                 p(shinyfields4.1$inf5, style = "color:black"),
-                 fluidRow(column(8,numericInput("maxRadius", label = shinyfields4.1$lab6, value = 12, min = 0))),
-                 p(shinyfields4.1$inf6, style = "color:black"),
-                 p(shinyfields4.1$inf7, style = "color:black"),
-                 fluidRow(column(3, actionButton("pointCircleDetection",  label = shinyfields4.1$lab7, style="color:#FFFFFF;background:#999999"))),
-               )
-        ), # col 4
-        column(8,
-               uiOutput('listMapsMatching2', style="width:25%;float:left"),
-               uiOutput('listPM', style="width:25%;float:left"),
-               uiOutput('listPF', style="width:25%;float:left"),
-               uiOutput('listPCD', style="width:25%;float:left")
+        fluidRow(
+          column(
+            12,
+            wellPanel(
+              h3(strong(shinyfields3$head, style = "color:black")),
+              p(shinyfields3$inf1, style = "color:black"),
+              p(shinyfields3$inf2, style = "color:black")
+            )
+          )
         )
-      ) # END fluid Row
+      ),
+      
+      br(),
+      
+      # ============================================================
+      # MAIN: Left / Right
+      # ============================================================
+      fluidRow(
+        
+        # ---------------- LEFT ----------------
+        column(
+          6,
+
+          wellPanel(
+            
+            # ---------------- HEADER ----------------
+            h4(shinyfields3$head_sub, style = "color:black"),
+            p(shinyfields3$inf3, style = "color:black"),
+            
+            numericInput(
+              "threshold_for_PM",
+              label = shinyfields3$threshold,
+              value = 0.75,
+              min = 0,
+              max = 1,
+              step = 0.05
+            ),
+            
+            p(shinyfields3$inf4, style = "color:black"),
+            
+            actionButton(
+              "pointMatching",
+              label = shinyfields3$lab,
+              style = "color:#FFFFFF;background:#999999"
+            ),
+            
+            tags$hr(),
+            
+            # ---------------- LIST ELEMENTS (HIDDEN INITIALLY) ----------------
+            conditionalPanel(
+              condition = "input.pointMatching > 0",
+              
+              fluidRow(
+                column(
+                  4,
+                  textInput(
+                    "range_list_PointsMatching",
+                    label = HTML(shinyfields2$inf7),
+                    value = "1-2"
+                  )
+                ),
+                column(
+                  4,
+                  selectInput(
+                    "map_type_PointsMatching",
+                    label = "Select map type:",
+                    choices = mapTypes,
+                    selected = mapTypes[1]
+                  )
+                ),
+                column(
+                  4,
+                  actionButton("listPointsM", "List points matching")
+                )
+              )
+            )
+          ),
+          
+          # Ergebnis Point Matching
+          uiOutput("listPM")
+        ),
+        
+        # ---------------- RIGHT ----------------
+        column(
+          6,
+          
+          wellPanel(
+            
+            h4(shinyfields4$head, style = "color:black"),
+            
+            numericInput("filterK", shinyfields4$lab1, value = 5),
+            p(shinyfields4$inf1),
+            
+            numericInput("filterG", shinyfields4$lab2, value = 9),
+            p(shinyfields4$inf2),
+            
+            actionButton(
+              "pointFiltering",
+              label = shinyfields4$lab3,
+              style = "color:#FFFFFF;background:#999999"
+            ),
+            
+            tags$hr(),
+            
+            conditionalPanel(
+              condition = "input.pointFiltering > 0",
+              
+              fluidRow(
+                column(
+                  4,
+                  textInput(
+                    "range_list_PointsFiltering",
+                    label = HTML(shinyfields2$inf7),
+                    value = "1-2"
+                  )
+                ),
+                column(
+                  4,
+                  selectInput(
+                    "map_type_PointsFiltering",
+                    label = "Select map type:",
+                    choices = mapTypes,
+                    selected = mapTypes[1]
+                  )
+                ),
+                column(
+                  4,
+                  actionButton("listPointsF", "List points filtering")
+                )
+              )
+              
+            )
+          ),
+          
+          # Ergebnis Point Filtering
+          uiOutput("listPF")
+        )
+      )# END fluid Row
     ),  # END tabItem 3
     
-    # Tab 4 Masking #----------------------------------------------------------------------
+    
+    # ----------------------------------------------------------------------
+    # Tab 4 – Masking
+    # ----------------------------------------------------------------------
     tabItem(
-      tabName = "tab4",  
-      fluidRow(column(3,textInput("siteNumberMasks", label=shinyfields6$input, value = ''))),
-      actionButton("listMasks",  label = "List masks"),
-      actionButton("listMasksB",  label = "List black masks"),
-      actionButton("listMasksCD",  label = "List CD masks"),
-      # actionButton("listMPointsF",  label = "List points filterng"),
+      tabName = "tab4",
+      
       fluidRow(
-        column(4,
-               wellPanel(
-                 h3(strong(shinyfields5$head, style = "color:black"))
-               ),
-               wellPanel(
-                 # ----------------------------------------# 4. 1 Masking (white)#----------------------------------------------------------------------
-                 h3(shinyfields5$head_sub, style = "color:black"),
-                 h4("You can extract masks with white background", style = "color:black"),
-                 p(shinyfields5$inf1, style = "color:black"),
-                 # p(shinyfields7$inf2, style = "color:black"),
-                 fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
-                 fluidRow(column(3, actionButton("masking",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
-               ), 
-               #wellPanel(
-               # ----------------------------------------# Masking (black)#----------------------------------------------------------------------
-               #   h4("Or you can extract masks with black background", style = "color:black"),
-               #   p(shinyfields5$inf2, style = "color:black"),
-               #   fluidRow(column(8,numericInput("morph_ellipse", label = shinyfields5$lab1, value = 5))),#, width = NULL, placeholder = NULL)
-               #   fluidRow(column(3, actionButton("maskingBlack",  label = shinyfields5$lab2, style="color:#FFFFFF;background:#999999"))),
-               # ),
-               # ---------------------------------------- # 4.2 Masking centroids -----------------------------------------------------------------
-               wellPanel(
-                 h3(shinyfields5.1$head_sub, style = "color:black"),
-                 h4("You can mask the centroids of the points detected by Point Filtering and Circle Detection.", style = "color:black"),
-                 p(shinyfields5.1$inf1, style = "color:black"),
-                 fluidRow(column(3, actionButton("maskingCentroids",  label = shinyfields5.1$lab1, style="color:#FFFFFF;background:#999999")))
-               )
-        ), # col 4
-        column(8,
-               uiOutput('listMS', style="float:left"),
-               uiOutput('listMSB', style="float:left"),
-               uiOutput('listMCD', style="float:left")
+        
+        # ================= LEFT: Masking =================
+        column(
+          6,
+          
+          wellPanel(
+            h3(shinyfields5$head_sub, style = "color:black"),
+            h4("You can extract masks with white background", style = "color:black"),
+            p(shinyfields5$inf1, style = "color:black"),
+            
+            numericInput(
+              "morph_ellipse",
+              label = shinyfields5$lab1,
+              value = 5
+            ),
+            
+            actionButton(
+              "masking",
+              label = shinyfields5$lab2,
+              style = "color:#FFFFFF;background:#999999"
+            ),
+            
+            conditionalPanel(
+              condition = "input.masking > 0",
+              
+              fluidRow(
+                column(
+                  6,
+                  h4("White masks"),
+                  textInput(
+                    "range_list_Masks",
+                    HTML(shinyfields2$inf7),
+                    "1-2"
+                  ),
+                  selectInput(
+                    "map_type_Masks",
+                    "Select map type:",
+                    mapTypes
+                  ),
+                  actionButton("listMasks", "List masks")
+                )
+              ),
+              
+              tags$hr(),
+              uiOutput("listMS")
+            )
+          )
+        ),
+        
+        # ================= RIGHT: Masking Centroids =================
+        column(
+          6,
+          
+          wellPanel(
+            h3(shinyfields5.1$head_sub, style = "color:black"),
+            h4(
+              "You can mask the centroids of the points detected by Point Filtering and Circle Detection.",
+              style = "color:black"
+            ),
+            p(shinyfields5.1$inf1, style = "color:black"),
+            
+            actionButton(
+              "maskingCentroids",
+              label = shinyfields5.1$lab1,
+              style = "color:#FFFFFF;background:#999999"
+            ),
+            
+            conditionalPanel(
+              condition = "input.maskingCentroids > 0",
+              
+              fluidRow(
+                column(
+                  6,
+                  h4("Centroid masks"),
+                  textInput(
+                    "range_list_MasksCentroids",
+                    HTML(shinyfields2$inf7),
+                    "1-2"
+                  ),
+                  selectInput(
+                    "map_type_MasksCentroids",
+                    "Select map type:",
+                    mapTypes
+                  ),
+                  actionButton("listMasksCD", "List masks")
+                )
+              ),
+              
+              tags$hr(),
+              uiOutput("listMCD")
+            )
+          )
         )
       ) # END fluid Row
     ),  # END tabItem 4
@@ -755,7 +920,7 @@ body <- dashboardBody(
 sidebar <-
   ui <- dashboardPage(
     header = header,
-    sidebar = dashboardSidebar(disable = TRUE),
+    sidebar = dashboardSidebar(disable = TRUE, width = 0),
     body = body,
     title = NULL,
     skin = "black"

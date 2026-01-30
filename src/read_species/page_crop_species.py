@@ -13,6 +13,16 @@ from PIL import Image
 import os
 import traceback
 
+import pytesseract
+import os
+
+TESSERACT_EXE = "C:/Program Files/Tesseract-OCR/tesseract.exe"
+
+if os.path.exists(TESSERACT_EXE):
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_EXE
+    print("Tesseract fixed to:", TESSERACT_EXE)
+    
+    
 def read_config(file_path, key):
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -27,33 +37,43 @@ tessdata_prefix_set = False
 
 def set_tessdata_prefix_once(workingDir, key="tesserAct"):
     global tessdata_prefix_set
-    if not tessdata_prefix_set:
-        config_file_path = os.path.join(workingDir, "config", "config.csv")
-        try:
-            with open(config_file_path, 'r') as config_file:
-                lines = config_file.readlines()
-                headers = lines[0].strip().split(';')
-                values = lines[1].strip().split(';')
-                config = dict(zip(headers, values))
-                print(config_file_path)
-                tess_path = config.get(key)
 
-                if tess_path and os.path.exists(tess_path):
-                    #os.environ['TESSDATA_PREFIX'] = tess_path
-                    os.environ['TESSDATA_PREFIX'] = os.path.join(tess_path, "tessdata")
-                    # WICHTIG: Setze Pfad zu tesseract.exe explizit
-                    pytesseract.pytesseract.tesseract_cmd = os.path.join(tess_path,  "tesseract.exe")
+    if tessdata_prefix_set:
+        print("TESSDATA_PREFIX already set – skipping")
+        return
 
-                    print(f"TESSDATA_PREFIX set to: {tess_path}")
-                    print(f"tesseract_cmd set to: {pytesseract.pytesseract.tesseract_cmd}")
-                    tessdata_prefix_set = True
-                else:
-                    raise FileNotFoundError(f"Tesseract path invalid or does not exist: {tess_path}")
-        except Exception as e:
-            print(f"Failed to set TESSDATA_PREFIX: {e}")
-            raise
-    else:
-        print("TESSDATA_PREFIX is already set.")
+    config_file_path = os.path.join(workingDir, "config", "config.csv")
+
+    try:
+        with open(config_file_path, 'r') as config_file:
+            lines = config_file.readlines()
+            headers = lines[0].strip().split(';')
+            values = lines[1].strip().split(';')
+            config = dict(zip(headers, values))
+
+        tess_path = config.get(key)
+
+        # 🔑 ENTSCHEIDENDER GUARD
+        if not tess_path or tess_path == "None":
+            print("No Tesseract path in config – using existing setup")
+            tessdata_prefix_set = True
+            return
+
+        if not os.path.exists(tess_path):
+            print(f"Tesseract path does not exist: {tess_path} – skipping override")
+            tessdata_prefix_set = True
+            return
+
+        os.environ['TESSDATA_PREFIX'] = os.path.join(tess_path, "tessdata")
+        print("TESSDATA_PREFIX set to:", os.environ['TESSDATA_PREFIX'])
+
+        tessdata_prefix_set = True
+
+    except Exception as e:
+        print("Failed to set TESSDATA_PREFIX, continuing safely")
+        print(e)
+        tessdata_prefix_set = True
+        return
 
       
 # Function to find species context with a keyword

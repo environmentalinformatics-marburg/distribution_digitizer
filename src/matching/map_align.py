@@ -45,7 +45,11 @@ def align_images(image_path, template_path, output_dir, max_features=500, keep_p
         method = cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING
         matcher = cv2.DescriptorMatcher_create(method)
         matches = matcher.match(descriptors_image, descriptors_template, None)
-
+        
+        if len(matches) < 4:
+          print("⚠️ Not enough matches for reliable homography")
+          return False
+  
         matches = sorted(matches, key=lambda x: x.distance)
         keep = int(len(matches) * keep_percent)
         matches = matches[:keep]
@@ -64,7 +68,10 @@ def align_images(image_path, template_path, output_dir, max_features=500, keep_p
             points_template[i] = keypoints_template[match.trainIdx].pt
 
         (homography_matrix, _) = cv2.findHomography(points_image, points_template, method=cv2.RANSAC)
-
+        if homography_matrix is None:
+          print("⚠️ Homography could not be computed")
+          return False
+        
         (height, width) = template.shape[:2]
         aligned = cv2.warpPerspective(image, homography_matrix, (width, height))
 
@@ -99,7 +106,26 @@ def align_images_directory(working_dir, outDir, nMapTypes=1):
             input_dir = os.path.join(outDir, type_id, "maps", "matching")
             output_dir = os.path.join(outDir, type_id, "maps", "align")
 
-            os.makedirs(output_dir, exist_ok=True)
+            # ------------------------------------------------------------
+            # Validate output directory (must exist) AND clean it
+            # ------------------------------------------------------------
+            if not os.path.isdir(output_dir):
+                print(f"❌ Output directory does not exist (configuration error): {output_dir}")
+                print("❌ Alignment aborted for this map type.")
+                continue
+            
+            # 🧹 Clean output directory (remove old test images)
+            old_files = glob.glob(os.path.join(output_dir, "*.tif"))
+            
+            if old_files:
+                print(f"🧹 Cleaning output directory ({len(old_files)} old files)")
+                for f in old_files:
+                    try:
+                        os.remove(f)
+                    except Exception as e:
+                        print(f"⚠️ Could not remove {f}: {e}")
+            else:
+                print("ℹ️ Output directory already clean")
 
             # Skip missing dirs gracefully
             if not os.path.isdir(template_dir):

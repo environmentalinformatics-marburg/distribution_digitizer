@@ -487,17 +487,7 @@ server <- shinyServer(function(input, output, session) {
   )
   
   
-  observeEvent(input$listMTemplates, {
-    output$listMapTemplates = renderUI({
-      # Check if the directory already exists
-      findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")
-      convertTifToPngSave(
-        findTemplateResult, 
-        file.path(workingDir, "app", "www", "output", "map_templates_png")
-      )
-      prepareImageView("/map_templates_png/", '.png')
-    })
-  })
+
   
   # Function to save the cropped template symbol image
   output$saveSymbol <- downloadHandler(
@@ -526,17 +516,7 @@ server <- shinyServer(function(input, output, session) {
       
     }) 
   
-  observeEvent(input$listSTemplates, {
-    output$listSymbolTemplates = renderUI({
-      
-      findTemplateResult = paste0(workingDir, "/data/input/templates/symbols/")
-      convertTifToPngSave(
-        findTemplateResult, 
-        file.path(workingDir, "app", "www", "output", "symbol_templates_png")
-      )
-      prepareImageView("/symbol_templates_png/", '.png')
-    })
-  })
+
   
   ####################
   # 2. Maps matching #----------------------------------------------------------------------#
@@ -566,15 +546,25 @@ server <- shinyServer(function(input, output, session) {
       session       = session,
       current_out_dir = current_out_dir     # << HIER!
     )
+    shinyjs::show("matching_results_block")
   })
   
   observeEvent(input$listMatchingButton, {
     output$listMaps <- renderUI({
       prepareImageView(
         dirName   = "matching_png",
-        map_type  = input$map_type,
-        range_str = input$range_list
+        map_type  = input$map_type_matching,
+        range_str = input$range_list_matching
       )
+    })
+  })
+  
+  observeEvent(input$listMTemplates, {
+    print("Haa")
+    output$listMapTemplates = renderUI({
+      # Check if the directory already exists
+      findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")
+      prepareImageView("/map_templates_png/", '.png')
     })
   })
   
@@ -593,6 +583,13 @@ server <- shinyServer(function(input, output, session) {
     })
   })
   
+  observeEvent(input$listSTemplates, {
+    output$listSymbolTemplates = renderUI({
+      
+      findTemplateResult = paste0(workingDir, "/data/input/templates/symbols/")
+      prepareImageView("/symbol_templates_png/", '.png')
+    })
+  })
   ####################
   # 2.1 Maps align #----------------------------------------------------------------------#
   ####################
@@ -621,15 +618,16 @@ server <- shinyServer(function(input, output, session) {
       session       = session,
       current_out_dir = current_out_dir     # << HIER!
     ) 
+    shinyjs::show("align_results_block")
   })
   
   # List align maps
   observeEvent(input$listAlignButton, {
-    output$listMaps <- renderUI({
+    output$listAlign <- renderUI({
       prepareImageView(
         dirName   = "align_png",
-        map_type  = input$map_type,
-        range_str = input$range_list
+        map_type  = input$map_type_align,
+        range_str = input$range_list_align
       )
     })
   })
@@ -655,17 +653,15 @@ server <- shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$listPointsM, {
-    if(input$siteNumberPointsMatching != ''){
-      #print(input$siteNumberPointsMatching)
-      output$listPM = renderUI({
-        prepareImageView("/output/pointMatching_png/", input$siteNumberPointsMatching)
-      })
-    }
-    else{
-      output$listPM = renderUI({
-        prepareImageView("/output/pointMatching_png/", '.png')
-      })
-    }
+    #print(input$siteNumberPointsMatching)
+    output$listPM = renderUI({
+      prepareImageView(
+        dirName   = "pointMatching_png",
+        map_type  = input$map_type_PointsMatching,
+        range_str = input$range_list_PointsMatching
+      )
+     # prepareImageView("/output/pointMatching_png/", input$siteNumberPointsMatching,range_list_PointsMatching)
+    })
   })
   
   
@@ -691,17 +687,14 @@ server <- shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$listPointsF, {
-    if(input$siteNumberPointsMatching != ''){
-      #print(input$siteNumberPointsMatching)
-      output$listPF = renderUI({
-        prepareImageView("/output/pointFiltering_png/", input$siteNumberPointsMatching)
-      })
-    }
-    else{
-      output$listPF = renderUI({
-        prepareImageView("/output/pointFiltering_png/", '.png')
-      })
-    }
+    output$listPF = renderUI({
+      prepareImageView(
+        dirName   = "pointFiltering_png",
+        map_type  = input$map_type_PointsFiltering,
+        range_str = input$range_list_PointsFiltering
+      )
+      # prepareImageView("/output/pointMatching_png/", input$siteNumberPointsMatching,range_list_PointsMatching)
+    })
   })
   
   # List matching maps
@@ -753,43 +746,38 @@ server <- shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$listMasks, {
-    if(input$siteNumberMasks!= ''){
-      output$listMS = renderUI({
-        prepareImageView("/output/masking_png/", input$siteNumberMasks)
-      })
-    }
-    else{
-      output$listMS = renderUI({
-        prepareImageView("/output/masking_png/", '.png')
-      })
-    }
+    output$listMS = renderUI({
+      #prepareImageView("/output/masking_png/", input$siteNumberMasks)
+      prepareImageView(
+        dirName   = "masking_png",
+        map_type  = input$map_type_Masks,
+        range_str = input$range_list_Masks
+      )
+    })
   })
   
-  observeEvent(input$listMasksB, {
-    if(input$siteNumberMasks!= ''){
-      output$listMSB = renderUI({
-        prepareImageView("/output/masking_png/", input$siteNumberMasks)
-      })
-    }
-    else{
-      output$listMSB = renderUI({
-        prepareImageView("/output/masking_black_png/", '.png')
-      })
-    }
-  })
+  # observeEvent(input$listMasksB, {
+  #   output$listMSB = renderUI({
+  #     prepareImageView(
+  #       dirName   = "masking_black_png",
+  #       map_type  = input$map_type_Masks,
+  #       range_str = input$range_list_Masks
+  #     )
+  #     #prepareImageView("/output/masking_black_png/", input$siteNumberMasks)
+  #   })
+  # })
   
   observeEvent(input$listMasksCD, {
-    if(input$siteNumberMasks!= ''){
-      output$listMCD = renderUI({
-        prepareImageView("/output/maskingCentroids/", input$siteNumberMasks)
-      })
-    }
-    else{
-      output$listMCD = renderUI({
-        prepareImageView("/output/maskingCentroids/", '.png')
-      })
-    }
-  })
+     output$listMCD = renderUI({
+       prepareImageView(
+         dirName   = "maskingCentroids_png",
+         map_type  = input$map_type_MasksCentroids,
+         range_str = input$range_list_MasksCentroids
+       )
+       #prepareImageView("/output/maskingCentroids/", input$siteNumberMasks)
+     })
+
+   })
   
   ####################
   # 2.2 Circle Detection  #----------------------------------------------------------------------#
@@ -822,11 +810,11 @@ server <- shinyServer(function(input, output, session) {
   
   # Start read  legend species
   observeEvent(input$mapReadRpecies, {
-    # call the function for filtering
+    # call the function for read scpecies
     manageProcessFlow(
       processing = "mapReadRpecies",
       allertText1 = "cropping map species",
-      allertText2 = "align",
+      allertText2 = "pointFiltering",
       input = input,  # ✅ input muss übergeben werden
       session = session,
       current_out_dir = outDir()
@@ -855,8 +843,15 @@ server <- shinyServer(function(input, output, session) {
   
   # Start Crop page species
   observeEvent(input$pageReadRpecies, {
-    # call the function for cropping
-    manageProcessFlow("pageReadRpecies", "read page species", "output")
+    # call the function for read scpecies
+    manageProcessFlow(
+      processing = "pageReadRpecies",
+      allertText1 = "read page species",
+      allertText2 = "output",
+      input = input,  # ✅ input muss übergeben werden
+      session = session,
+      current_out_dir = outDir()
+    )
   })
   
   

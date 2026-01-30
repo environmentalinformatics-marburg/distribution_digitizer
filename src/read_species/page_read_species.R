@@ -3,120 +3,144 @@ library(stringr)
 library(dplyr)
 os <- import("os") 
 
-# Function to read the species
-readPageSpecies <- function(workingDir, outDir, keywordReadSpecies, keywordBefore, keywordThen, middle) {
-  # Set the path to the folder containing CSV files
-  folder_path <- paste0(outDir, "/pagerecords/")
+readPageSpecies <- function(
+    workingDir,
+    outDir,
+    keywordReadSpecies,
+    keywordBefore,
+    keywordThen,
+    middle
+) {
   
-  # List all CSV files in the folder
-  file_list <- list.files(path = folder_path, pattern = "\\.csv", full.names = TRUE)
+  folder_path <- file.path(outDir, "pagerecords")
   
-  # Initialize an empty Dataframe
+  if (!dir.exists(folder_path)) {
+    cat("ℹ️ No pagerecords directory found:", folder_path, "\n")
+    return(invisible(NULL))
+  }
+  
+  file_list <- list.files(folder_path, pattern = "\\.csv$", full.names = TRUE)
+  
+  if (length(file_list) == 0) {
+    cat("ℹ️ No pagerecord CSV files found in:", folder_path, "\n")
+    cat("➡️ Skipping species reading for this map type.\n")
+    return(invisible(NULL))
+  }
+  
   combined_data <- data.frame()
   
-  # Iterate through each CSV file and append it to the combined Dataframe
+  # ---------- CSV-LEVEL PROTECTION ----------
   for (file_path in file_list) {
     tryCatch({
-      # Read the CSV file
-      current_data <- read.csv(file_path)
+      current_data <- read.csv(file_path, stringsAsFactors = FALSE)
       
-      # Append the data to the combined Dataframe
+      if (!"species" %in% colnames(current_data)) {
+        cat("⚠️ CSV without 'species' column skipped:", file_path, "\n")
+        return(NULL)
+      }
+      
       combined_data <- rbind(combined_data, current_data)
+      
     }, error = function(e) {
-      cat("Error occurred while processing file:", file_path, "\n")
+      cat("⚠️ Failed to read CSV:", file_path, "\n")
       message(e)
     })
   }
   
-  # Identify duplicated rows based on the "species" column
-  duplicated_rows <- duplicated(combined_data$species)
-  
-  # Select non-duplicated rows
-  filteredData <- combined_data[!duplicated_rows, ]
-  indexNumberMap = 0
-  # Import the Python script for species reading
-  source_python(paste0(workingDir, "/src/read_species/page_crop_species.py"))
-  for (i in 1:nrow(filteredData)) {
-    #print(filteredData)
-    pagePath = filteredData[i,"file_name"]
-    if (i < 5000) {
-      tryCatch({
-        pagePath = filteredData[i,"file_name"]
-        #print(pagePath)
-        speciesData = filteredData[i,"species"]
-        #print(speciesData)
-        speciesData <- speciesData[speciesData != ""]
-        
-        previous_page_path = filteredData[i,"previous_page_path"]
-        next_page_path = filteredData[i,"next_page_path"]
-        
-        # Call the Python function for species identification
-        pageTitleSpecies = find_species_context(workingDir, pagePath, speciesData, previous_page_path, next_page_path, 
-                                                keywordReadSpecies, keywordBefore, keywordThen, middle)
-        
-        # pageTitleSpecies = '0_schistacea_Virachola isocrates isocrates (Fabricius, 1793) e distribution of schistacea'
-        pageTitleSpecies <- gsub("__", "_", pageTitleSpecies)
-        indexNumberMap = indexNumberMap +1
-        # Remove duplicate entries
-        if (length(pageTitleSpecies) > 0) {
-          splitted_results <- unique(pageTitleSpecies)
-          splitted_results <- strsplit(pageTitleSpecies, "_")
-          
-          # Extracting flag, search_species, and rspecies
-          legend_keys <- sapply(splitted_results, function(x) as.numeric(x[1]))
-          legend_indexs <- sapply(splitted_results, function(x) as.numeric(x[2]))
-          search_species <- sapply(splitted_results, function(x) x[3])
-          rspecies <- sapply(splitted_results, function(x) x[4])
-          print(indexNumberMap)
-          print(search_species)
-          print(rspecies)
-          # Update titles in coordinates.csv
-          update_titles(csv_path = file.path(outDir, "maps", "csvFiles", "coordinates.csv"), search_species, rspecies)
-        } else { 
-          # Set all vectors to NA if there's only one entry
-          legend_keys <- NA
-          search_species <- NA
-          rspecies <- NA
-        }
-        search_species[is.na(search_species)] <- speciesData
-        rspecies[is.na(rspecies)] <- "Not found"
-        
-        # Create a new dataframe with the processed species data
-        new_dataframe <- data.frame(species = rspecies, legend_key = legend_keys, legend_index = legend_indexs, search_specie = search_species, stringsAsFactors = FALSE)
-        
-        # Add a new column for the file name
-        new_dataframe$file_name <- pagePath
-        
-        # Add new columns for map name and original species name
-        new_dataframe$map_name <- filteredData[i,"map_name"]
-        
-        # Replace any occurrence of '\\' with a placeholder value, e.g., "Error"
-        new_dataframe[is.na(new_dataframe)] <- "Error"
-        
-        # Save the dataframe to CSV
-        if (i == 1) {
-          write.table(new_dataframe, file = file.path(outDir, "pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = TRUE, append = TRUE)
-        } else {
-          write.table(new_dataframe, file = file.path(outDir, "pageSpeciesData.csv"), sep = ";", row.names = FALSE, col.names = FALSE, append = TRUE)
-        }
-        
-      }, error = function(e) {
-        cat("Error occurred while processing filteredData row:", i, "\n")
-        print(pagePath)
-        message(e)
-        # Ausführung fortsetzen, z.B. indem Sie leere Werte oder eine Fehlermeldung in die Ausgabedatei schreiben
-        continue_execution <- TRUE
-        # if (continue_execution) {
-        # Schreiben Sie Platzhalter in die Datei oder eine Fehlermeldung
-        # write.table(..., file = ..., append = TRUE)
-        # }
-      })
-    }
+  if (nrow(combined_data) == 0) {
+    cat("ℹ️ No valid species data after reading CSVs in:", folder_path, "\n")
+    return(invisible(NULL))
   }
-  # update_titles(csv_path=file.path(outDir, "coordinates_transformed.csv"), pageTitleSpecies)
   
-  # processCoordinates(coordinatesPath = file.path(outDir,"maps", "csvFiles", "coordinates.csv"), pageSpeciesDataPath=file.path(outDir, "pageSpeciesData.csv"))
+  filteredData <- combined_data[!duplicated(combined_data$species), ]
+  
+  if (nrow(filteredData) == 0) {
+    cat("ℹ️ All species duplicated – nothing to process in:", folder_path, "\n")
+    return(invisible(NULL))
+  }
+  
+  # Python nur laden, wenn wirklich nötig
+  source_python(file.path(workingDir, "src/read_species/page_crop_species.py"))
+  
+  # ---------- ROW-LEVEL PROTECTION ----------
+  for (i in seq_len(nrow(filteredData))) {
+    
+    tryCatch({
+      
+      pagePath <- filteredData$file_name[i]
+      
+      if (is.na(pagePath) || pagePath == "" || !file.exists(pagePath)) {
+        cat("⚠️ Invalid or missing page path at row", i, "\n")
+        return(NULL)
+      }
+      
+      speciesData <- filteredData$species[i]
+      if (is.na(speciesData) || speciesData == "") {
+        cat("⚠️ Empty species at row", i, "– skipping\n")
+        return(NULL)
+      }
+      
+      previous_page_path <- filteredData$previous_page_path[i]
+      next_page_path     <- filteredData$next_page_path[i]
+      
+      pageTitleSpecies <- find_species_context(
+        workingDir,
+        pagePath,
+        speciesData,
+        previous_page_path,
+        next_page_path,
+        keywordReadSpecies,
+        keywordBefore,
+        keywordThen,
+        middle
+      )
+      
+      if (length(pageTitleSpecies) == 0 || pageTitleSpecies == "Not found") {
+        cat("ℹ️ Species not found on page:", basename(pagePath), "\n")
+        return(NULL)
+      }
+      
+      pageTitleSpecies <- gsub("__", "_", pageTitleSpecies)
+      splitted_results <- strsplit(pageTitleSpecies, "_")
+      
+      legend_keys   <- sapply(splitted_results, \(x) as.numeric(x[1]))
+      legend_indexs <- sapply(splitted_results, \(x) as.numeric(x[2]))
+      search_species <- sapply(splitted_results, \(x) x[3])
+      rspecies       <- sapply(splitted_results, \(x) x[4])
+      
+      new_dataframe <- data.frame(
+        species = rspecies,
+        legend_key = legend_keys,
+        legend_index = legend_indexs,
+        search_specie = search_species,
+        file_name = pagePath,
+        map_name = filteredData$map_name[i],
+        stringsAsFactors = FALSE
+      )
+      
+      new_dataframe[is.na(new_dataframe)] <- "Error"
+      
+      out_csv <- file.path(outDir, "pageSpeciesData.csv")
+      
+      write.table(
+        new_dataframe,
+        file = out_csv,
+        sep = ";",
+        row.names = FALSE,
+        col.names = !file.exists(out_csv),
+        append = file.exists(out_csv)
+      )
+      
+    }, error = function(e) {
+      cat("🚨 Error while processing species row", i, "\n")
+      message(e)
+    })
+  }
+  
+  invisible(TRUE)
 }
+
+
 
 update_titles <- function(csv_path, species_list, titles_list) {
   # Read the CSV file
@@ -157,6 +181,43 @@ update_titles <- function(csv_path, species_list, titles_list) {
   cat("Updated CSV file successfully for species:", paste(species_list, collapse = ", "), "\n")
 }
 
+# Wrapper function for multiple map types
+readPageSpeciesMulti <- function(
+    workingDir,
+    outDir,
+    keywordReadSpecies,
+    keywordBefore,
+    keywordThen,
+    middle,
+    nMapTypes = 1
+) {
+  
+  for (type_id in seq_len(as.integer(nMapTypes))) {
+    
+    cat("\n===============================\n")
+    cat("Processing Map Type:", type_id, "\n")
+    cat("===============================\n")
+    
+    # outDir pro Map-Typ
+    outDir_type <- file.path(outDir, as.character(type_id))
+    
+    if (!dir.exists(outDir_type)) {
+      cat("⚠️ Skipping Map Type", type_id, "- directory not found:\n",
+          outDir_type, "\n")
+      next
+    }
+    
+    # Aufruf der ALTEN Funktion (unverändert!)
+    readPageSpecies(
+      workingDir        = workingDir,
+      outDir            = outDir_type,
+      keywordReadSpecies = keywordReadSpecies,
+      keywordBefore     = keywordBefore,
+      keywordThen       = keywordThen,
+      middle            = middle
+    )
+  }
+}
 
 
 # Function to read and process data

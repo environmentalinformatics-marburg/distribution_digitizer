@@ -3,6 +3,15 @@
 # FUNCTIONS       #----------------------------------------------------------------------#
 ####################
 
+checkTesseractWindows <- function() {
+  candidates <- c(
+    "C:/Program Files/Tesseract-OCR/tesseract.exe",
+    "C:/Program Files (x86)/Tesseract-OCR/tesseract.exe"
+  )
+  any(file.exists(candidates))
+}
+
+
 # Function to manage the processing
 manageProcessFlow <- function(processing, allertText1, allertText2, input, session, current_out_dir) {
   
@@ -73,7 +82,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         nMapTypes = as.integer(input$nMapTypes)
       )
       
-      cat("\nSuccessfully executed")
+    
       message <- computeNumberResult(
         base_output_dir = current_out_dir,
         working_dir = workingDir,
@@ -81,7 +90,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         subfolder = "maps/align",
         png_subdir = "output/align_png"
       )
-      
+      cat("\nSuccessfully executed align")
     }, error = function(e) {
       cat("An error occurred during alignMaps processing:\n")
       print(e)
@@ -105,15 +114,6 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         threshold = input$threshold_for_PM,
         nMapTypes = as.integer(input$nMapTypes)  # <-- Hinzugefügt
       )
-      
-      # Optional: Konvertiere TIFs zu PNGs (falls nötig)
-      # findTemplateResult <- file.path(current_out_dir, "maps", "pointMatching")
-      # if (dir.exists(findTemplateResult)) {
-      #   convertTifToPngSave(
-      #     findTemplateResult,
-      #     file.path(workingDir, "app", "www", "output", "pointMatching_png")
-      #   )
-      # }
       
       message <- computeNumberResult(
         base_output_dir = current_out_dir,
@@ -155,16 +155,6 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         subfolder = "maps/pointFiltering",
         png_subdir = "output/pointFiltering_png"
       )
-
-      # convert the tif images to png and save in www
-     # findTemplateResult = paste0(current_out_dir, "/maps/pointFiltering/")
-     # files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-     # countFiles <- paste0(length(files), "")
-     # message <- paste0("Ended on: ", 
-     #                   format(current_time(), "%H:%M:%S \n"), " The number PF maps ", " are \n", 
-     #                   countFiles, " and saved in directory \n", findTemplateResult)
-      #convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "pointFiltering_png"))
-      
     }, error = function(e) {
       cat("An error occurred during pointFiltering processing:\n")
       print(e)
@@ -292,32 +282,59 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
-  if(processing == "pageReadRpecies" ){
+  if (processing == "pageReadRpecies") {
+    
     tryCatch({
-      # Read page species
-      fname=paste0(workingDir, "/", "src/read_species/page_read_species.R")
-      print(paste0("Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ", current_out_dir," directory"))
-      source(fname)
-      if(length(config$keywordReadSpecies) > 0) {
-        species <- readPageSpecies(workingDir, current_out_dir, config$keywordReadSpecies, config$keywordBefore, config$keywordThen, config$middle)
-      } else {
-        species <- readPageSpecies(workingDir, current_out_dir, 'None', config$keywordBefore, config$keywordThen, config$middle)
+      
+      # 🔍 OCR-Status einmal prüfen
+      tesseract_available <- checkTesseractWindows()
+      
+      if (!tesseract_available) {
+        cat(
+          "\n⚠️  OCR WARNING:\n",
+          "   Tesseract OCR was not found on this system.\n",
+          "   Species detection may be incomplete.\n",
+          "   Install Tesseract or set 'tesserAct' in config/config.csv\n\n"
+        )
       }
       
-      cat("\nSuccessfully executed")
-      findTemplateResult <- paste0(current_out_dir, "/maps/align/")
-      files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-      countFiles <- paste0(length(files), "")
-      message <- paste0("Ended on: ", 
-                        format(current_time(), "%H:%M:%S \n"), " The number maps ", " are \n", 
-                        countFiles, " and saved in directory \n", findTemplateResult)
-      # convert the tif images to png and save in www
-      #convertTifToPngSave(findTemplateResult, paste0(workingDir, "/www/data/cropped_png/"))
+      fname <- paste0(workingDir, "/src/read_species/page_read_species.R")
+      print(paste0(
+        "Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ",
+        current_out_dir, " directory"
+      ))
+      print(fname)
+      
+      source(fname)
+      
+      species <- readPageSpeciesMulti(
+        workingDir,
+        current_out_dir,
+        ifelse(length(config$keywordReadSpecies) > 0, config$keywordReadSpecies, "None"),
+        config$keywordBefore,
+        config$keywordThen,
+        config$middle,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      
+      cat("\nSuccessfully executed\n")
+      
+      # 📊 Zusammenfassung + OCR-Hinweis
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "maps/readSpecies",
+        png_subdir = "output/readSpecies_png",
+        tesseract_available = tesseract_available
+      )
+      
     }, error = function(e) {
       cat("An error occurred during pageReadRpecies processing:\n")
       print(e)
     })
   }
+  
   
 
   
@@ -342,7 +359,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
                         format(current_time(), "%H:%M:%S \n"), " The number CD maps", " are \n", 
                         countFiles, " and saved in directory \n", findTemplateResult)
       
-      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "CircleDetection_png"))
+      #convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "CircleDetection_png"))
     }, error = function(e) {
       cat("An error occurred during pointCircleDetection processing:\n")
       print(e)
@@ -383,7 +400,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
                         countFiles, " and saved in directory \n", findTemplateResult)
       # convert the tif images to png and save this in /www directory
      
-      convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "georeferencing_png"))
+      #convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "georeferencing_png"))
       
     }, error = function(e) {
       cat("An error occurred during georeferencing processing:\n")
@@ -469,7 +486,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         #main_point_filtering(workingDir, current_out_dir)
         
         # prepare pages as png for the spatia view
-        convertTifToPngSave( file.path(workingDir, "output", "input",  "pages"),  file.path(workingDir, "app", "www", "output", "pages"))
+        #convertTifToPngSave( file.path(workingDir, "output", "input",  "pages"),  file.path(workingDir, "app", "www", "output", "pages"))
         
       
         

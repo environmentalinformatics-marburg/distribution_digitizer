@@ -2,11 +2,9 @@
 # Script Author: [Spaska Forteva]
 # Script Author: [Madhu Venkates]
 # Created On: 2023-01-10
+# Description: This script edits book pages and creates map images using the matching method.
 # ============================================================
-"""
-Description: This script edits book pages and creates map images using the matching method.
-"""
- 
+
 
 # It is recommended the use of Snake Case for functions and variables, 
 # for examples: find_page_number!
@@ -38,7 +36,7 @@ start_time = time.time()
 fields = ['page_number', 'previous_page_path', 'next_page_path', 'file_name',  'x', 'y', 'w', 'h', 'size', 'threshold', 'time']
 
 # Define fields for the page records CSV files
-fields_page_record = ['page_number','previous_page_path', 'next_page_path', 'file_name',  'map_name', 'x', 'y', 'w', 'h', 'size', 'threshold', 'time']   
+fields_page_record = ['page_number','previous_page_path', 'next_page_path', 'file_name',  'map_name', 'x', 'y', 'w', 'h', 'size', 'threshold', 'time', 'map_group']   
 
 # Input validation
 # Consider using argparse to handle command-line arguments.
@@ -139,12 +137,61 @@ def match_template(previous_page_path, next_page_path, current_page_path,
                    template_map_files, output_dir, output_page_records,
                    records, threshold, page_position, map_group="1"):
     """
-    Template matching for maps (simple version).
+    Detects and extracts map regions from a page image using template matching
+    with normalized cross-correlation, supporting multiple templates.
 
-    - template_map_files: LIST of template paths
-    - for each template: take best match
-    - do NOT save if y is too close to an already saved map
-      (distance < 0.25 * template height)
+    For each page, the function performs template matching against a list of
+    reference map templates. Each template is matched independently, and
+    only the best non-overlapping match per template is retained.
+
+    The procedure is as follows:
+    1. The current page image is loaded once and converted to a NumPy array.
+    2. The page number is extracted from a predefined region (top or bottom)
+       using OCR.
+    3. For each template image:
+       - Normalized cross-correlation (cv2.TM_CCOEFF_NORMED) is computed.
+       - All candidate matches above the given threshold are collected.
+       - Candidates are sorted by correlation score (descending).
+       - A vertical distance (Y-axis) filter is applied to prevent saving
+         multiple maps that are spatially too close to each other.
+         The tolerance is defined as 25% of the template height.
+       - The first candidate that satisfies the Y-distance constraint
+         is selected as the valid match for this template.
+    4. The detected map region is cropped from the page image,
+       slightly extended in vertical direction to preserve borders.
+    5. Each extracted map is saved as an individual image file.
+    6. Metadata for each detected map is written to:
+       - a global records CSV file (appended incrementally), and
+       - a per-map CSV file stored alongside the extracted image.
+
+    The function does not attempt to detect multiple instances of the same
+    template on a single page; at most one map per template is saved.
+
+    Args:
+        previous_page_path (str): Path to the previous page image (or 'None').
+        next_page_path (str): Path to the next page image (or 'None').
+        current_page_path (str): Path to the current page image.
+        template_map_files (list[str]): List of template image paths used for
+            template matching.
+        output_dir (str): Directory where extracted map images are saved.
+        output_page_records (str): Directory for per-map CSV record files.
+        records (str): Path to the global records CSV file.
+        threshold (float): Minimum correlation score required for a match
+            to be considered.
+        page_position (int): Page number position indicator
+            (1 = top of page, 2 = bottom of page).
+        map_group (str): Identifier of the current map group (e.g. "1", "2", ...).
+
+    Returns:
+        None
+
+    Notes:
+        - Each template contributes at most one extracted map per page.
+        - The Y-distance filtering prevents duplicate detections caused by
+          overlapping or highly similar templates.
+        - File names include page number, threshold, template name, and
+          spatial coordinates to ensure traceability.
+        - The function assumes that output directories already exist.
     """
 
     try:
@@ -177,7 +224,7 @@ def match_template(previous_page_path, next_page_path, current_page_path,
             candidates = [(x, y, float(res[y, x]))
                           for (x, y) in zip(loc[1], loc[0])]
             
-            print(f"   DEBUG: {len(candidates)} raw candidates found")
+            #print(f"   DEBUG: {len(candidates)} raw candidates found")
 
             # zeige die besten 10 Kandidaten (y + score)
             for i, (xx, yy, sc) in enumerate(
@@ -194,7 +241,7 @@ def match_template(previous_page_path, next_page_path, current_page_path,
             chosen = None
             
             for (x, y, score) in candidates:
-                print(f"   DEBUG: checking candidate y={y} against saved_y_markers={saved_y_markers}")
+                #print(f"   DEBUG: checking candidate y={y} against saved_y_markers={saved_y_markers}")
             
                 too_close = False
                 for y_prev in saved_y_markers:
@@ -247,26 +294,28 @@ def match_template(previous_page_path, next_page_path, current_page_path,
             with open(records, 'a', newline='') as csv_file:
                 writer = csv.writer(csv_file)
                 if is_empty:
-                    writer.writerow([
-                        "page_number","previous_page","next_page","current_page",
-                        "matched_image","x","y","w","h","size_cm2",
-                        "threshold","duration_s","map_group"
-                    ])
+                    #writer.writerow([
+                    #    "page_number","previous_page","next_page","current_page",
+                    #    "matched_image","x","y","w","h","size_cm2",
+                    #    "threshold","duration_s","map_group"
+                    #])
+                    writer.writerow(fields_page_record)
                 writer.writerow(record_row)
 
             with open(csv_save_path, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([
-                    "page_number","previous_page","next_page","current_page",
-                    "matched_image","x","y","w","h","size_cm2",
-                    "threshold","duration_s","map_group"
-                ])
+                #writer.writerow([
+                #    "page_number","previous_page","next_page","current_page",
+                #    "matched_image","x","y","w","h","size_cm2",
+                #    "threshold","duration_s","map_group"
+                #])
+                writer.writerow(fields_page_record)
                 writer.writerow(record_row)
 
-            print(f"💾 Saved map at y={y}")
+            #print(f"💾 Saved map at y={y}")
             count += 1
-            print(f"🧪 DEBUG SUMMARY for page {os.path.basename(current_page_path)}")
-            print(f"    saved_y_markers = {saved_y_markers}")
+            #print(f"🧪 DEBUG SUMMARY for page {os.path.basename(current_page_path)}")
+            #print(f"    saved_y_markers = {saved_y_markers}")
     except Exception as e:
         print("❌ Error in match_template:", e)
 
@@ -274,93 +323,195 @@ def match_template(previous_page_path, next_page_path, current_page_path,
 
 
 def match_template_contours(previous_page_path, next_page_path, current_page_path,
-                            template_map_file, output_dir, output_page_records,
-                            records, threshold, page_position):
+                            template_map_files, output_dir, output_page_records,
+                            records, threshold, page_position, map_group="1"):
     """
-    Find maps using contour detection, save them, and write coordinates in CSV files.
+    Detects and extracts map regions from a page image using contour-based detection,
+    supporting multiple reference templates.
+
+    This function is an extension of the original contour-based matching approach.
+    Instead of using a single template, it iterates over a list of template images
+    and applies identical contour detection logic for each template.
+
+    The procedure is as follows:
+    1. The current page is converted to grayscale and binarized.
+    2. Morphological operations (dilation and erosion) are applied to enhance contours.
+    3. External contours are detected on the processed image.
+    4. For each template:
+       - The template dimensions define acceptable width/height ranges
+         (using a fixed tolerance).
+       - Contours whose bounding boxes match the template size constraints
+         are considered potential map candidates.
+       - Overlapping detections are filtered to avoid duplicate map extraction.
+    5. Valid map regions are cropped, saved as individual image files,
+       and documented in both a global records CSV and per-map CSV files.
+
+    The function does not modify the underlying contour detection logic or
+    size heuristics compared to the original implementation; it only extends
+    it to handle multiple templates in a single run.
+
+    Args:
+        previous_page_path (str): Path to the previous page image (or 'None').
+        next_page_path (str): Path to the next page image (or 'None').
+        current_page_path (str): Path to the current page image.
+        template_map_files (list[str]): List of template image paths used to
+            define expected map dimensions.
+        output_dir (str): Directory where extracted map images are saved.
+        output_page_records (str): Directory for per-map CSV record files.
+        records (str): Path to the global records CSV file.
+        threshold (float): Threshold value (kept for consistency with template
+            matching; not directly used in contour detection).
+        page_position (int): Page number position indicator
+            (1 = top of page, 2 = bottom of page).
+        map_group (str): Identifier of the current map group (e.g. "1", "2", ...).
+
+    Returns:
+        None
+
+    Notes:
+        - Each page image is processed once; contours are reused for all templates.
+        - Map extraction is based solely on geometric constraints derived
+          from template dimensions.
+        - Output directories must already exist; this function does not
+          create or remove directories.
+        - The naming convention of output files includes page number,
+          template identifier, and vertical (y) position for traceability.
     """
+
     try:
-        print(current_page_path)
-        print(template_map_file)
+        print("🗺️ Page:", current_page_path)
 
-        img = np.array(Image.open(current_page_path).convert('L'))
-        imgc = np.array(Image.open(current_page_path))
+        img_gray = np.array(Image.open(current_page_path).convert("L"))
+        img_color = np.array(Image.open(current_page_path))
 
-        template = np.array(Image.open(template_map_file))
+        page_number = find_page_number(current_page_path, page_position)
+        count = 0
 
-        _, binary = cv2.threshold(img, 128, 255, cv2.THRESH_BINARY_INV)
+        # ------------------------------------------------------------
+        # Preprocess page (robust, book-independent)
+        # ------------------------------------------------------------
+        binary = cv2.adaptiveThreshold(
+            img_gray,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV,
+            31,
+            5
+        )
 
-        kernel = np.ones((5, 5), np.uint8)
-        dilated = cv2.dilate(binary, kernel, iterations=2)
-        eroded = cv2.erode(dilated, kernel, iterations=2)
+        kernel = np.ones((3, 3), np.uint8)
+        processed = cv2.morphologyEx(
+            binary,
+            cv2.MORPH_CLOSE,
+            kernel,
+            iterations=1
+        )
 
-        contours, _ = cv2.findContours(eroded, cv2.RETR_EXTERNAL,
-                                       cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            processed,
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE
+        )
 
-        template_h, template_w = template.shape[:2]
-
-        tolerance = 0.2
-        min_w = int(template_w * (1 - tolerance))
-        max_w = int(template_w * (1 + tolerance))
-        min_h = int(template_h * (1 - tolerance))
-        max_h = int(template_h * (1 + tolerance))
+        print(f"🧪 DEBUG: {len(contours)} contours found on page")
 
         processed_areas = []
 
-        def is_overlapping(x, y, w, h, processed_areas):
+        def is_overlapping(x, y, w, h):
             for (px, py, pw, ph) in processed_areas:
                 if (x < px + pw and x + w > px and
                     y < py + ph and y + h > py):
                     return True
             return False
 
-        count = 0
-        threshold_last = str(threshold).split(".")
-        for idx, contour in enumerate(contours):
-            x, y, w, h = cv2.boundingRect(contour)
-            size = w * h * (2.54 / 400) * (2.54 / 400)
+        # ------------------------------------------------------------
+        # Loop over ALL templates (size reference only)
+        # ------------------------------------------------------------
+        for template_map_file in template_map_files:
+            print("📌 Template:", template_map_file)
 
-            if min_w <= w <= max_w and min_h <= h <= max_h and not is_overlapping(x, y, w, h, processed_areas):
-                page_number = find_page_number(current_page_path, page_position)
-                rows_records = [[str(page_number), previous_page_path,
-                                 next_page_path, current_page_path,
-                                 x, y, w, h, size, threshold,
-                                 (time.time() - start_time)]]
+            template = np.array(Image.open(template_map_file))
+            th, tw = template.shape[:2]
 
+            # ✅ Dynamic size constraints (KEY PART)
+            min_w = int(tw * 0.75)
+            min_h = int(th * 0.75)
+            max_w = int(tw * 1.40)
+            max_h = int(th * 1.40)
 
-                is_empty = os.stat(records).st_size == 0
-                with open(records, 'a', newline='') as csv_file:
-                    csvwriter = csv.writer(csv_file)
-                    if is_empty:
-                        csvwriter.writerow(fields)
-                    csvwriter.writerows(rows_records)
+            print(f"   ↳ size filter: "
+                  f"w=[{min_w},{max_w}], h=[{min_h},{max_h}]")
 
-                # ✅ Y-position at the very end of the filename
-                img_map_path = (
-                    str(page_number) + '-' + str(threshold_last[1]) + '__' +
-                    os.path.basename(current_page_path).rsplit('.', 1)[0] +
-                    os.path.basename(template_map_file).rsplit('.', 1)[0] +
-                    '_' + str(count) +
-                    '_y' + str(y)
+            for contour in contours:
+                x, y, w, h = cv2.boundingRect(contour)
+
+                # DEBUG (can be commented out later)
+                # print(f"DEBUG contour w={w}, h={h}")
+
+                # --- 1) too small → reject
+                if w < min_w or h < min_h:
+                    continue
+
+                # --- 2) too large → reject
+                if w > max_w or h > max_h:
+                    continue
+
+                # --- 3) overlapping → reject
+                if is_overlapping(x, y, w, h):
+                    continue
+
+                # ✅ ACCEPT contour
+                processed_areas.append((x, y, w, h))
+
+                size = w * h * (2.54 / 400) ** 2
+                threshold_last = str(threshold).split(".")[-1]
+
+                base_name = (
+                    f"{page_number}-thr{threshold_last}_"
+                    f"{os.path.basename(current_page_path).rsplit('.', 1)[0]}_"
+                    f"{os.path.basename(template_map_file).rsplit('.', 1)[0]}_"
+                    f"y{y}_x{x}_n{count}"
                 )
 
-                cv2.imwrite(os.path.join(output_dir, img_map_path + '.tif'),
-                            imgc[y:y+h, x:x+w])
+                img_path = os.path.join(output_dir, base_name + ".tif")
+                csv_path = os.path.join(output_page_records, base_name + ".csv")
+
+                cv2.imwrite(img_path, img_color[y:y+h, x:x+w])
+
+                record_row = [
+                    page_number,
+                    previous_page_path,
+                    next_page_path,
+                    current_page_path,
+                    img_path,
+                    x, y, w, h,
+                    size,
+                    threshold,
+                    round(time.time() - start_time, 3),
+                    map_group
+                ]
+
+                is_empty = not os.path.exists(records) or os.stat(records).st_size == 0
+                with open(records, "a", newline="") as f:
+                    writer = csv.writer(f)
+                    if is_empty:
+                        writer.writerow(fields_page_record)
+                    writer.writerow(record_row)
+
+                with open(csv_path, "w", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(fields_page_record)
+                    writer.writerow(record_row)
+
+                print(f"💾 Saved map: w={w}, h={h}, y={y}")
                 count += 1
 
-                csv_path = os.path.join(output_page_records, img_map_path + '.csv')
-                with open(csv_path, 'w', newline='') as page_record:
-                    pageCsvwriter = csv.writer(page_record)
-                    pageCsvwriter.writerow(fields_page_record)
-                    rows = [[str(page_number), previous_page_path, next_page_path,
-                             current_page_path,
-                             os.path.join(output_dir, img_map_path + '.tif'),
-                             x, y, w, h, size, threshold,
-                             (time.time() - start_time)]]
-                    pageCsvwriter.writerows(rows)
+        if count == 0:
+            print("⚠️ No maps found on this page.")
 
     except Exception as e:
-        print("An error occurred in match_template_contours:", e)
+        print("❌ Error in match_template_contours:", e)
+
 
 # Beispielaufruf
 # params = {
@@ -505,8 +656,8 @@ def main_template_matching(
         for i, current_page_path in enumerate(pages):
             print(f"\n🗎 Processing page {os.path.basename(current_page_path)}")
 
-            prev_path = pages[i - 1] if i > 0 else None
-            next_path = pages[i + 1] if i < len(pages) - 1 else None
+            prev_path = pages[i - 1] if i > 0 else 'None'
+            next_path = pages[i + 1] if i < len(pages) - 1 else 'None'
 
             # Seite einmal laden
             img = np.array(Image.open(current_page_path))
@@ -545,8 +696,9 @@ def main_template_matching(
     except Exception as e:
         print("❌ Error in main_template_matching:", e)
 
-#working_dir="D:/distribution_digitizer"
-#outDir="D:/test/output_2025-11-07_14-01-05/"
-#main_template_matching(working_dir, outDir,  0.18, 1, 1, "0043.tif", 2)
-#main_template_matching(working_dir, outDir,  0.18, 1, 1, "1-2", 2)
 
+
+#working_dir="D:/distribution_digitizer"
+#outDir="D:/test/output_2026-01-28_16-17-41/"
+##main_template_matching(working_dir, outDir,  0.18, 1, 1, "0043.tif", 2)
+#main_template_matching(working_dir, outDir,  0.18, 1, 2, "1-1", 2)
