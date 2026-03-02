@@ -3,7 +3,6 @@
 # Load Required Libraries and Define Paths
 #######
 
-library(reticulate)
 library(tesseract)
 library(dplyr)
 library(stringr)

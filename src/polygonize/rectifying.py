@@ -23,10 +23,6 @@ The function 'mainRectifying_PF' processes it for the output files of masked cen
 #### Script for iteratively rectifying the georeferenced output GeoTIFF files from '5. Georeferencing'.
 
 import sys
-# Set path to proj.db file via the path to the conda environment currently in use
-env = sys.prefix
-proj = os.path.join(env, "Library/share/proj/")
-os.environ['PROJ_LIB'] = proj
 
 import rasterio
 from osgeo import gdal, osr
@@ -50,7 +46,9 @@ def rectifying(input_raster, output_raster):
     
     try:
         # Ausführen der Rektifizierung mit gdal.Warp()
-        gdal.Warp(dst_path, src_ds)
+        dst_ds = gdal.Warp(dst_path, src_ds)
+        dst_ds = None
+        src_ds = None
         print(f"Rektifizierte Datei gespeichert: {dst_path}")
     except Exception as e:
         print(f"Fehler bei der Rektifizierung: {e}")
@@ -116,19 +114,39 @@ def mainRectifying_CD(workingDir, outDir):
   # End of function
 
 
-def mainRectifying_PF(workingDir, outDir):
-  try:
-    output= outDir + "/rectifying/pointFiltering/"
-    os.makedirs(output, exist_ok=True) 
-    inputdir = outDir +"/georeferencing/masks/pointFiltering/"
-    
-    for input_raster in glob.glob(inputdir + "*.tif"):
-      print(input_raster)
-      dst_layername = os.path.basename(input_raster)
-      print(dst_layername)
-      output_raster = output + dst_layername
-      print(output_raster)
-      rectifying(input_raster, output_raster)
-  except Exception as e:
-        print("An error occurred in mainRectifying_PF:", e)
-  # End of function
+def mainRectifying_PF(workingDir, outDir, nMapTypes=1):
+
+    print(f"DEBUG Rectifying nMapTypes = {nMapTypes}")
+
+    for i in range(1, nMapTypes + 1):
+
+        print(f"\n=== Rectifying map type {i} ===")
+
+        inputdir = os.path.join(
+            outDir, str(i), "georeferencing", "masks", "pointFiltering"
+        )
+
+        output = os.path.join(
+            outDir, str(i), "rectifying", "pointFiltering"
+        )
+
+        os.makedirs(output, exist_ok=True)
+
+        print("Input directory:", inputdir)
+        print("Output directory:", output)
+
+        tif_files = glob.glob(os.path.join(inputdir, "*.tif"))
+
+        if not tif_files:
+            print("⚠️ No tif files found for rectifying")
+            continue
+
+        for input_raster in tif_files:
+            print("Rectifying:", input_raster)
+
+            dst_layername = os.path.basename(input_raster)
+            output_raster = os.path.join(output, dst_layername)
+
+            rectifying(input_raster, output_raster)
+
+#mainRectifying_PF( "D:/distribution_digitizer/", "D:/test/output_2026-02-20_08-40-28/", 2)

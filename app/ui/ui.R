@@ -826,94 +826,231 @@ body <- dashboardBody(
     ),  # END tabItem 5
     
     
-    # Tab 6 Georeferencing  FILES=shinyfields_georeferensing & shinyfields_georef_coords_from_csv_file.csv #-------------------------------------------------
+
+    # ----------------------------------------------------------------------
+    # Tab 6 – Georeferencing
+    # ----------------------------------------------------------------------
     tabItem(
-      tabName = "tab6",  
-      wellPanel(
-        h3(strong(shinyfields6$head, style = "color:black")),
-        p(shinyfields6$inf1, style = "color:black"),
-        p(shinyfields6$inf2, style = "color:black"),
-        # start georeferencing
-        actionButton("georeferencing",  label = shinyfields6$lab1, style="color:#FFFFFF;background:#999999")
+      tabName = "tab6",
+      
+      fluidRow(
+        column(
+          6,
+          
+          wellPanel(
+            
+            # ---------------- HEADER ----------------
+            h3(strong(shinyfields6$head, style = "color:black")),
+            p(shinyfields6$inf1, style = "color:black"),
+            p(shinyfields6$inf2, style = "color:black"),
+            
+            actionButton(
+              "georeferencing",
+              label = shinyfields6$lab1,
+              style="color:#FFFFFF;background:#999999"
+            ),
+            
+            tags$hr(),
+            
+            # ---------------- LIST ELEMENTS ----------------
+            conditionalPanel(
+              condition = "input.georeferencing > 0",
+              
+              fluidRow(
+                column(
+                  4,
+                  textInput(
+                    "range_list_Georeferencing",
+                    label = HTML(shinyfields2$inf7),
+                    value = "1-2"
+                  )
+                ),
+                column(
+                  4,
+                  selectInput(
+                    "map_type_Georeferencing",
+                    label = "Select map type:",
+                    choices = mapTypes,
+                    selected = mapTypes[1]
+                  )
+                ),
+                column(
+                  4,
+                  actionButton(
+                    "listGeoreferencing",
+                    "List georeferenced files"
+                  )
+                )
+              )
+            )
+          ),
+          
+          # ---------------- LEAFLET OUTPUT ----------------
+          uiOutput("leaflet_outputs_GEO")
+        )
       ),
-      wellPanel(
-        # which site become overview
-        fluidRow(column(3,textInput("siteNumberGeoreferencing", label=shinyfields6$input, value = ''))),
-        # start overview 
-        actionButton("listGeoreferencing",  label = "List georeferenced files"),
-      ),
-      wellPanel(
-        uiOutput('leaflet_outputs_GEO')
-      ),
+      
+      # ---------------- CSV GEOREF ----------------
       wellPanel(
         h4(shinyfields8$head_sub, style = "color:red"),
         p(shinyfields8$info1, style = "color:black"),
         p(shinyfields8$info2, style = "color:black"),
-        actionButton("georef_coords_from_csv", label = shinyfields8$lab1, style="color:#FFFFFF;background:#999999")
-      )
-      # END fluid Row
-    ),# END tabItem 6
-    
-    # Tab 7 Polygonize  FILE=shinyfields_polygonize #----------------------------------------------------------------------
-    tabItem(
-      tabName = "tab7", 
-      wellPanel(
-        h3(strong(shinyfields7$head, style = "color:black")),
-        p(shinyfields7$inf1, style = "color:black"),
-        p(shinyfields7$inf2, style = "color:black"),
-        actionButton("polygonize",  label = shinyfields7$lab1, style="color:#FFFFFF;background:#999999")
-      ),
-      wellPanel(
-        # which site become overview
-        fluidRow(column(3,textInput("siteNumberPolygonize", label=shinyfields6$input, value = ''))),
-        actionButton("listPolygonize",  label = "Listf polygonized files",),
-      ),
-      wellPanel( 
-        uiOutput("leaflet_outputs_PL")
-      )
-    ),  # END tabItem 7
-    
-    # Tab 8 Spatial data view #----------------------------------------------------------------------
-    tabItem(
-      tabName = "tab8", 
-      # wellPanel(
-      #  h3(strong("Save the outputs in csv file", style = "color:black")),
-      #  p("hier kommt noch mehr Text", style = "color:black"),
-      #  p("hier kommt noch mehr Text", style = "color:black"),
-      actionButton("startSpatialDataComputing",  label ="Spatial Data Computing", style="color:#FFFFFF;background:#999999"),
-      #),
-      wellPanel(
-        # which site become overview
-        #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
         
-        actionButton("spatialViewPF",  label = "Start View point detection",),
-        leafletOutput("mapSpatialViewPF"),
-        verbatimTextOutput("hoverInfo3")
-      ),
-      # wellPanel(
-      # which site become overview
-      #fluidRow(column(3,textInput("siteNumberSave", label="Test", value = ''))),
-      
-      #actionButton("spatialViewCD",  label = "Start View circle detection",),
-      #leafletOutput("mapSpatialViewCD"),
-      #verbatimTextOutput("hoverInfo")
-      #)
-      
-    ),  # END tabItem 8
+        actionButton(
+          "georef_coords_from_csv",
+          label = shinyfields8$lab1,
+          style="color:#FFFFFF;background:#999999"
+        )
+      )
+    ), # END tabItem
+    
+
+    # -------------------------------------------------
+    # Tab 7 – Polygonize
+    # -------------------------------------------------
     
     tabItem(
-      tabName = "tab9",
-      actionButton("viewCSV",  label ="Overview spatial final data", style="color:#FFFFFF;background:#999999"),
+      tabName = "tab7",
       
-      wellPanel( 
-        #downloadButton("downloadCSV", label = "Download CSV", style="color:#FFFFFF;background:#999999"),
-        downloadButton("download_csv", label = "Download CSV", style="color:#FFFFFF;background:#999999"),
-        
-        dataTableOutput("view_csv")
-      ),
-    )
-  ) # END tabItems
-  
+      fluidRow(
+        column(
+          6,
+          
+          wellPanel(
+            
+            # ---------------- HEADER ----------------
+            h3(strong(shinyfields7$head, style = "color:black")),
+            p(shinyfields7$inf1, style = "color:black"),
+            p(shinyfields7$inf2, style = "color:black"),
+            
+            actionButton(
+              "polygonize",
+              label = shinyfields7$lab1,
+              style = "color:#FFFFFF;background:#999999"
+            ),
+            
+            tags$hr(),
+            
+            # ---------------- LIST ELEMENTS ----------------
+            conditionalPanel(
+              condition = "input.polygonize > 0",
+              
+              fluidRow(
+                
+                column(
+                  4,
+                  textInput(
+                    "range_list_Polygonize",
+                    label = HTML(shinyfields2$inf7),
+                    value = "1-2"
+                  )
+                ),
+                
+                column(
+                  4,
+                  selectInput(
+                    "map_type_Polygonize",
+                    label = "Select map type:",
+                    choices = mapTypes,
+                    selected = mapTypes[1]
+                  )
+                ),
+                
+                column(
+                  4,
+                  actionButton(
+                    "listPolygonize",
+                    "List polygonized files"
+                  )
+                )
+                
+              )
+            )
+          ),
+          
+          # ---------------- LEAFLET OUTPUT ----------------
+          uiOutput("leaflet_outputs_PL")
+          
+        )
+      )
+    ), # END tabItem 7
+    
+    
+    
+
+    # ----------------------------------------------------------------------
+    # Tab 8 – Spatial Data View (Point Detection only)
+    # ----------------------------------------------------------------------
+    
+    tabItem(
+      tabName = "tab8",
+      
+      fluidRow(
+        column(
+          6,
+          
+          wellPanel(
+            
+            # ---------------- HEADER ----------------
+            h3(strong("Spatial Data View", style = "color:black")),
+            p("Select map type and range before viewing point detection results.",
+              style = "color:black"),
+            
+            actionButton(
+              "startSpatialDataComputing",
+              label = "Spatial Data Computing",
+              style = "color:#FFFFFF;background:#999999"
+            ),
+            
+            tags$hr(),
+            
+            # ---------------- LIST ELEMENTS ----------------
+            conditionalPanel(
+              condition = "input.startSpatialDataComputing > 0",
+              
+              fluidRow(
+                
+                column(
+                  4,
+                  textInput(
+                    "range_list_Spatial",
+                    label = HTML(shinyfields2$inf7),
+                    value = "1-2"
+                  )
+                ),
+                
+                column(
+                  4,
+                  selectInput(
+                    "map_type_Spatial",
+                    label = "Select map type:",
+                    choices = mapTypes,
+                    selected = mapTypes[1]
+                  )
+                ),
+                
+                column(
+                  4,
+                  actionButton(
+                    "spatialViewPF",
+                    "Start View point detection"
+                  )
+                )
+                
+              )
+            )
+          ),
+          
+          # ---------------- LEAFLET OUTPUT ----------------
+          wellPanel(
+            leafletOutput("mapSpatialViewPF", height = 600),
+            verbatimTextOutput("hoverInfo3")
+          )
+          
+        )
+      )
+    ) # END tabItems
+  )
 ) # END BODY
 
 

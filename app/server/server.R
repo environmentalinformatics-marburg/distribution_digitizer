@@ -68,10 +68,6 @@ if(!require(shinyFiles)){
   library(shinyFiles)
 }
 
-if(!require(reticulate)){
-  install.packages("reticulate",dependencies = T)
-  library(reticulate)
-}
 library(shinyalert)
 
 if(!require(tesseract)){
@@ -87,6 +83,10 @@ if(!require(raster)){
   install.packages("raster",dependencies = T)
   library(raster)
 }
+
+
+# optional Debug
+py_config()
 
 library(sf)
 
@@ -734,7 +734,7 @@ server <- shinyServer(function(input, output, session) {
   
   
   observeEvent(input$maskingCentroids, {
-    # call the function for filtering
+    # call the function for masking centroids
     manageProcessFlow(
       processing = "maskingCentroids",
       allertText1 = "masking centroids",
@@ -863,93 +863,135 @@ server <- shinyServer(function(input, output, session) {
   
   # Start
   # GCP points extraction
-  observeEvent(input$pointextract, {
-    current_out_dir <- outDir()
-    #Processing georeferencing
-    fname=paste0(workingDir, "/", "src/georeferencing/geo_points_extraction.py")
-    source_python(fname)
-    maingeopointextract(workingDir,current_out_dir, input$filterm)
-    cat("\nSuccessfully executed")
-  })
+  #observeEvent(input$pointextract, {
+   # current_out_dir <- outDir()
+    ##Processing georeferencing
+    #fname=paste0(workingDir, "/", "src/georeferencing/geo_points_extraction.py")
+    #source_python(fname)
+    #maingeopointextract(workingDir,current_out_dir, input$filterm)
+    #cat("\nSuccessfully executed")
+  #})
   
   observeEvent(input$georeferencing, {
-    # call the function for filtering
-    manageProcessFlow("georeferencing", "georeferencing", "georeferencing")
+    # call the function for masking centroids
+    manageProcessFlow(
+      processing = "georeferencing",
+      allertText1 = "georeferencing",
+      allertText2 = "georeferencing",
+      input = input,  # ✅ input muss übergeben werden
+      session = session,
+      current_out_dir = outDir()
+    )
   })
   
   
-  # Georeferencing list maps
   observeEvent(input$listGeoreferencing, {
+    
     current_out_dir <- outDir()
-    # Anzahl der Leaflet-Elemente, die Sie hinzufügen möchten
-    # show start action message
-    message=paste0("Process ", "Georeferencing", " is started on: ")
-    shinyalert(text = paste(message, format(Sys.time(), "%H:%M:%S")), type = "info", showConfirmButton = FALSE, closeOnEsc = TRUE,
-               closeOnClickOutside = FALSE, animation = TRUE)
-    #current_out_dir <- "D:/test/output_2025-03-27_12-30-59/"
-    listgeoTiffiles = list.files(paste0(current_out_dir, "/rectifying/maps"), full.names = T, pattern = paste0('.tif',input$siteNumberGeoreferencing))
-    if( length(listgeoTiffiles) == 0) {
-      listgeoTiffiles = list.files(paste0(current_out_dir, "/rectifying/maps"), full.names = T, pattern = '.tif')
+    mapType <- input$map_type_Georeferencing
+    rangeFilter <- input$range_list_Georeferencing
+    
+    #shinyalert(
+    #  text = paste("Process Georeferencing started on:", format(Sys.time(), "%H:%M:%S")),
+    #  type = "info",
+    #  showConfirmButton = FALSE
+    #)
+    
+    # -------------------------------------------------
+    # NEW Multi-MapType PATH
+    # -------------------------------------------------
+    geoPath <- file.path(
+      current_out_dir,
+      mapType,
+      "georeferencing",
+      "masks",
+      "pointFiltering"
+    )
+    
+    cat("\nLooking geo tif in:", geoPath)
+    if(!dir.exists(geoPath)){
+      cat("\nDirectory does NOT exist!\n")
+      return(NULL)
     }
-    num_leaflet_outputs_GEO <- length(listgeoTiffiles)
+    # Range filter
+    pattern <- "\\.tif$"
     
-    # Liste der ursprunlichen map Files zum Vergleich mit den polygonizierten Maps
-    listPng = list.files(paste0(workingDir, "/www/data/georeferencing_png/"), full.names = F, pattern = paste0('.png', input$siteNumberGeoreferencing))  #print(listPng)
+    listgeoTiffiles <- list.files(
+      geoPath,
+      full.names = TRUE,
+      pattern = pattern
+    )
     
+    if(length(listgeoTiffiles) == 0){
+      shinyalert("No georeferenced maps found!", type = "warning")
+      closeAlert()
+      return(NULL)
+    }
+    cat("\nlistgeoTiffiles:", listgeoTiffiles)
+    # -------------------------------------------------
+    # PNG PATH (already in www)
+    # -------------------------------------------------
+    pngPath <- file.path(
+      workingDir,
+      "app",
+      "www",
+      "output",
+      mapType,
+      "georeferencing_png"
+    )
+    cat("\nLooking in www:", pngPath)
+    listPng <- list.files(
+      pngPath,
+      full.names = FALSE,
+      pattern = ".png"
+    )
+    cat("\nFound TIFFs:\n")
+    print(listgeoTiffiles)
+    
+    cat("\nFound PNGs:\n")
+    print(listPng)
+    # -------------------------------------------------
+    # Dynamic Leaflet UI
+    # -------------------------------------------------
     output$leaflet_outputs_GEO <- renderUI({
-      #print( paste('00',input$siteNumberGeoreferencing,'map'))
-      # Erstellen Sie eine Liste von Leaflet-Elementen
-      leaflet_outputs_list <- lapply(1:num_leaflet_outputs_GEO, function(i) {
-        leafletOutput(outputId = paste0("map_geo_", i))
-      })
-      
-      # Verwenden Sie do.call, um die Liste der Leaflet-Elemente in UI auszugeben
-      do.call(tagList, leaflet_outputs_list)
+      do.call(tagList,
+              lapply(seq_along(listgeoTiffiles), function(i) {
+                leafletOutput(outputId = paste0("map_geo_", i))
+              })
+      )
     })
     
-    # Liste von Leaflet-Objektenlapply(seq_along(my_list), function(i) {
     leaflet_list_GEO <- lapply(seq_along(listgeoTiffiles), function(i) {
-      #print(listgeoTiffiles[i])
+      
+      r <- terra::rast(listgeoTiffiles[i])
+      
+      # ganz wichtig
+      r <- terra::rectify(r)
+      
       leaflet() %>%
-        addTiles("Georeferencing") %>%
         addProviderTiles("OpenStreetMap.Mapnik") %>%
-        addRasterImage(raster(listgeoTiffiles[i]), opacity = 0.7) %>%
-        addControl(
-          htmltools::div(
-            p(listgeoTiffiles[i]),
-          ),
-          position = "bottomright"
-        ) %>%
-        addControl(
-          htmltools::div(
-            img(src = paste0("/data/georeferencing_png/",listPng[i]), width = 200, height = 200),
-            tags$a(href = paste0("/data/georeferencing_png/",listPng[i]), listPng[i], target="_blank"),
-          ),
-          position = "bottomleft"
+        addRasterImage(r, opacity = 0.4) %>%
+        fitBounds(
+          terra::xmin(r),
+          terra::ymin(r),
+          terra::xmax(r),
+          terra::ymax(r)
         )
     })
     
-    # Ergebnisse in den Output-Variablen speichern
-    
-    leaflet_lists <- lapply(1:length(leaflet_list_GEO), function(i) {
-      output[[paste0('map_geo_', i)]] <- renderLeaflet({ leaflet_list_GEO[[i]] })
+    lapply(seq_along(leaflet_list_GEO), function(i) {
+      output[[paste0("map_geo_", i)]] <- renderLeaflet({
+        leaflet_list_GEO[[i]]
+      })
     })
     
-    cat("\nSuccessfully executed")
-    # show end action message
+    closeAlert()
+    shinyalert(
+      text = paste("Georeferencing successfully loaded!", format(Sys.time(), "%H:%M:%S")),
+      type = "success"
+    )
     
-    closeAlert(num = 0, id = NULL)
-    shinyalert(text = paste("Georeferencing successfully executed!", format(Sys.time(), "%H:%M:%S")), 
-               type = "info", showConfirmButton = TRUE, closeOnEsc = TRUE,
-               closeOnClickOutside = TRUE, animation = TRUE)
   })
-  
-  observeEvent(input$georef_coords_from_csv, {
-    # call the function for georeference extracted csv files mathematically
-    manageProcessFlow("georef_coords_from_csv", "georeferencing", "georef_coords_from_csv")
-  })
-  
-  
   
   ####################
   # 6. Polygonize #----------------------------------------------------------------------#
@@ -957,123 +999,273 @@ server <- shinyServer(function(input, output, session) {
   
   # Start
   observeEvent(input$polygonize, {
-    # call the function for filtering
-    manageProcessFlow("polygonize", "polygonize", "polygonize")
+    # call the function for masking centroids
+    manageProcessFlow(
+      processing = "polygonize",
+      allertText1 = "polygonize",
+      allertText2 = "polygonize",
+      input = input,  # ✅ input muss übergeben werden
+      session = session,
+      current_out_dir = outDir()
+    )
     
   }) 
   
   
   observeEvent(input$listPolygonize, ignoreInit = TRUE, {
+    
     tryCatch({
-      # 1) outDir holen und prüfen
+      
+      # 1) outDir prüfen
       current_out_dir <- outDir()
+      
       validate(
         need(nzchar(current_out_dir), "outDir() ist leer."),
-        need(dir.exists(current_out_dir), paste("Ordner existiert nicht:", current_out_dir))
+        need(dir.exists(current_out_dir),
+             paste("Ordner existiert nicht:", current_out_dir))
       )
       
-      # 2) Basisordner für Shapefiles
-      shp_dir <- file.path(current_out_dir, "polygonize", "pointFiltering")
-      validate(need(dir.exists(shp_dir), paste("Shapefile-Ordner fehlt:", shp_dir)))
+      # 2) Alle Map-Ordner (1, 2, 3, ...)
+      map_dirs <- list.dirs(current_out_dir, recursive = FALSE, full.names = TRUE)
       
-      # 3) Alle .shp einsammeln
-      shp <- list.files(shp_dir, pattern = "\\.shp$", full.names = TRUE, recursive = FALSE)
+      # Nur numerische Ordner behalten
+      map_dirs <- map_dirs[grepl("[/\\\\][0-9]+$", map_dirs)]
       
-      # 4) Nach Site-Nummer filtern (falls gesetzt) – auf Dateiname (basename) matchen
-      site_pat <- if (!is.null(input$siteNumberPolygonize)) as.character(input$siteNumberPolygonize) else ""
+      validate(
+        need(length(map_dirs) > 0, "Keine Map-Ordner gefunden (1/, 2/, ...).")
+      )
+      
+      # Optional: Nach bestimmtem Map-Typ filtern
+      if (!is.null(input$map_type_Polygonize) &&
+          nzchar(input$map_type_Polygonize)) {
+        
+        selected_map <- as.character(input$map_type_Polygonize)
+        
+        map_dirs <- map_dirs[
+          basename(map_dirs) == selected_map
+        ]
+        
+        validate(
+          need(length(map_dirs) > 0,
+               paste("Map-Ordner nicht gefunden:", selected_map))
+        )
+      }
+      
+      # 3) Shapefiles sammeln
+      shp <- unlist(lapply(map_dirs, function(dir_i) {
+        
+        shp_dir <- file.path(dir_i, "polygonize", "pointFiltering")
+        
+        if (!dir.exists(shp_dir)) return(NULL)
+        
+        list.files(shp_dir,
+                   pattern = "\\.shp$",
+                   full.names = TRUE)
+      }))
+      
+      validate(
+        need(length(shp) > 0, "Keine Shapefiles gefunden.")
+      )
+      
+      # 4) Site-Filter (optional)
+      site_pat <- if (!is.null(input$siteNumberPolygonize))
+        as.character(input$siteNumberPolygonize) else ""
+      
       if (nzchar(site_pat)) {
         shp <- shp[grepl(site_pat, basename(shp), fixed = TRUE)]
       }
       
-      # 5) "filtered" ausschließen (einfach & stabil)
       shp <- shp[!grepl("filtered", basename(shp), ignore.case = TRUE)]
       
-      # 6) Ergebnis prüfen
-      validate(need(length(shp) > 0, "Keine passenden Shapefiles gefunden."))
+      validate(
+        need(length(shp) > 0, "Keine passenden Shapefiles gefunden.")
+      )
       
-      # 7) PNG-Verzeichnis (statische Auslieferung unter www/data/…)
-      png_dir_disk <- file.path(workingDir, "www", "data", "pointFiltering_png")
-      validate(need(dir.exists(png_dir_disk), paste("PNG-Ordner fehlt:", png_dir_disk)))
+      # 5) PNG-Verzeichnis (www)
+      png_dir_disk <- file.path(
+        workingDir,
+        "www",
+        "data",
+        "align_png"
+      )
       
-      # Hilfsfunktion: für jedes Shapefile ein passendes PNG finden (gleicher Basename)
+      # Hilfsfunktion PNG passend zum SHP finden
       pick_png_for_shp <- function(shp_path) {
-        stem <- sub("\\.shp$", "", basename(shp_path))
-        # Erlaube z. B. .png oder .PNG
-        cand <- list.files(png_dir_disk, pattern = paste0("^", gsub("([.^$|()\\[\\]{}+*?\\\\])", "\\\\\\1", stem), "\\.(?i:png)$"),
-                           full.names = FALSE)
-        if (length(cand) > 0) cand[[1]] else NA_character_
-      }
-      
-      # 8) Leaflet-Outputs dynamisch anlegen
-      num_leaflet_outputs <- length(shp)
-      
-      output$leaflet_outputs_PL <- renderUI({
-        leaflet_outputs_list <- lapply(seq_len(num_leaflet_outputs), function(i) {
-          leafletOutput(outputId = paste0("listPL", i))
-        })
-        do.call(tagList, leaflet_outputs_list)
-      })
-      
-      # 9) Karten erstellen
-      leaflet_list_PL <- lapply(seq_along(shp), function(i) {
-        shp_i <- shp[i]
-        shp_name <- basename(shp_i)
-        png_i <- pick_png_for_shp(shp_i)
         
-        # Shapefile einlesen
-        shape_data <- sf::st_read(shp_i, quiet = TRUE)
+        # Dateiname ohne .shp
+        base_name <- sub("\\.shp$", "", basename(shp_path))
         
-        # RGB→HEX (erwartet Spalten Red/Green/Blue in 0..255)
-        rgb_to_hex <- function(r, g, b) {
-          grDevices::rgb(r/255, g/255, b/255)  # default maxColorValue = 1 → Werte 0..1
-        }
+        # Map-Ordner bestimmen (1, 2, 3, ...)
+        # shp_path/.../output/1/polygonize/pointFiltering/file.shp
+        map_folder <- basename(dirname(dirname(dirname(shp_path))))
         
-        # Optional: Falls Red/Green/Blue fehlen, fallback auf eine Farbe
-        if (!all(c("Red","Green","Blue") %in% names(shape_data))) {
-          shape_data$Red   <- 30
-          shape_data$Green <- 144
-          shape_data$Blue  <- 255
-        }
+        # PNG-Dateiname
+        png_name <- paste0(base_name, ".png")
         
-        # UI-Schnipsel unten rechts (Dateiname)
-        info_br <- htmltools::div(htmltools::p(shp_name))
+        # Disk-Pfad prüfen
+        png_disk_path <- file.path(
+          workingDir,
+          "app",
+          "www",
+          "output",
+          map_folder,
+          "align_png",
+          png_name
+        )
         
-        # UI-Schnipsel unten links (PNG-Vorschau + Link), nur wenn PNG vorhanden
-        info_bl <- if (!is.na(png_i)) {
-          htmltools::div(
-            tags$img(src = file.path("/data/pointFiltering_png", png_i), width = 200, height = 200),
-            tags$a(href = file.path("/data/pointFiltering_png", png_i), target = "_blank", png_i)
-          )
+        if (file.exists(png_disk_path)) {
+          
+          # Web-Pfad (wichtig: relativ zu www)
+          return(file.path("output", map_folder, "align_png", png_name))
+          
         } else {
-          htmltools::div(htmltools::em("Kein PNG gefunden."))
+          return(NA_character_)
         }
+      }
+      observeEvent(input$show_png_modal, {
         
-        leaflet::leaflet() %>%
-          leaflet::addTiles() %>%
-          leaflet::addCircleMarkers(
-            data = shape_data,
-            color = ~rgb_to_hex(Red, Green, Blue),
-            weight = 1,
-            opacity = 0.9,
-            fillOpacity = 0.5,
-            radius = 5
-          ) %>%
-          leaflet::addControl(info_br, position = "bottomright") %>%
-          leaflet::addControl(info_bl, position = "bottomleft")
+        showModal(
+          modalDialog(
+            size = "l",
+            easyClose = TRUE,
+            footer = NULL,
+            
+            tags$img(
+              src = paste0("/", input$show_png_modal),
+              style = "width:100%;"
+            )
+          )
+        )
+        
+      })
+      # 6) Dynamische Leaflet UI
+      output$leaflet_outputs_PL <- renderUI({
+        
+        tagList(lapply(seq_along(shp), function(i) {
+          
+          fluidRow(
+            column(
+              width = 7,
+              leafletOutput(paste0("listPL", i), height = 400)
+            ),
+            column(
+              width = 5,
+              uiOutput(paste0("pngPL", i))
+            ),
+            hr()
+          )
+          
+        }))
       })
       
-      # 10) Rendern
-      invisible(lapply(seq_along(leaflet_list_PL), function(i) {
-        output[[paste0("listPL", i)]] <- leaflet::renderLeaflet(leaflet_list_PL[[i]])
+      # 7) Karten erzeugen
+      invisible(lapply(seq_along(shp), function(i) {
+        
+        local({
+          
+          shp_i <- shp[i]
+          shp_name <- basename(shp_i)
+          png_i <- pick_png_for_shp(shp_i)
+          
+          shape_data <- sf::st_read(shp_i, quiet = TRUE)
+          
+          rgb_to_hex <- function(r, g, b) {
+            grDevices::rgb(r/255, g/255, b/255)
+          }
+          
+          if (!all(c("Red","Green","Blue") %in% names(shape_data))) {
+            shape_data$Red   <- 30
+            shape_data$Green <- 144
+            shape_data$Blue  <- 255
+          }
+          
+          info_br <- htmltools::div(htmltools::p(shp_name))
+          
+          info_bl <- if (!is.na(png_i)) {
+            htmltools::div(
+              tags$img(
+                rc = paste0("/", png_i),
+                width = 200
+              ),
+              tags$a(
+                href = paste0("/", png_i),
+                target = "_blank",
+                png_i
+              )
+            )
+          } else {
+            htmltools::div(htmltools::em(paste("PNG-Pfad:", png_i)))
+          }
+          
+          output[[paste0("listPL", i)]] <- leaflet::renderLeaflet({
+            
+            leaflet::leaflet() %>%
+              leaflet::addProviderTiles(
+                leaflet::providers$OpenStreetMap
+              ) %>%
+              leaflet::addCircleMarkers(
+                data = shape_data,
+                color = ~rgb_to_hex(Red, Green, Blue),
+                weight = 1,
+                opacity = 0.9,
+                fillOpacity = 0.6,
+                radius = 5
+              ) %>%
+              leaflet::addControl(info_br, position = "bottomright") %>%
+              leaflet::addControl(info_bl, position = "bottomleft")
+            
+          })
+          output[[paste0("pngPL", i)]] <- renderUI({
+            
+            if (!is.na(png_i)) {
+              
+              tagList(
+                
+                tags$div(
+                  style = "text-align:center;",
+                  
+                  tags$img(
+                    src = paste0("/", png_i),
+                    style = "max-width:100%; cursor:pointer; border:1px solid #ccc;",
+                    onclick = sprintf(
+                      "Shiny.setInputValue('show_png_modal', '%s', {priority: 'event'})",
+                      png_i
+                    )
+                  ),
+                  
+                  tags$p(
+                    style = "font-size:12px;",
+                    basename(png_i)
+                  )
+                )
+                
+              )
+              
+            } else {
+              
+              tags$em("Kein PNG gefunden.")
+              
+            }
+          })
+          
+        })
+        
       }))
       
-      # Optional: kurze Rückmeldung
-      showNotification(paste("Gefunden:", num_leaflet_outputs, "Shapefile(s)."), type = "message")
+      showNotification(
+        paste("Gefunden:", length(shp), "Shapefile(s)."),
+        type = "message"
+      )
       
     }, error = function(e) {
-      message <- paste("Error in observeEvent(input$listPolygonize):", conditionMessage(e))
-      shinyalert(text = message, type = "error")
+      
+      shinyalert(
+        text = paste("Polygonize Fehler:", conditionMessage(e)),
+        type = "error"
+      )
+      
     })
+    
   })
   
   
@@ -1084,7 +1276,14 @@ server <- shinyServer(function(input, output, session) {
   # Start
   observeEvent(input$startSpatialDataComputing, {
     # call the function for filteringg
-    manageProcessFlow("spatial_data_computing", "spatial", "spatial")
+   manageProcessFlow(
+      processing = "spatial_data_computing",
+      allertText1 = "spatial",
+      allertText2 = "spatial",
+      input = input,  # ✅ input muss übergeben werden
+      session = session,
+      current_out_dir = outDir()
+    )
   })
   
   observeEvent(input$spatialViewPF, {

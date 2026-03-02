@@ -379,28 +379,28 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       #mainmaskgeoreferencingMaps_CD(workingDir, current_out_dir)
       #mainmaskgeoreferencingMasks(workingDir, current_out_dir)
       #mainmaskgeoreferencingMasks_CD(workingDir, current_out_dir)
-      mainmaskgeoreferencingMasks_PF(workingDir, current_out_dir)
+      mainmaskgeoreferencingMasks_PF(workingDir, current_out_dir,  nMapTypes = as.integer(input$nMapTypes)
+      )
+      print(" Process rectifying python script:")
       # processing rectifying
-      
-      fname=paste0(workingDir, "/", "src/polygonize/rectifying.py")
+      fname <- paste0(workingDir, "/", "src/polygonize/rectifying.py")
       print(" Process rectifying python script:")
       print(fname)
       source_python(fname)
-      mainmaskgeoreferencingMaps(workingDir, current_out_dir)
-      mainRectifying_Map_PF(workingDir, current_out_dir)
-      mainRectifying(workingDir, current_out_dir)
-      mainRectifying_CD(workingDir, current_out_dir)
-      mainRectifying_PF(workingDir, current_out_dir)
-      #current_out_dir = "D:/test/output_2024-08-05_15-38-45/"
-      findTemplateResult = paste0(current_out_dir, "/georeferencing/maps/pointFiltering/")
-      files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-      countFiles <- paste0(length(files), "")
-      message <- paste0("Georeferencing ended on: ", 
-                        format(current_time(), "%H:%M:%S \n"), " The number georeferencing masks ", " are \n", 
-                        countFiles, " and saved in directory \n", findTemplateResult)
-      # convert the tif images to png and save this in /www directory
-     
-      #convertTifToPngSave(findTemplateResult, file.path(workingDir, "app", "www", "output", "georeferencing_png"))
+      
+      mainRectifying_PF(
+        workingDir,
+        current_out_dir,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      # --- 3. Zähle Masken und kopiere PNGs ---
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "rectifying/pointFiltering",
+        png_subdir = "output/georeferencing_png"
+      )
       
     }, error = function(e) {
       cat("An error occurred during georeferencing processing:\n")
@@ -431,43 +431,22 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       print(" Process polygonizing python script:")
       print(fname)
       source_python(fname)
-      #mainPolygonize(workingDir, current_out_dir)
-      #mainPolygonize_Map_PF(workingDir, current_out_dir)
-      mainPolygonize_CD(workingDir, current_out_dir)
-      mainPolygonize_PF(workingDir, current_out_dir)
-      findTemplateResult = paste0(current_out_dir, "/polygonize/pointFiltering")
-      files <- list.files(findTemplateResult, full.names = TRUE, recursive = FALSE)
-      countFiles <- paste0(length(files), "")
-      message <- paste0("Georeferencing ended on: ", 
-                        format(current_time(), "%H:%M:%S \n"), " The number polygonized masks ", " are \n", 
-                        countFiles, " and saved in directory \n", findTemplateResult)
-      
-      shFiles <- list.files(findTemplateResult, pattern = ".sh", recursive = TRUE, full.names = TRUE)
-      dir.create(file.path(workingDir, "app", "www", "output", "polygonize"),
-                 recursive = TRUE, showWarnings = FALSE)
-      # copy the shape files into www directory
-      for (f in shFiles) {
-        # Source and destination file paths
-        baseName = basename(f)
-        destination_file <- file.path(workingDir, "app", "www", "output", "polygonize", baseName)
-        
-
-        #print(destination_file)
-        # Copy the file
-        file.copy(from = f, to = destination_file, overwrite = TRUE)
-        
-        # Check if the copy was successful
-        if (file.exists(destination_file)) {
-          cat("File copied successfully to:", destination_file)
-        } else {
-          cat("File copy failed.")
-        }
-      }
+      # mainPolygonize_CD(workingDir, current_out_dir)
+      # mainPolygonize_PF(workingDir, current_out_dir)
+      mainPolygonize_PF(workingDir, current_out_dir, nMapTypes = as.integer(input$nMapTypes))
+      # --- 3. Zähle Masken und kopiere PNGs ---
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "polygonize/pointFiltering",
+        png_subdir = "output/polygonize"
+      )
     }, error = function(e) {
       cat("An error occurred during pageReadRpecies processing:\n")
       print(e)
     })
-  }
+  }   
   
   if(processing == "spatial_data_computing"){
     
@@ -492,9 +471,9 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         
         
         source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
-        mergeFinalData(workingDir, current_out_dir)
-        spatialFinalData(current_out_dir)
-        spatialRealCoordinats(current_out_dir)
+        mergeFinalData(workingDir, current_out_dir, nMapTypes = as.integer(input$nMapTypes))
+        spatialFinalData(current_out_dir, nMapTypes = as.integer(input$nMapTypes))
+        spatialRealCoordinats(current_out_dir, nMapTypes = as.integer(input$nMapTypes))
       },
       error = function(e) {
         messageOnClose = e$message

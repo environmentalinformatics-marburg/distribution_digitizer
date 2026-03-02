@@ -295,42 +295,72 @@ def mainPolygonize_CD(workingDir, outDir):
         print(f"Ein Fehler ist aufgetreten: {e}")
   # End of function
 
-def mainPolygonize_PF(workingDir, outDir):
+def mainPolygonize_PF(workingDir, outDir, nMapTypes):
     """
-    Executes the polygonize function for georeferenced masks containing centroids detected by Circle Detection.
-
-    Args:
-        workingDir (str): Directory containing the input raster images.
-        outDir (str): Output directory to save the polygonized shapefiles.
-
-    Returns:
-        None
+    Polygonize for multiple map types.
+    Each map type gets its own shapefiles AND its own CSV.
     """
     try:
-        output = os.path.join(outDir, "polygonize", "pointFiltering")
-        inputdir = os.path.join(outDir, "rectifying", "pointFiltering")
-        output_csv_path = os.path.join(outDir, "polygonize", "csvFiles", "centroids_colors_pf.csv")
 
-        # Erstelle das Verzeichnis, falls es noch nicht existiert
-        os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
+        for map_id in range(1, int(nMapTypes) + 1):
 
-        # Überprüfe, ob die Datei existiert, und erstelle sie falls nicht
-        if not os.path.isfile(output_csv_path):
-            with open(output_csv_path, 'w', newline='') as csvfile:
-                # Initialisiere den CSV-Schreiber
-                csvwriter = csv.writer(csvfile)
-                # Schreibe die Kopfzeile
-                csvwriter.writerow(['ID','Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue', 'File'])
+            inputdir = os.path.join(
+                outDir, str(map_id),
+                "rectifying", "pointFiltering"
+            )
 
-        print(f"Die Datei wurde erstellt oder existiert bereits: {output_csv_path}")
+            output = os.path.join(
+                outDir, str(map_id),
+                "polygonize", "pointFiltering"
+            )
 
-        # Schleife durch alle Bilder im Verzeichnis
-        for image_file in os.listdir(inputdir):
-            image_path = os.path.join(inputdir, image_file)
-            if os.path.isfile(image_path):
-                output_shapefile_path = os.path.join(output, f"{os.path.splitext(image_file)[0]}.shp")
-                create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path, output_csv_path)
-                
+            output_csv_path = os.path.join(
+                outDir, str(map_id),
+                "polygonize", "csvFiles",
+                "centroids_colors_pf.csv"
+            )
+
+            os.makedirs(output, exist_ok=True)
+            os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
+
+            # CSV neu erzeugen pro MapType
+            if not os.path.isfile(output_csv_path):
+                with open(output_csv_path, 'w', newline='') as csvfile:
+                    csvwriter = csv.writer(csvfile)
+                    csvwriter.writerow([
+                        'ID',
+                        'Local_X', 'Local_Y',
+                        'Real_X', 'Real_Y',
+                        'Red', 'Green', 'Blue',
+                        'File'
+                    ])
+
+            print(f"\nProcessing MapType {map_id}")
+            print(f"Input: {inputdir}")
+            print(f"Output CSV: {output_csv_path}")
+
+            if not os.path.exists(inputdir):
+                print("Directory does not exist:", inputdir)
+                continue
+
+            for image_file in os.listdir(inputdir):
+
+                if not image_file.endswith(".tif"):
+                    continue
+
+                image_path = os.path.join(inputdir, image_file)
+
+                output_shapefile_path = os.path.join(
+                    output,
+                    f"{os.path.splitext(image_file)[0]}.shp"
+                )
+
+                create_centroid_mask_and_csv(
+                    image_path,
+                    color_ranges,
+                    output_shapefile_path,
+                    output_csv_path
+                )
+
     except Exception as e:
-        print(f"Ein Fehler ist aufgetreten: {e}")
-  # End of function
+        print(f"Error in mainPolygonize_PF:", e)

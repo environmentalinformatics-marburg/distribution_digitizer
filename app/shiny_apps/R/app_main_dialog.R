@@ -68,10 +68,6 @@ if(!require(shinyFiles)){
   library(shinyFiles)
 }
 
-if(!require(reticulate)){
-  install.packages("reticulate",dependencies = T)
-  library(reticulate)
-}
 library(shinyalert)
 
 if(!require(tesseract)){
