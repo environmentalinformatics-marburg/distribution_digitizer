@@ -14,13 +14,13 @@ clean_species <- function(species) {
 read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
   
   results <- "The following species were found: "
-  
+  print("Read start")
   # Source Python script for additional processing if needed
   source_python(file.path(working_dir, "src/read_species/map_crop_species.py"))
   
   # --- NEU: über Map-Typen (1..nMapTypes) iterieren ---
   for (type_id in seq_len(as.integer(nMapTypes))) {
-    
+    print("Read start 2")
     out_dir_type <- file.path(out_dir, as.character(type_id))
     
     # Directory setup (pro Typ!)
@@ -40,15 +40,16 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
     df$species <- NA
     
     # Process each records page
-    for (j in seq_along(records_pages)) {
+    for (j in seq_along(records_pages)) {  
       records_page <- read.csv(records_pages[j], sep = ",", check.names = FALSE, quote = "\"", na.strings = c("NA", "NaN", " "))
       file_name <- records_page$file_name
       map_name <- records_page$map_name
-      
+      print(records_page)
       if (!is.na(records_page$y[1]) && !is.na(records_page$h[1])) {
         # Extract species information
+        legend_list = c("distribution of", "type locality of")
         species <- crop_specie(working_dir, out_dir_type, file_name, map_name,
-                               as.integer(records_page$y[1]), as.integer(records_page$h[1]))
+                               as.integer(records_page$y[1]), as.integer(records_page$h[1]),legend_list=legend_list)
         print("Here the specie:")
         print(species)
         
@@ -60,7 +61,7 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
         
         # Split species string into components
         species_list <- str_split(species, "_")[[1]]
-        print(species_list)
+        #print(species_list)
         
         # Function to clean species names
         clean_species <- function(species) {

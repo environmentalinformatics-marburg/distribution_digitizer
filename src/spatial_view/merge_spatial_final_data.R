@@ -1,94 +1,131 @@
 library(dplyr)
 
-spatialRealCoordinats <- function(outDir){
+spatialRealCoordinats <- function(outDir, nMapTypes = 1){
   
-  # Einlesen der Dateien
-  df_spatial <- read.csv(file.path(outDir,"spatial_final_data.csv"), sep = ";", header = TRUE)
-  df_centroids <- read.csv(file.path(outDir,"polygonize/csvFiles/centroids_colors_pf.csv"))
-  
-  # Konvertiere ggf. , zu . in Koordinaten
-  df_spatial$X_WGS84 <- as.numeric(gsub(",", ".", df_spatial$X_WGS84))
-  df_spatial$Y_WGS84 <- as.numeric(gsub(",", ".", df_spatial$Y_WGS84))
-  
-  # Neue Funktion, die auch Local_X, Local_Y zurückgibt
-  find_best_match <- function(file, x, y) {
-    subset <- df_centroids[df_centroids$File == file, ]
-    if (nrow(subset) == 0 || is.na(x) || is.na(y)) {
-      return(c(NA, NA, NA, NA))
-    }
-    dists <- sqrt((subset$Local_X - x)^2 + (subset$Local_Y - y)^2)
-    best <- subset[which.min(dists), ]
-    return(c(best$Real_X, best$Real_Y, best$Local_X, best$Local_Y))
+  for(i in seq_len(nMapTypes)){
+    
+    mapDir <- file.path(outDir, i)
+    if(!dir.exists(mapDir)) next
+    
+    tryCatch({
+    
+      spatial_path   <- file.path(mapDir, "spatial_final_data.csv")
+      centroids_path <- file.path(mapDir, "polygonize", "csvFiles", "centroids_colors_pf.csv")
+      
+      if(!file.exists(spatial_path)) next
+      if(!file.exists(centroids_path)) next
+      print(mapDir)
+      df_spatial  <- read.csv2(spatial_path, stringsAsFactors = FALSE)
+      df_centroids <- read.csv(centroids_path, stringsAsFactors = FALSE)
+      
+      # Koordinaten korrigieren
+      df_spatial$X_WGS84 <- as.numeric(gsub(",", ".", df_spatial$X_WGS84))
+      df_spatial$Y_WGS84 <- as.numeric(gsub(",", ".", df_spatial$Y_WGS84))
+      
+      find_best_match <- function(file, x, y) {
+        subset <- df_centroids[df_centroids$File == file, ]
+        if (nrow(subset) == 0 || is.na(x) || is.na(y)) {
+          return(c(NA, NA, NA, NA))
+        }
+        dists <- sqrt((subset$Local_X - x)^2 + (subset$Local_Y - y)^2)
+        best <- subset[which.min(dists), ]
+        return(c(best$Real_X, best$Real_Y, best$Local_X, best$Local_Y))
+      }
+      
+      matches <- mapply(find_best_match,
+                        df_spatial$File,
+                        df_spatial$X_WGS84,
+                        df_spatial$Y_WGS84)
+      
+      df_spatial$Real_X  <- matches[1, ]
+      df_spatial$Real_Y  <- matches[2, ]
+      df_spatial$Local_X <- matches[3, ]
+      df_spatial$Local_Y <- matches[4, ]
+      
+      write.csv2(df_spatial,
+                 file.path(mapDir, "spatial_final_data_with_realXY.csv"),
+                 row.names = FALSE)
+      
+      cat("✅ spatialRealCoordinats fertig für Map", i, "\n")
+      
+    }, error = function(e){
+      print(e)
+    })
   }
-  
-  # Anwenden
-  matches <- mapply(find_best_match, 
-                    df_spatial$File, 
-                    df_spatial$X_WGS84, 
-                    df_spatial$Y_WGS84)
-  
-  # Neue Spalten hinzufügen
-  df_spatial$Real_X <- matches[1, ]
-  df_spatial$Real_Y <- matches[2, ]
-  df_spatial$Local_X <- matches[3, ]
-  df_spatial$Local_Y <- matches[4, ]
-  
-  # Ergebnis speichern
-  write.csv2(df_spatial, file.path(outDir,"spatial_final_data_with_realXY.csv"), row.names = FALSE, sep = ";")
-  
-  
 }
-spatialFinalData <- function(outDir){
-  # Datei einlesen
-  spatial_final_data_path <- file.path(outDir, "spatial_final_data.csv")
-  spatial_final_data <- read.csv2(spatial_final_data_path, stringsAsFactors = FALSE, sep = ";")
+
+spatialFinalData <- function(outDir, nMapTypes = 1){
   
-  # Alle CSV-Dateien im Verzeichnis pagerecords einlesen save as pagerecords.csv
+  library(dplyr)
   
-  
-  #######
-  csv_files <- list.files(file.path(outDir,"pagerecords"), pattern = "\\.csv$", full.names = TRUE)
-  outputFile <- file.path(outDir,"pagerecords.csv")
-  
-  # Leere Liste zum Speichern der DataFrames
-  data_list <- list()
-  
-  for (file in csv_files) {
-    df <- read.csv(file, stringsAsFactors = FALSE, sep = ",")
-    
-    # Falls die Datei leer ist, überspringen
-    if (nrow(df) == 0) next
-    
-    # Neue Spalte `File` mit dem Basename von `map_name` hinzufügen
-    if ("map_name" %in% colnames(df)) {
-      df$File <- basename(df$map_name)
-    } else {
-      df$File <- NA  # Falls `map_name` fehlt, setzen wir `NA`
-    }
-    
-    # DataFrame zur Liste hinzufügen
-    data_list[[length(data_list) + 1]] <- df
+
+  for(i in seq_len(nMapTypes)){
+
+    mapDir <- file.path(outDir, i)
+
+    if(!dir.exists(mapDir)) next
+   
+    tryCatch({
+     
+      spatial_path <- file.path(mapDir, "spatial_final_data.csv")
+      if(!file.exists(spatial_path)) next
+      
+      spatial_final_data <- read.csv2(spatial_path,
+                                      stringsAsFactors = FALSE)
+      
+      # pagerecords
+      csv_files <- list.files(file.path(mapDir, "pagerecords"),
+                              pattern = "\\.csv$",
+                              full.names = TRUE)
+      
+      outputFile <- file.path(mapDir, "pagerecords.csv")
+      
+      data_list <- list()
+      
+      for(file in csv_files){
+        print(mapDir)
+        df <- read.csv(file, stringsAsFactors = FALSE)
+        if(nrow(df) == 0) next
+        
+        if("map_name" %in% colnames(df) && length(df$map_name) == nrow(df)){
+          
+          df$map_name <- gsub("\\\\", "/", df$map_name)
+          df$File <- basename(df$map_name)
+          
+        } else {
+          
+          df$File <- rep(NA_character_, nrow(df))
+        }
+        
+        data_list[[length(data_list)+1]] <- df
+      }
+      
+      if(length(data_list) > 0){
+        
+        final_df <- bind_rows(data_list)
+        
+        write.csv2(final_df,
+                   outputFile,
+                   row.names = FALSE)
+        
+        cat("✅ pagerecords kombiniert für Map", i, "\n")
+        
+      } else {
+        cat("⚠️ Keine pagerecords für Map", i, "\n")
+      }
+      
+    }, error = function(e){
+      print(e)
+    })
   }
-  
-  # Alle DataFrames zu einem kombinieren
-  if (length(data_list) > 0) {
-    final_df <- bind_rows(data_list)
-    
-    # Speichern als CSV
-    write.csv(final_df, outputFile, row.names = FALSE, sep = ";", quote = FALSE, fileEncoding = "UTF-8")
-    
-    print(paste("✅ Alle Dateien wurden erfolgreich kombiniert und gespeichert unter:", outputFile))
-  } else {
-    print("⚠️ Keine CSV-Dateien gefunden oder alle Dateien waren leer.")
-  }
-  
 }
 
 
 mergeFinalData <- function(workingDir, outDir, nMapTypes = 1){
   
   library(dplyr)
-  
+  #workingDir <- "D:/distribution_digitizer"
+ # outDir <- "D:/test/output_2026-02-20_08-40-28/"
   for(i in seq_len(nMapTypes)){
     
     mapDir <- file.path(outDir, i)
@@ -126,14 +163,14 @@ mergeFinalData <- function(workingDir, outDir, nMapTypes = 1){
       
       # File normalisieren
       df1$File <- gsub("\\\\", "/", df1$File)
-      df3$File <- gsub("\\\\", "/", df3$File)
+     
       
       # ---------------------------------------
       # 1️⃣ Merge df1 + df2 (Real Koordinaten)
       # ---------------------------------------
       df_merged <- df1 %>%
         left_join(
-          df2 %>% select(File, Red, Green, Blue, Local_X, Local_Y, Real_X, Real_Y),
+          df2 %>% dplyr::select(File, Red, Green, Blue, Local_X, Local_Y, Real_X, Real_Y),
           by = c("File", "Red", "Green", "Blue")
         )
       
@@ -147,6 +184,13 @@ mergeFinalData <- function(workingDir, outDir, nMapTypes = 1){
         ) %>%
         mutate(
           File = basename(file_name)
+        )
+      
+      # 3️⃣ Title hinein mergen
+      df_merged <- df_merged %>%
+        dplyr::left_join(
+          df3 %>% dplyr::select(File, species, Title),
+          by = c("File", "species")
         )
       
       # ---------------------------------------
@@ -180,6 +224,9 @@ mergeFinalData <- function(workingDir, outDir, nMapTypes = 1){
 
 
 # Aufrufen der Funktion mit den angegebenen Arbeitsverzeichnissen
-workingDir <- "D:/distribution_digitizer"
-outDir <- "D:/test/output_2026-02-20_08-40-28/"
-mergeFinalData(workingDir, outDir, 2)
+#workingDir <- "D:/distribution_digitizer"
+#outDir <- "D:/test/output_2026-02-20_08-40-28/"
+
+#mergeFinalData(workingDir, outDir, 2)
+#spatialFinalData(outDir, 2)
+#spatialRealCoordinats(outDir, 2)

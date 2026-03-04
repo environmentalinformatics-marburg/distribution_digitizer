@@ -102,79 +102,211 @@ def match_symbol(image, symbols):
 
     return best_match if highest_score > 0.5 else 'none'
 
-def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, attempt=1):
-    """
-    Extract species names from a page image and associate them with map symbols.
-    If nothing is found, retry with thresholding (max 3 attempts).
-    """
+def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_list=None, attempt=1):
+
+    print("Legend list received:", legend_list)
+    print("Attempt:", attempt)
+
     try:
+
+        # -------------------------------
+        # Normalize legend list
+        # -------------------------------
+        if legend_list is None:
+            legend_list = ['distribution']
+
+        if isinstance(legend_list, str):
+            legend_list = [legend_list]
+
+        legend_list = [l.strip().lower() for l in legend_list]
+
+        print("Legend list normalized:", legend_list)
+
+        # -------------------------------
+        # Load image
+        # -------------------------------
         image = cv2.imread(path_to_page)
 
-        # Preprocessing je nach Versuch
         if attempt == 1:
             print("[INFO] Versuch 1: Originalbild")
             rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
         else:
             print(f"[INFO] Versuch {attempt}: mit Thresholding")
+
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             gray = cv2.GaussianBlur(gray, (3, 3), 0)
-            _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+            _, thresh = cv2.threshold(
+                gray, 0, 255,
+                cv2.THRESH_BINARY + cv2.THRESH_OTSU
+            )
+
             rgb = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB)
 
-        legend1 = 'distribution'
+        # -------------------------------
+        # OCR
+        # -------------------------------
         d = pytesseract.image_to_data(rgb, output_type=Output.DICT)
         n_boxes = len(d['level'])
+
         specie = ''
         double_specie = ''
 
-        symbols = load_symbols(os.path.join(working_dir, "data", "input", "templates", "symbols/"))
-         
-        for i in range(n_boxes - 2):
-            (x1, y1, w1, h1, c1) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i], d['conf'][i])
-            text = d['text'][i].lstrip()
-            pre = d['text'][i + 1].lstrip()
+        symbols = load_symbols(
+            os.path.join(
+                working_dir,
+                "data",
+                "input",
+                "templates",
+                "1",
+                "symbols/"
+            )
+        )
 
-            if levenshtein_ratio(text, legend1) > 80:
-                if pre == 'of':
-                    if abs(y1 - (y + h)) < h:
-                        candidate = d['text'][i + 2].lstrip()
+        # -------------------------------
+        # OCR scanning
+        # -------------------------------
+        for i in range(n_boxes):
+
+           # x1 = d['left'][i]
+            y1 = d['top'][i]
+            #w1 = d['width'][i]
+            h1 = d['height'][i]
+
+            # skip empty OCR tokens
+            if d['text'][i].strip() == "":
+                continue
+            text = d['text'][i].strip().lower()
+            # -------------------------------------------------
+            # try to match legend phrases of variable length
+            # -------------------------------------------------
+            for legend in legend_list:
+
+                legend_words = legend.split()
+                first_word = legend_words[0]
+                last_word  = legend_words[-1]
+            
+                # erstes Wort prüfen
+                if levenshtein_ratio(text, first_word) > 70:
+                    if i + len(legend_words) < n_boxes:
+
+                      next_word = d['text'][i + len(legend_words)-1].strip().lower()
+
+                   
+                    if next_word == last_word and abs(y1 - (y + h)) < h:
+                        candidate = d['text'][i + len(legend_words)].strip()
+                        print("candidate:",candidate)
+                        if not candidate.isalpha():
+                            continue
                         if double_specie != candidate:
+
                             double_specie = candidate
-                            symbol_crop = image[y1:y1 + h1 + 3, x1 - 100:x1]
-                            gray_symbol_crop = cv2.cvtColor(symbol_crop, cv2.COLOR_BGR2GRAY)
-                            matched_symbol = match_symbol(gray_symbol_crop, symbols)
-                            matched_symbol = re.sub(r'\d+_', '', matched_symbol)
-                            specie += "_" + candidate + "S" + matched_symbol
-                            print(specie)
 
-        specie = re.sub(r"[^\w\s]", "", specie)
+                            symbol_crop = image[
+                                y1:y1 + h1 + 3#,
+                                #x1 - 100:x1
+                            ]
 
-        # Falls nichts gefunden: rekursiver Fallback (max 3 Versuche)
+                            gray_symbol_crop = cv2.cvtColor(
+                                symbol_crop,
+                                cv2.COLOR_BGR2GRAY
+                            )
+
+                            matched_symbol = match_symbol(
+                                gray_symbol_crop,
+                                symbols
+                            )
+
+                            matched_symbol = re.sub(
+                                r'\d+_',
+                                '',
+                                matched_symbol
+                            )
+                            matched_symbol = matched_symbol.replace("_", "Y")
+                            specie += "_" + candidate + "X" + matched_symbol
+
+                            print("[FOUND]", specie)
+
+                    break
+
+        # -------------------------------
+        # clean specie string
+        # -------------------------------
+        specie = re.sub(r"[^\w\s_]", "", specie)
+
+        # -------------------------------
+        # Retry logic
+        # -------------------------------
         if specie == '' and attempt < 3:
-            print(f"[RETRY] Kein Ergebnis, versuche OCR erneut (Versuch {attempt+1}) ...")
-            return crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, attempt + 1)
+
+            print(f"[RETRY] Versuch {attempt+1}")
+
+            return crop_specie(
+                working_dir,
+                out_dir,
+                path_to_page,
+                path_to_map,
+                y,
+                h,
+                legend_list,
+                attempt + 1
+            )
 
         if specie == '':
             specie = 'notfounddistribution'
 
+        # -------------------------------
+        # File handling (unchanged)
+        # -------------------------------
         if out_dir.endswith("/"):
             out_dir = out_dir.rstrip("/")
+
         if working_dir.endswith("/"):
             working_dir = working_dir.rstrip("/")
 
         if os.path.exists(out_dir):
-            align_map = os.path.join(out_dir, "maps/align/", os.path.basename(path_to_map))
-            map_new_name = os.path.join(out_dir, "maps/readSpecies/", os.path.basename(path_to_map).rsplit('.', 1)[0] + "_" + specie + ".tif")
+
+            align_map = os.path.join(
+                out_dir,
+                "maps/align/",
+                os.path.basename(path_to_map)
+            )
+
+            map_new_name = os.path.join(
+                out_dir,
+                "maps/readSpecies/",
+                os.path.basename(path_to_map).rsplit('.', 1)[0]
+                + "_" + specie + ".tif"
+            )
+
         else:
-            align_map = os.path.join(working_dir, "data/output/maps/align/", os.path.basename(path_to_map))
-            map_new_name = os.path.join(working_dir, "data/output/maps/readSpecies/", os.path.basename(path_to_map).rsplit('.', 1)[0] + "_" + specie + ".tif")
+
+            align_map = os.path.join(
+                working_dir,
+                "data/output/maps/align/",
+                os.path.basename(path_to_map)
+            )
+
+            map_new_name = os.path.join(
+                working_dir,
+                "data/output/maps/readSpecies/",
+                os.path.basename(path_to_map).rsplit('.', 1)[0]
+                + "_" + specie + ".tif"
+            )
 
         if os.path.isfile(align_map):
+
             shutil.copy(align_map, map_new_name)
+
         else:
-            raise FileNotFoundError("File not found: " + align_map)
+
+            raise FileNotFoundError(
+                "File not found: " + align_map
+            )
 
         return specie
 
     except Exception as e:
+
         return str(e)
