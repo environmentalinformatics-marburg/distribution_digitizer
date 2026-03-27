@@ -1,0 +1,226 @@
+---
+author: Your Name
+fontsize: 11pt
+geometry: margin=1in
+title: Distribution Digitizer -- Installation Guide (2025)
+---
+
+# Distribution Digitizer -- Installation Guide (2025)
+
+This document provides complete installation instructions for the
+**Distribution Digitizer** under **Windows 10/11**.
+
+The application uses:
+
+-   R + Shiny
+-   Python (Conda environment)
+-   GDAL
+-   OpenCV
+-   Tesseract OCR
+
+This version reflects the current multi-map architecture (2025).
+
+------------------------------------------------------------------------
+
+# 📚 Citation
+
+If you use this software, please cite:
+
+**Venkatesh M, Forteva S, Zeuss D (2021)**\
+*Distribution digitizer: Software for digitizing species distributions
+from analogue maps.*\
+Version 0.0.1\
+https://github.com/environmentalinformatics-marburg/distribution_digitizer_students
+
+------------------------------------------------------------------------
+
+# ✅ 1. Install Required Software
+
+Please install the following:
+
+## ✔ R (4.4.x or higher)
+
+https://cran.r-project.org/
+
+## ✔ RStudio Desktop
+
+https://posit.co/download/rstudio-desktop/
+
+## ✔ Git (optional)
+
+https://git-scm.com/download/win
+
+## ✔ Miniconda (RECOMMENDED)
+
+https://docs.conda.io/en/latest/miniconda.html
+
+⚠ Install Miniconda for All Users.
+
+## ✔ Tesseract OCR
+
+https://github.com/UB-Mannheim/tesseract/wiki
+
+Install English + German language packs.
+
+------------------------------------------------------------------------
+
+# 📁 2. Download or Clone the Project
+
+## Option A -- Using Git
+
+git clone https://github.com/YourUsername/distribution_digitizer.git
+
+## Option B -- Download ZIP
+
+Download ZIP → Extract → Rename folder to:
+
+distribution_digitizer
+
+------------------------------------------------------------------------
+
+# 🐍 3. Create Python Environment (IMPORTANT)
+
+Open Anaconda Prompt and run:
+
+conda create -n distribution_digitizer_env python=3.10\
+conda activate distribution_digitizer_env\
+conda install gdal numpy\
+pip install opencv-python pillow pandas rasterio geopandas shapely fiona
+imutils pytesseract
+
+Verify installation:
+
+python -c "import cv2, osgeo, numpy; print('Python environment OK')"
+
+The app expects this exact environment name:
+
+distribution_digitizer_env
+
+------------------------------------------------------------------------
+
+# 📦 4. Install Required R Packages
+
+Run in RStudio:
+
+``` r
+install.packages(c(
+  "shiny",
+  "shinydashboard",
+  "shinyFiles",
+  "shinyalert",
+  "shinyjs",
+  "DT",
+  "magick",
+  "grid",
+  "reticulate",
+  "tesseract",
+  "leaflet",
+  "terra",
+  "sf",
+  "jsonlite",
+  "stringr",
+  "dplyr",
+  "tidyr",
+  "remotes"
+))
+```
+
+Optional:
+
+``` r
+remotes::install_github("karthik/rdrop2")
+```
+
+------------------------------------------------------------------------
+
+# 🧠 5. Test Python--R Integration
+
+``` r
+library(reticulate)
+py_config()
+```
+
+Ensure the environment `distribution_digitizer_env` is used.
+
+------------------------------------------------------------------------
+
+# 📂 6. Required Project Structure
+
+distribution_digitizer/\
+├── app/\
+│ ├── server/\
+│ ├── ui/\
+│ ├── functions/\
+│ ├── global.R\
+│ └── app.R\
+├── config/\
+├── data/\
+│ ├── input/\
+│ ├── templates/\
+│ └── books/\
+├── src/\
+│ ├── polygonize/\
+│ ├── matching/\
+│ └── georeferencing/\
+└── start_digitizer.bat
+
+------------------------------------------------------------------------
+
+# ▶ 7. Start the Application
+
+## Recommended
+
+Double-click:
+
+start_digitizer.bat
+
+## Manual start
+
+``` r
+setwd("D:/distribution_digitizer")
+options(shiny.port = 8888, shiny.host = "127.0.0.1")
+shiny::runApp("app")
+```
+
+------------------------------------------------------------------------
+
+# 🐛 Troubleshooting
+
+## Python environment not found
+
+conda env list
+
+## ModuleNotFoundError: cv2
+
+conda activate distribution_digitizer_env\
+pip install opencv-python
+
+## GDAL error
+
+conda install gdal
+
+## Tesseract not detected
+
+``` r
+Sys.setenv(TESSDATA_PREFIX = "C:/Program Files/Tesseract-OCR/tessdata")
+```
+
+------------------------------------------------------------------------
+
+# 🌐 Optional: Docker / Web Deployment
+
+A lightweight demo version can be deployed via Docker, Render,
+HuggingFace Spaces, or GitHub Actions.
+
+Large geospatial processing is recommended locally.
+
+------------------------------------------------------------------------
+
+# ℹ More Information
+
+Project homepage:\
+https://environmentalinformatics-marburg.github.io/distribution_digitizer_webpage
+
+------------------------------------------------------------------------
+
+End of README.

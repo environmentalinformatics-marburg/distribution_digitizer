@@ -14,7 +14,6 @@ checkTesseractWindows <- function() {
 
 # Function to manage the processing
 manageProcessFlow <- function(processing, allertText1, allertText2, input, session, current_out_dir) {
-  
 
   print(paste("DEBUG nMapTypes =", input$nMapTypes))
   print(paste("DEBUG current_out_dir =", current_out_dir))

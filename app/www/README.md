@@ -45,10 +45,15 @@ https://docs.conda.io/en/latest/miniconda.html
 
 ## ✔ Tesseract OCR
 
+
 https://github.com/UB-Mannheim/tesseract/wiki
 
 Install English + German language packs.
 
+After installation, ensure that:
+C:\Program Files\Tesseract-OCR\ is added to your system PATH
+
+Or configure TESSDATA_PREFIX accordingly.
 ------------------------------------------------------------------------
 
 # 🐍 2. Create Python Environment (IMPORTANT)
@@ -57,24 +62,25 @@ Open **Anaconda Prompt**.
 
 Create dedicated environment:
 
-conda create -n distgeo python=3.11\
-conda activate distgeo
+conda create -n distribution_digitizer_env python=3.11\
+conda activate distribution_digitizer_env
 
-Install required geospatial libraries:
+Install required geospatial and OCR libraries:
 
-conda install -c conda-forge gdal\
-conda install -c conda-forge pandas numpy rasterio geopandas shapely
-fiona
-
-Optional (if needed):
-
+conda install -c conda-forge gdal
+conda install -c conda-forge pandas numpy rasterio geopandas shapely fiona
 conda install -c conda-forge opencv pillow pytesseract
+conda install -c conda-forge imutils
+
 
 Verify installation:
 
 conda list gdal
 
 Should show GDAL version (e.g., 3.11.x).
+
+python -c "import pytesseract; print('pytesseract OK')"
+tesseract --version
 
 ------------------------------------------------------------------------
 
@@ -99,7 +105,7 @@ In `server.R` (at the very top, before anything else):
 
 library(reticulate)
 
-use_condaenv( "distgeo", required = TRUE, conda =
+use_condaenv( "distribution_digitizer_env", required = TRUE, conda =
 "C:/ProgramData/miniconda3/condabin/conda.bat" )
 
 Restart RStudio.
@@ -113,11 +119,94 @@ If a number (e.g., 3110400) is printed → setup is correct.
 
 ------------------------------------------------------------------------
 
+Template Symbol Preparation for Point Matching
+
+For reliable point detection, the symbol templates must be prepared carefully.
+The quality and consistency of the templates strongly influence the detection results.
+
+Please follow these guidelines when creating templates:
+
+1. Crop the Symbol Tightly
+
+Templates should contain only the symbol itself, without unnecessary background.
+
+Good example:
+[●]
+Bad example (too much background):
+[     ●     ]
+Large background areas can lead to inaccurate template matching and incorrect point sizes.
+
+2. Use Consistent Template Sizes
+
+All templates for one map type should have approximately the same width and height (w, h).
+
+For example:
+Template 1: 12 × 12 px
+Template 2: 12 × 12 px
+Template 3: 12 × 12 px
+
+Avoid situations like:
+Template 1: 8 × 8 px
+Template 2: 20 × 20 px
+Template 3: 35 × 35 px
+
+Different template sizes may cause inconsistent circle sizes during point visualization.
+
+3. Avoid Background Borders
+Do not include white or map background borders around the symbol.
+
+Incorrect:
+□□□□□□
+□□●□□□
+□□□□□□
+
+Correct:
+●
+
+Background borders may lead to:
+
+inaccurate template matching
+
+oversized detected points
+
+overlapping contour detection
 # ▶️ 5. Start the Application
 
 setwd("D:/distribution_digitizer")\
 options(shiny.port = 8888, shiny.host = "127.0.0.1")\
 shiny::runApp("app")
+
+
+------------------------------------------------------------------------
+
+# 🗺 Multi-Map Processing (New in 2026)
+
+The processing pipeline now supports **multiple map types per book**.
+
+All major modules have been refactored to operate per map directory:
+
+- Template Matching
+- Point Matching
+- Rectifying
+- Georeferencing
+- Polygonize
+- Spatial Data Merge
+
+Each detected map type is processed in its own subfolder:
+
+output/
+  ├── 1/
+  ├── 2/
+  ├── 3/
+  └── ...
+
+This enables automated handling of books containing multiple
+distribution map layouts without manual reconfiguration.
+
+All spatial results (CSV, shapefiles, PNG overlays) are generated
+per map folder.
+
+------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
 
@@ -129,13 +218,17 @@ conda install -c conda-forge pandas
 
 ### ❌ PROJ error: Cannot find proj.db
 
-Make sure you are using the `distgeo` environment via `use_condaenv()`.
+Make sure you are using the `distribution_digitizer_env` environment via `use_condaenv()`.
 
 ### ❌ reticulate cannot find conda
 
 Ensure Miniconda is installed in:\
 C:/ProgramData/miniconda3
 
+### ❌ ModuleNotFoundError: pytesseract
+
+conda activate distribution_digitizer_env
+conda install -c conda-forge pytesseract
 ------------------------------------------------------------------------
 
 # 🎯 Important Notes
@@ -143,7 +236,7 @@ C:/ProgramData/miniconda3
 -   Do NOT use system Python.
 -   Do NOT install GDAL via pip.
 -   Do NOT mix QGIS Python with this setup.
--   Always use the isolated `distgeo` environment.
+-   Always use the isolated `distribution_digitizer_env` environment.
 
 ------------------------------------------------------------------------
 

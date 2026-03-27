@@ -127,7 +127,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
     print(specie_content)
     if (len(specie_content) > 3):
 
-      all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
+      all_results.append(f"{flag}_{legI}_{search_specie}_{specie_content}")
       continue
 
     # print(specie_content)
@@ -181,7 +181,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
         continue 
       
   if(len(all_results) == 0):
-    all_results = "Not found"
+      return []
    
   return all_results
 

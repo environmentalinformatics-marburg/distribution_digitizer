@@ -95,13 +95,20 @@ readPageSpecies <- function(
         middle
       )
       
-      if (length(pageTitleSpecies) == 0 || pageTitleSpecies == "Not found") {
-        cat("ℹ️ Species not found on page:", basename(pagePath), "\n")
+
+      if (length(pageTitleSpecies) == 0) {
+        cat("ℹ️ Only 'Not found' entries – skipping:", basename(pagePath), "\n")
         return(NULL)
       }
       
       pageTitleSpecies <- gsub("__", "_", pageTitleSpecies)
+      
+      # 👉 ERST splitten
       splitted_results <- strsplit(pageTitleSpecies, "_")
+      
+      # 👉 DANN filtern
+      splitted_results <- splitted_results[sapply(splitted_results, length) >= 4]
+     
       
       legend_keys   <- sapply(splitted_results, \(x) as.numeric(x[1]))
       legend_indexs <- sapply(splitted_results, \(x) as.numeric(x[2]))

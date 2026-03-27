@@ -224,7 +224,7 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
                                 matched_symbol
                             )
                             matched_symbol = matched_symbol.replace("_", "Y")
-                            specie += "_" + candidate + "X" + matched_symbol
+                            specie += "_" + candidate + "X" + first_word.lower() + "Y" + matched_symbol
 
                             print("[FOUND]", specie)
 
@@ -233,7 +233,7 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
         # -------------------------------
         # clean specie string
         # -------------------------------
-        specie = re.sub(r"[^\w\s_]", "", specie)
+        specie = re.sub(r"[^\w\s_\|]", "", specie)
 
         # -------------------------------
         # Retry logic

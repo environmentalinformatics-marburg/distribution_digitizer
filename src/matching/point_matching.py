@@ -84,12 +84,15 @@ def hex_to_rgb(hex_color):
     )
 
 
-def point_match(img_color, template_path, threshold, template_name, color, coord_writer, current_id, used_points):
+def point_match(img_color, template_path, threshold, template_name, color, coord_writer, current_id, used_points,tiffile):
 
     img_gray = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
-
+    img_gray = cv2.GaussianBlur(img_gray, (3,3), 0)
+    #kernel = np.ones((3,3), np.uint8)
+    #img_gray = cv2.morphologyEx(img_gray, cv2.MORPH_OPEN, kernel)
+   
     tmp_gray = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
-
+    tmp_gray = cv2.GaussianBlur(tmp_gray, (3,3), 0)
     h,w = tmp_gray.shape[:2]
 
     res = cv2.matchTemplate(img_gray, tmp_gray, cv2.TM_CCOEFF_NORMED)
@@ -138,13 +141,13 @@ def point_match(img_color, template_path, threshold, template_name, color, coord
         else:
             used_points.append((center_x,center_y,score))
 
-        radius=min(w,h)//4
+        radius=min(w,h)//2.5
 
-        cv2.circle(img_color,(center_x,center_y),radius,(blue,green,red),-1)
+        cv2.circle(img_color,(center_x,center_y),int(radius),(blue,green,red),-1)
 
         coord_writer.writerow({
             "ID":current_id,
-            "File":"",
+            "File": tiffile,
             "Detection method":"point_matching",
             "X_WGS84":center_x,
             "Y_WGS84":center_y,
@@ -223,15 +226,6 @@ def map_points_matching(workingDir,outDir,threshold,nMapTypes=1):
 
                 used_points=[]
 
-                color_counts={
-                    "red":0,
-                    "blue":0,
-                    "green":0,
-                    "yellow":0,
-                    "orange":0,
-                    "magenta":0
-                }
-
                 for file in glob.glob(os.path.join(pointTemplates,"*.tif")):
 
                     template_name=os.path.basename(file).rsplit(".",1)[0]
@@ -248,25 +242,20 @@ def map_points_matching(workingDir,outDir,threshold,nMapTypes=1):
                         color,
                         coord_writer,
                         current_id,
-                        used_points
+                        used_points,
+                        os.path.basename(tiffile)
                     )
 
-                    if color_name in color_counts:
-                        color_counts[color_name]+=num_points
-
-                name_part="_".join(
-                    [f"{c}{n}" for c,n in color_counts.items() if n>0]
-                )
 
                 base=os.path.basename(tiffile).replace(".tif","")
 
-                new_name=f"{base}_{name_part}.tif"
-
+                #new_name=f"{base}_{name_part}.tif"
+                new_name = base + ".tif"
                 cv2.imwrite(
                     os.path.join(outputTiffDir,new_name),
                     img_color
                 )
 
-                os.remove(tiffile)
+                #os.remove(tiffile)
 
     print("✓ Point matching completed")

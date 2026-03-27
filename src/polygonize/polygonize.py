@@ -7,10 +7,25 @@ import csv
 
 # Beispielhafte Farbbereiche (HSV) für rote, grüne und blaue Kreise
 color_ranges = [
-    (np.array([0, 70, 50]), np.array([10, 255, 255])),     # Rot
-    (np.array([170, 70, 50]), np.array([180, 255, 255])),  # Rot
-    (np.array([35, 70, 50]), np.array([85, 255, 255])),    # Grün
-    (np.array([100, 70, 50]), np.array([140, 255, 255]))   # Blau
+
+    # RED
+    (np.array([0, 100, 100]), np.array([10, 255, 255])),
+    (np.array([170, 100, 100]), np.array([180, 255, 255])),
+
+    # BLUE
+    (np.array([100, 100, 100]), np.array([130, 255, 255])),
+
+    # GREEN
+    (np.array([40, 100, 100]), np.array([80, 255, 255])),
+
+    # YELLOW
+    (np.array([20, 100, 100]), np.array([35, 255, 255])),
+
+    # ORANGE
+    (np.array([10, 100, 100]), np.array([20, 255, 255])),
+
+    # PURPLE / MAGENTA
+    (np.array([130, 50, 50]), np.array([160, 255, 255]))
 ]
 
 def polygonize(input_raster, output_shape, dst_layername):
@@ -128,7 +143,31 @@ def mainPolygonize_Map_PF(workingDir, outDir):
         print("An error occurred in mainPolygonize_Map_PF:", e)
     # End of function
 
-def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path, output_csv_path):
+def match_color_to_template(r, g, b, template_list):
+    # einfache Farbklassifikation
+    if r > 200 and g < 100 and b < 100:
+        color_name = "red"
+    elif g > 200 and r < 100 and b < 100:
+        color_name = "green"
+    elif b > 200 and r < 100 and g < 100:
+        color_name = "blue"
+    elif r > 200 and g > 200 and b < 100:
+        color_name = "yellow"
+    elif r > 200 and g > 100 and b < 50:
+        color_name = "orange"
+    elif r > 200 and b > 200:
+        color_name = "magenta"
+    else:
+        color_name = "unknown"
+
+    # passenden Template suchen (erster Treffer reicht)
+    for t in template_list:
+        if color_name in t.lower():
+            return t
+
+    return "unknown"
+  
+def create_centroid_mask_and_csv(workingDir, image_path, color_ranges, output_shapefile_path, output_csv_path, map_id):
     """
     Processes an image to identify specific colored regions, calculates the centroids of these regions, 
     and stores the results in both a shapefile and a CSV file. The centroids are saved with their 
@@ -144,6 +183,12 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
         None
     """
     try:
+        template_dir = os.path.join(workingDir, "data/input/templates", str(map_id),"symbols")
+        template_list = [
+            os.path.splitext(f)[0]
+            for f in os.listdir(template_dir)
+              if f.endswith(".tif")
+        ]
         # Load image
         img = cv2.imread(image_path)
         hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -180,7 +225,7 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
                 color = img[cy, cx]
                 colors.append([color[2], color[1], color[0]])  # Convert from BGR to RGB
                 local_coords.append((cx, cy))
-                cv2.circle(centroid_mask, (cx, cy), 3, color.tolist(), -1)
+                cv2.circle(centroid_mask, (cx, cy), 1, color.tolist(), -1)
 
         # Extract georeferenced information
         dataset = gdal.Open(image_path)
@@ -202,6 +247,7 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
         layer.CreateField(ogr.FieldDefn("Blue", ogr.OFTInteger))
         layer.CreateField(ogr.FieldDefn("Local_X", ogr.OFTInteger))
         layer.CreateField(ogr.FieldDefn("Local_Y", ogr.OFTInteger))
+        layer.CreateField(ogr.FieldDefn("template", ogr.OFTString))
         layer.CreateField(ogr.FieldDefn("File", ogr.OFTString))
 
         # Extract the basename of the TIFF file
@@ -209,7 +255,7 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
 
         # Prepare the CSV file
         with open(output_csv_path, mode='a', newline='') as csv_file:
-            fieldnames = ['ID', 'Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue', 'File']
+            fieldnames = ['ID', 'Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue', 'template', 'File']
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
 
             # Save centroids and colors to the shapefile and CSV file
@@ -220,9 +266,14 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
 
                 point = ogr.Geometry(ogr.wkbPoint)
                 point.AddPoint(x, y)
-
+                r = int(colors[i][0])
+                g = int(colors[i][1])
+                b = int(colors[i][2])
+                template_name = match_color_to_template(r, g, b, template_list)
+                
                 feature = ogr.Feature(layer.GetLayerDefn())
                 feature.SetGeometry(point)
+
                 feature.SetField("ID", i)
                 # Ensure that the color channels are integers
                 feature.SetField("Red", int(colors[i][0]))
@@ -230,6 +281,7 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
                 feature.SetField("Blue", int(colors[i][2]))
                 feature.SetField("Local_X", local_coords[i][0])
                 feature.SetField("Local_Y", local_coords[i][1])
+                feature.SetField("template", template_name)
                 feature.SetField("File", file_basename)
                 layer.CreateFeature(feature)
                 feature = None
@@ -244,6 +296,7 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
                     'Red': colors[i][2],
                     'Green': colors[i][1],
                     'Blue': colors[i][0],
+                    'template': template_name,
                     'File': file_basename
                 })
 
@@ -255,45 +308,7 @@ def create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path
  # End of function
 
 
-def mainPolygonize_CD(workingDir, outDir):
-    """
-    Executes the polygonize function for georeferenced masks containing centroids detected by Circle Detection.
 
-    Args:
-        workingDir (str): Directory containing the input raster images.
-        outDir (str): Output directory to save the polygonized shapefiles.
-
-    Returns:
-        None
-    """
-    try:
-        output = os.path.join(outDir, "polygonize", "circleDetection")
-        inputdir = os.path.join(outDir, "rectifying", "circleDetection")
-        output_csv_path = os.path.join(outDir, "polygonize", "csvFiles", "centroids_colors_cd.csv")
-
-        # Erstelle das Verzeichnis, falls es noch nicht existiert
-        os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
-
-        # Überprüfe, ob die Datei existiert, und erstelle sie falls nicht
-        if not os.path.isfile(output_csv_path):
-            with open(output_csv_path, 'w', newline='') as csvfile:
-                # Initialisiere den CSV-Schreiber
-                csvwriter = csv.writer(csvfile)
-                # Schreibe die Kopfzeile
-                csvwriter.writerow(['ID','Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue', 'File'])
-
-        print(f"Die Datei wurde erstellt oder existiert bereits: {output_csv_path}")
-
-        # Schleife durch alle Bilder im Verzeichnis
-        for image_file in os.listdir(inputdir):
-            image_path = os.path.join(inputdir, image_file)
-            if os.path.isfile(image_path):
-                output_shapefile_path = os.path.join(output, f"{os.path.splitext(image_file)[0]}.shp")
-                create_centroid_mask_and_csv(image_path, color_ranges, output_shapefile_path, output_csv_path)
-                
-    except Exception as e:
-        print(f"Ein Fehler ist aufgetreten: {e}")
-  # End of function
 
 def mainPolygonize_PF(workingDir, outDir, nMapTypes):
     """
@@ -331,7 +346,7 @@ def mainPolygonize_PF(workingDir, outDir, nMapTypes):
                         'ID',
                         'Local_X', 'Local_Y',
                         'Real_X', 'Real_Y',
-                        'Red', 'Green', 'Blue',
+                        'Red', 'Green', 'Blue', 'template'
                         'File'
                     ])
 
@@ -355,11 +370,13 @@ def mainPolygonize_PF(workingDir, outDir, nMapTypes):
                     f"{os.path.splitext(image_file)[0]}.shp"
                 )
 
-                create_centroid_mask_and_csv(
+                create_centroid_mask_and_csv(workingDir,
                     image_path,
                     color_ranges,
                     output_shapefile_path,
-                    output_csv_path
+                    output_csv_path,
+                    map_id
+                    
                 )
 
     except Exception as e:

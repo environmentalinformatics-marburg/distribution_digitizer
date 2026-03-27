@@ -13,6 +13,35 @@ import glob
 import numpy as np
 import csv
 
+
+import pandas as pd
+
+def load_map_hull(points_file):
+
+    df = pd.read_csv(points_file)
+
+    if not {"sourceX","sourceY"}.issubset(df.columns):
+        print("sourceX/sourceY missing")
+        return None
+
+    pts = df[["sourceX","sourceY"]].values.astype(np.float32)
+
+    # Y invertieren
+    pts[:,1] = -pts[:,1]
+
+    pts = pts.astype(np.int32)
+
+    return pts.reshape((-1,1,2))
+  
+def point_inside_map(cx, cy, map_hull):
+
+    if map_hull is None:
+        return True
+
+    result = cv2.pointPolygonTest(map_hull, (cx, cy), False)
+
+    return result >= 0
+  
 # Function to convert image to black and white
 def convert_to_black_and_white(image_path):
     image = cv2.imread(image_path)
@@ -21,37 +50,62 @@ def convert_to_black_and_white(image_path):
     return bw_image
 
 # Function to mask existing red, blue, and green circles
+# Function to mask existing circles of multiple colors
 def mask_existing_circles(image_array):
     hsv_image = cv2.cvtColor(image_array, cv2.COLOR_RGB2HSV)
 
-    # Define color ranges for red, blue, and green in HSV
-    lower_red = np.array([0, 100, 100])
-    upper_red = np.array([10, 255, 255])
-    lower_blue = np.array([110, 100, 100])
-    upper_blue = np.array([130, 255, 255])
-    lower_green = np.array([50, 100, 100])
-    upper_green = np.array([70, 255, 255])
+    # Define color ranges in HSV
+    lower_red1 = np.array([0, 100, 100])
+    upper_red1 = np.array([10, 255, 255])
 
-    # Create masks for red, blue, and green
-    mask_red = cv2.inRange(hsv_image, lower_red, upper_red)
+    lower_red2 = np.array([170, 100, 100])
+    upper_red2 = np.array([180, 255, 255])
+
+    lower_blue = np.array([100, 100, 100])
+    upper_blue = np.array([130, 255, 255])
+
+    lower_green = np.array([40, 100, 100])
+    upper_green = np.array([80, 255, 255])
+
+    lower_yellow = np.array([20, 100, 100])
+    upper_yellow = np.array([35, 255, 255])
+
+    lower_orange = np.array([10, 100, 100])
+    upper_orange = np.array([20, 255, 255])
+
+    lower_purple = np.array([130, 50, 50])
+    upper_purple = np.array([160, 255, 255])
+
+    lower_black = np.array([0, 0, 0])
+    upper_black = np.array([180, 255, 50])
+
+    # Create masks
+    mask_red = cv2.bitwise_or(
+        cv2.inRange(hsv_image, lower_red1, upper_red1),
+        cv2.inRange(hsv_image, lower_red2, upper_red2)
+    )
+
     mask_blue = cv2.inRange(hsv_image, lower_blue, upper_blue)
     mask_green = cv2.inRange(hsv_image, lower_green, upper_green)
+    mask_yellow = cv2.inRange(hsv_image, lower_yellow, upper_yellow)
+    mask_orange = cv2.inRange(hsv_image, lower_orange, upper_orange)
+    mask_purple = cv2.inRange(hsv_image, lower_purple, upper_purple)
+    mask_black = cv2.inRange(hsv_image, lower_black, upper_black)
 
-    # Combine masks
-    combined_mask = cv2.bitwise_or(mask_red, mask_blue)
+    combined_mask = mask_red
+    combined_mask = cv2.bitwise_or(combined_mask, mask_blue)
     combined_mask = cv2.bitwise_or(combined_mask, mask_green)
+    combined_mask = cv2.bitwise_or(combined_mask, mask_yellow)
+    combined_mask = cv2.bitwise_or(combined_mask, mask_orange)
+    combined_mask = cv2.bitwise_or(combined_mask, mask_purple)
+    combined_mask = cv2.bitwise_or(combined_mask, mask_black)
 
-    # Invert mask
     inverted_mask = cv2.bitwise_not(combined_mask)
 
-    # Apply inverted mask to the image
     masked_image = cv2.bitwise_and(image_array, image_array, mask=inverted_mask)
-    
-    # Combine masked image with original to keep original colors where the mask is applied
     final_image = cv2.addWeighted(image_array, 1, masked_image, 0, 0)
 
     return final_image
-
 # Function to determine the average color of a contour
 def get_contour_color(image, contour):
     # Erstellt eine Maske nur für den aktuellen Kontur
@@ -64,11 +118,13 @@ def get_contour_color(image, contour):
 def rgb_to_hex(rgb_color):
     return '#{:02x}{:02x}{:02x}'.format(rgb_color[0], rgb_color[1], rgb_color[2])
 
-def determine_color(color_count, threshold=3):
-    for color, count in color_count.items():
-        if count >= threshold:
-            return color
-    return 'orange'
+def determine_color(color_count, min_pixels=20):
+    filtered = {k: v for k, v in color_count.items() if v >= min_pixels}
+    
+    if not filtered:
+        return 'orange'
+    
+    return max(filtered, key=filtered.get)
 
 def count_color_pixels(image, contour, color_ranges):
     mask = np.zeros(image.shape[:2], dtype=np.uint8)
@@ -81,50 +137,112 @@ def count_color_pixels(image, contour, color_ranges):
         color_count[color] = count
     return color_count
 
-def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius):
-    image_array = np.array(PIL.Image.open(tiffile))
-    image_array = mask_existing_circles(image_array)
+def get_last_id(csv_file_path):
+    if not os.path.exists(csv_file_path):
+        return 0
+    
+    with open(csv_file_path, 'r') as file:
+        lines = file.readlines()
+        if len(lines) <= 1:
+            return 0
+        
+        last_line = lines[-1].strip()
+        try:
+            return int(last_line.split(',')[0])
+        except:
+            return 0
+          
+          
+def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius, map_hull=None):
+    #image_array = np.array(PIL.Image.open(tiffile))
+    #image_array = mask_existing_circles(image_array)
+    original_image = np.array(PIL.Image.open(tiffile))
+
+    # Für Kontur-Erkennung (bereinigt)
+    image_array = mask_existing_circles(original_image.copy())
     gray_image = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
     gray_image = cv2.GaussianBlur(gray_image, (blur_radius, blur_radius), 0)
     _, thresh_image = cv2.threshold(gray_image, 120, 255, cv2.THRESH_TOZERO_INV)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
     opened_image = cv2.morphologyEx(thresh_image, cv2.MORPH_OPEN, kernel, iterations=3)
-    contours, _ = cv2.findContours(opened_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # Distance transform to separate touching points
+    dist_transform = cv2.distanceTransform(opened_image, cv2.DIST_L2, 5)
     
+    # Normalize for peak detection
+    dist_norm = cv2.normalize(dist_transform, None, 0, 1.0, cv2.NORM_MINMAX)
+    
+    # Threshold to get peaks
+    _, peaks = cv2.threshold(dist_norm, 0.4, 1.0, cv2.THRESH_BINARY)
+    
+    peaks = np.uint8(peaks * 255)
+    
+    # Find contours on peaks instead
+    #contours, _ = cv2.findContours(peaks, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # --- STEP 1: finde vollständige Objekte ---
+    contours, _ = cv2.findContours(opened_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+  
     centroids = []
     processed_image = image_array.copy()
+    #if map_hull is not None:
+    #    cv2.polylines(processed_image, [map_hull], True, (0,255,0), 2)
 
     # Definiere Farbbereiche in BGR
     color_ranges = {
-        'red': (np.array([0, 0, 150]), np.array([100, 100, 255])),
-        'blue': (np.array([150, 0, 0]), np.array([255, 100, 100])),
-        'green': (np.array([0, 150, 0]), np.array([100, 255, 100]))
+        'red': (np.array([0, 0, 150]), np.array([120, 120, 255])),
+        'blue': (np.array([150, 0, 0]), np.array([255, 120, 120])),
+        'green': (np.array([0, 150, 0]), np.array([120, 255, 120])),
+        'yellow': (np.array([0, 150, 150]), np.array([120, 255, 255])),
+        'orange': (np.array([0, 80, 150]), np.array([120, 180, 255])),
+        'magenta': (np.array([150, 0, 150]), np.array([255, 120, 255]))
     }
 
     for contour in contours:
-        color_count = count_color_pixels(image_array, contour, color_ranges)
+        #color_count = count_color_pixels(image_array, contour, color_ranges)
+        color_count = count_color_pixels(original_image, contour, color_ranges)
         dominant_color = determine_color(color_count)
 
         # Wähle die entsprechende BGR-Farbe
         # Richtiges BGR-zu-RGB-Mapping für das Zeichnen
         if dominant_color == 'red':
             color_rgb = (0, 0, 255)
+
         elif dominant_color == 'blue':
             color_rgb = (255, 0, 0)
+        
         elif dominant_color == 'green':
             color_rgb = (0, 255, 0)
+        
+        elif dominant_color == 'yellow':
+            color_rgb = (0, 255, 255)
+        
+        elif dominant_color == 'orange':
+            color_rgb = (0, 165, 255)
+        
+        elif dominant_color == 'magenta':
+            color_rgb = (255, 0, 255)
+        
         else:
-            color_rgb = (0, 0, 255)  # red
+            color_rgb = (0, 0, 255)
 
         # Zeichne die Konturen und Zentroide
         M = cv2.moments(contour)
         if M["m00"] != 0:
             cx = int(M["m10"] / M["m00"])
             cy = int(M["m01"] / M["m00"])
-            cv2.drawContours(processed_image, [contour], -1, color_rgb, 3)
-            cv2.circle(processed_image, (cx, cy), 5, color_rgb, -1)
-            # Stelle sicher, dass die BGR-Werte korrekt in die CSV geschrieben werden
-            centroids.append((cx, cy, color_rgb[2], color_rgb[1], color_rgb[0]))  # Append in RGB format
+            # NEW: remove points outside map
+            inside = point_inside_map(cx, cy, map_hull)
+
+            if inside:
+                # normaler Punkt
+                cv2.drawContours(processed_image, [contour], -1, color_rgb, 3)
+                cv2.circle(processed_image, (cx, cy), 5, color_rgb, -1)
+            
+                centroids.append((cx, cy, color_rgb[2], color_rgb[1], color_rgb[0]))
+
+            else:
+                # Ausreißer
+                cv2.circle(processed_image, (cx, cy), 5, (160,160,160), -1)
     
     output_file = os.path.join(outdir, os.path.basename(tiffile))
     PIL.Image.fromarray(processed_image, 'RGB').save(output_file)
@@ -156,8 +274,14 @@ def append_to_csv(csv_file_path, centroids, filename, method, georef, template='
     with open(csv_file_path, 'r') as file:
         reader = csv.DictReader(file)
         for row in reader:
+
+            # 🔴 Header oder kaputte Zeilen überspringen
+            if not row['Red'].isdigit():
+                continue
+        
+            key = (int(row['Red']), int(row['Green']), int(row['Blue']))
+        
             if row['template'] != 'none':
-                key = (int(row['Red']), int(row['Green']), int(row['Blue']))
                 existing_templates[key] = row['template']
     
     # Open the file in append mode and add the new line
@@ -166,6 +290,7 @@ def append_to_csv(csv_file_path, centroids, filename, method, georef, template='
         if last_id == 0:
             writer.writerow(['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'Red', 'Green', 'Blue', 'georef'])
         for centroid in centroids:
+
             color_key = (centroid[2], centroid[3], centroid[4])
             assigned_template = existing_templates.get(color_key, template)
             if (assigned_template == "none"):
@@ -202,6 +327,7 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMap
     # --- Nur die ersten nMapTypes verarbeiten ---
     map_type_dirs = map_type_dirs[:int(nMapTypes)]
 
+                
     if not map_type_dirs:
         print("⚠️ No map-type folders found in output/")
         return
@@ -221,9 +347,25 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMap
 
         # CSV-Datei für diesen Typ
         csv_path_type = os.path.join(csv_dir_type, "coordinates.csv")
+        existing_templates = {}
+
+        if os.path.exists(csv_path_type):
+            with open(csv_path_type, 'r') as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+
+                    # 🔴 Header oder kaputte Zeilen überspringen
+                    if not row['Red'].isdigit():
+                        continue
+                
+                    key = (int(row['Red']), int(row['Green']), int(row['Blue']))
+                
+                    if row['template'] != 'none':
+                        existing_templates[key] = row['template']
         current_id = get_last_id(csv_path_type) + 1
 
         with open(csv_path_type, "a", newline="") as coord_csvfile:
+
             coord_fieldnames = [
                 "ID", "File", "Detection method",
                 "X_WGS84", "Y_WGS84", "template",
@@ -234,22 +376,47 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMap
             if current_id == 1:
                 coord_writer.writeheader()
 
+            points_dir = os.path.join(
+                working_dir,
+                "data",
+                "input",
+                "templates",
+                map_type,
+                "geopoints"
+            )
+            
+            points_files = glob.glob(os.path.join(points_dir, "*.points"))
+            
+            map_hull = None
+            
+            if points_files:
+                map_hull = load_map_hull(points_files[0])
+    
+    
             # --- Alle TIFs verarbeiten ---
             for file in glob.glob(os.path.join(input_tif_dir, "*.tif")):
                 print(f"Processing: {os.path.basename(file)}")
-                centroids, output_file = detect_edges_and_centroids(file, output_tif_dir_type, int(kernel_size), int(blur_radius))
+                centroids, output_file = detect_edges_and_centroids(file, output_tif_dir_type, int(kernel_size), int(blur_radius),  map_hull)
+                
+                
                 print("Centroids detected:")
                 if centroids:
+                  for centroid in centroids:
+                    color_key = (centroid[2], centroid[3], centroid[4])
+                    assigned_template = existing_templates.get(color_key, "none")
+        
+                    if assigned_template == "none":
+                          assigned_template = "unknown_1"
                     coord_writer.writerow({
                         'ID': current_id,
                         'File': os.path.basename(file),
                         'Detection method': 'point_filtering',
-                        'X_WGS84': centroids[0][0],
-                        'Y_WGS84': centroids[0][1],
-                        'template': 'b_1',
-                        'Red': centroids[0][2],
-                        'Green': centroids[0][3],
-                        'Blue': centroids[0][4],
+                        'X_WGS84': centroid[0],
+                        'Y_WGS84': centroid[1],
+                        'template': assigned_template,
+                        'Red': centroid[2],
+                        'Green': centroid[3],
+                        'Blue': centroid[4],
                         'georef': 0
                     })
                     current_id += 1
@@ -260,12 +427,13 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMap
                         'Detection method': 'point_filtering',
                         'X_WGS84': 0,
                         'Y_WGS84': 0,
-                        'template': 'b_1',
+                        'template': 'unknown_1',
                         'Red': 0,
                         'Green': 0,
                         'Blue': 0,
                         'georef': 0
                     })
                     current_id += 1
-
+                if not centroids:
+                  print("No centroids found for:", os.path.basename(file))
     print("\n✓ Point filtering completed for all map types.")

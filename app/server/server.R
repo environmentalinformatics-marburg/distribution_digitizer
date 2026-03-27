@@ -1287,45 +1287,80 @@ server <- shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$spatialViewPF, {
+    
     tryCatch({
-      current_out_dir <- outDir()
-      customMouseover <- JS(
-        "function(event) { var layer = event.target;
-      layer.bindPopup('Dies ist ein benutzerdefinierter Mouseover-Text').openPopup();}"
-      )
-      marker_data <- read.csv(paste0(current_out_dir, "/spatial_final_data_with_realXY.csv"), sep = ";", header = TRUE)
-      #filtered_data <- marker_data[marker_data$Detectionmethod == "point_filtering", ]
-      name_on_top = paste0(marker_data$species)#,": ", filtered_data$File,".png")
-      name <- gsub("\\.tiff?$", ".png", marker_data$File)
-      page <- sub(".*_(\\d{4})map_.*", "\\1.tif", name)
-      page <- sub("\\.tiff?$", ".png", page)
       
-      # Umwandeln der X_WGS84 und Y_WGS84 Spalten in numerische Werte
+      current_out_dir <- outDir()
+      selected_type   <- input$map_type_Spatial
+      
+      if(is.null(selected_type) || selected_type == "") return()
+      
+      mapDir <- file.path(current_out_dir, selected_type)
+      
+      spatial_path <- file.path(
+        mapDir,
+        "spatial_final_data_with_realXY.csv"
+      )
+      
+      if(!file.exists(spatial_path)){
+        showModal(modalDialog(
+          title = "No data",
+          paste("No spatial data found for map type", selected_type),
+          easyClose = TRUE,
+          footer = NULL
+        ))
+        return()
+      }
+      
+      marker_data <- read.csv2(spatial_path, stringsAsFactors = FALSE)
+      
+      if(nrow(marker_data) == 0) return()
+      
+      # Koordinaten numerisch
       marker_data$Real_X <- as.numeric(gsub(",", ".", marker_data$Real_X))
       marker_data$Real_Y <- as.numeric(gsub(",", ".", marker_data$Real_Y))
       
-      # OpenStreetMap show
+      # PNG Name
+      name <- gsub("\\.tiff?$", ".png", marker_data$File)
+      
+      # Seitenbild
+      page <- sub(".*_(\\d{4})map_.*", "\\1.tif", name)
+      page <- gsub("\\.tiff?$", ".png", page)
+      
       output$mapSpatialViewPF <- renderLeaflet({
+        
         leaflet() %>%
           addTiles() %>%
-          addMarkers(
+          addCircleMarkers(
             data = marker_data,
             lat = ~Real_Y,
             lng = ~Real_X,
-            label = name_on_top,
-            labelOptions = labelOptions(
-              direction = "auto",
-              noHide = TRUE,
-              onEachFeature = customMouseover  # Hier fügen Sie die benutzerdefinierte Mouseover-Funktion hinzu
+            radius = 5,
+            fillOpacity = 0.8,
+            popup = ~paste0(
+              "<p><b>Species: ", species, "</b></p>",
+              "<p><b>", Title, "</b></p>",
+              "<a href='/output/", selected_type,
+              "/maps/matching/", name,
+              "' target='_blank'>",
+              "<img src='/output/", selected_type,
+              "/maps/matching/", name,
+              "' width='100'></a>",
+              "<br>",
+              "<a href='/pages/", page,
+              "' target='_blank'>",
+              "<img src='/pages/", page,
+              "' width='100'></a>"
             ),
-            popup = ~paste0("<p><b>specie keyword on the map: ", marker_data$species, "</b></p><p><b>", marker_data$Title, "</b></p><a href='/data/matching_png/", name, "' target='_blank'>",
-                            "<img src='/data/matching_png/", name, "' width='100' height='100'></a>",
-                            "<a href='/data/pages/", page, "' target='_blank'>",
-                            "<img src='/data/pages/", page, "' width='100' height='100'></a>")
+            label = ~species
           )
+        
       })
-      cat("\nSuccessfully executed")
+      
+      cat("\n✅ Spatial view loaded for MapType", selected_type, "\n")
+      
     }, error = function(e) {
+      
       showModal(
         modalDialog(
           title = "Error",
@@ -1334,7 +1369,9 @@ server <- shinyServer(function(input, output, session) {
           footer = NULL
         )
       )
+      
     })
+    
   })
   
   

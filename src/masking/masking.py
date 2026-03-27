@@ -82,7 +82,7 @@ def mainGeomask(workingDir, outDir, n, nMapTypes=1):
             print(f"\n=== Processing map type folder: {map_type} ===")
 
             # Input und Output für diesen Typ
-            inputDir = os.path.join(map_dir, "maps", "align")
+            inputDir = os.path.join(map_dir, "maps", "pointFiltering")
             outputDir = os.path.join(map_dir, "masking")
 
             # Erstelle den Output-Ordner

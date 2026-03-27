@@ -5,21 +5,65 @@ import csv
 import os
 import glob
 
-def create_centroid_mask(image_path, output_dir, csv_writer):
+def load_existing_points(csv_path):
+    existing = []
+    
+    if not os.path.exists(csv_path):
+        return existing
+    
+    with open(csv_path, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                x = int(float(row["X_WGS84"]))
+                y = int(float(row["Y_WGS84"]))
+                template = row.get("template", "unknown")
+                existing.append((x, y, template))
+            except:
+                continue
+    
+    return existing
+
+def find_template_for_point(cx, cy, existing_points, threshold=10):
+    for px, py, template in existing_points:
+        if is_close((cx, cy), (px, py), threshold):
+            return template
+    return "unknown"
+  
+def is_close(p1, p2, threshold=10):
+    return ((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2) ** 0.5 < threshold
+def create_centroid_mask(image_path, output_dir, csv_writer, existing_points):
+    
     # Definiere Farbbereiche für farbige Zentroiden (keine grauen oder weißen)
     color_ranges = [
-        (np.array([0, 70, 50]), np.array([10, 255, 255]), (0, 0, 255)),     # Rot
-        (np.array([170, 70, 50]), np.array([180, 255, 255]), (0, 0, 255)),  # Rot
-        (np.array([35, 70, 50]), np.array([85, 255, 255]), (0, 255, 0)),    # Grün
-        (np.array([100, 70, 50]), np.array([140, 255, 255]), (255, 0, 0)),  # Blau
-        (np.array([10, 150, 150]), np.array([25, 255, 255]), (0,165,255)) # Orange wird als rot gespeichert
-    ]
     
+        # RED
+        (np.array([0, 70, 50]), np.array([10, 255, 255]), (0, 0, 255)),
+        (np.array([170, 70, 50]), np.array([180, 255, 255]), (0, 0, 255)),
+    
+        # GREEN
+        (np.array([35, 70, 50]), np.array([85, 255, 255]), (0, 255, 0)),
+    
+        # BLUE
+        (np.array([100, 70, 50]), np.array([140, 255, 255]), (255, 0, 0)),
+    
+        # YELLOW
+        (np.array([20, 100, 100]), np.array([35, 255, 255]), (0, 255, 255)),
+    
+        # ORANGE
+        (np.array([10, 150, 150]), np.array([20, 255, 255]), (0,165,255)),
+    
+        # MAGENTA
+        (np.array([140, 70, 50]), np.array([170, 255, 255]), (255, 0, 255))
+    
+    ]
+        
     img = cv2.imread(image_path)
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     final_mask = np.zeros(img.shape[:2], dtype="uint8")
     centroid_mask = np.zeros_like(img)
     centroids = []
+    used_centers = []
     
     for lower, upper, color in color_ranges:
         mask = cv2.inRange(hsv_img, lower, upper)
@@ -30,20 +74,42 @@ def create_centroid_mask(image_path, output_dir, csv_writer):
             if M["m00"] != 0:
                 cx = int(M["m10"] / M["m00"])
                 cy = int(M["m01"] / M["m00"])
+                skip = False
+                for px, py in used_centers:
+                    if abs(cx - px) < 6 and abs(cy - py) < 6:
+                        skip = True
+                        break
+                
+                if skip:
+                    continue
+
+                used_centers.append((cx, cy))
             else:
                 continue  # Falls kein eindeutiger Mittelpunkt, ignoriere die Kontur
             
             cv2.circle(centroid_mask, (cx, cy), 3, color, -1)  # Zentroid in Originalfarbe markieren
-            centroids.append((cx, cy, color))
+            # Prüfe ob Punkt schon existiert
+            duplicate = False
+            
+            for px, py, _ in existing_points:
+                if is_close((cx, cy), (px, py), threshold=10):
+                    duplicate = True
+                    break
+            
+            template = find_template_for_point(cx, cy, existing_points)
+
+            centroids.append((cx, cy, color, template))
+            if not duplicate:
+                existing_points.append((cx, cy, template)) # wichtig!
     
     output_path = os.path.join(output_dir, os.path.basename(image_path))
     cv2.imwrite(output_path, centroid_mask)
     
-    for i, (cx, cy, color) in enumerate(centroids):
+    for i, (cx, cy, color, template) in enumerate(centroids):
         blue, green, red = color
-        csv_writer.writerow([len(centroids), os.path.basename(image_path), cx, cy, blue, green, red, 0])
+        csv_writer.writerow([len(centroids), os.path.basename(image_path), cx, cy, template, blue, green, red, 0])
     if len(centroids) == 0:
-        csv_writer.writerow([len(centroids), os.path.basename(image_path), 0, 0, 0, 0, 0, 0])
+        csv_writer.writerow([len(centroids), os.path.basename(image_path), 0, 0, 0, 0, 0, 0, 0])
 
 def MainMaskCentroids(workingDir, outDir, nMapTypes=1):
     """
@@ -86,17 +152,18 @@ def MainMaskCentroids(workingDir, outDir, nMapTypes=1):
             # Erstelle die CSV-Datei
             with open(csv_path, 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(['ID', 'File', 'X_WGS84', 'Y_WGS84', 'Blue', 'Green', 'Red', 'georef'])
-                
+                writer.writerow(['ID', 'File', 'X_WGS84', 'Y_WGS84', 'template', 'Blue', 'Green', 'Red', 'georef'])
+                pf_csv_path = os.path.join(map_dir, "maps", "csvFiles", "coordinates.csv")
+                existing_points = load_existing_points(pf_csv_path)
                 # --- Alle TIFs verarbeiten ---
                 for file in glob.glob(os.path.join(inputDir, "*.tif")):
                     print(f"Processing: {os.path.basename(file)}")
                     if os.path.exists(file):
-                        create_centroid_mask(file, outputDir, writer)
+                        create_centroid_mask(file, outputDir, writer, existing_points)
                     else:
                         print("Die Datei existiert nicht:", file)
 
-        print("\n✓ Centroid masking completed for all map types.")
+        print("\n✓ Centroid masking completed for afll map types.")
 
     except Exception as e:
         print("An error occurred in MainMaskCentroids:", e)

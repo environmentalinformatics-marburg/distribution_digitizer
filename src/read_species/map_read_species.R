@@ -38,7 +38,7 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
     
     # Initialize the species column
     df$species <- NA
-    
+    df$legende <- NA
     # Process each records page
     for (j in seq_along(records_pages)) {  
       records_page <- read.csv(records_pages[j], sep = ",", check.names = FALSE, quote = "\"", na.strings = c("NA", "NaN", " "))
@@ -57,7 +57,7 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
         
         # Remove leading underscore and split species string into components
         species <- sub("^_", "", species)
-        species <- gsub("distribution", "", species)
+      
         
         # Split species string into components
         species_list <- str_split(species, "_")[[1]]
@@ -66,7 +66,7 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
         # Function to clean species names
         clean_species <- function(species) {
           species <- gsub("\\d", "", species)  # Remove digits
-          species <- gsub("S.*", "", species)  # Remove everything after 'S'
+          species <- gsub("X.*", "", species)  # Remove everything after 'S'
           species <- gsub("_", "", species)
           return(species)
         }
@@ -78,23 +78,61 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
         # Create a named vector of cleaned species
         names(cleaned_species) <- sapply(species_list, function(x) sub(".*S", "", x))
         
-        print(paste(unique(cleaned_species), collapse = "_"))
+        #print(paste(unique(cleaned_species), collapse = "_"))
+        #records_page$species <- paste(unique(cleaned_species), collapse = "_")
         
-        records_page$species <- paste(unique(cleaned_species), collapse = "_")
+        # Duplicate species names are allowed
+        records_page$species <- paste(cleaned_species, collapse = "_")
         write.csv(records_page, records_pages[j], row.names = FALSE)
         
         # Subset dataframe for matching records
         df_map_name <- subset(df, grepl(basename(map_name), File))
+        # 🔴 WICHTIG: komplette Legende speichern
+        if (nrow(df_map_name) > 0) {
+          df$legende[df$ID %in% df_map_name$ID] <- species
+        }
         
         # Update species based on template matches
         for (i in seq_len(nrow(df_map_name))) {
-          tmpl <- df_map_name$template[i]
-          letter <- substr(tmpl, 1, 1)
-          matched_species <- cleaned_species[letter]
-          if (!is.na(matched_species)) {
-            df$species[df$ID == df_map_name$ID[i]] <- matched_species
+          
+          row_id <- df_map_name$ID[i]
+          tmpl   <- df_map_name$template[i]
+          
+          # 👉 Farbe aus template
+          color <- tolower(sub("_.*", "", tmpl))
+          
+          # 👉 legend string
+          legend_str <- species
+          
+          parts <- str_split(legend_str, "_")[[1]]
+          
+          found_species <- NA
+          
+          for (p in parts) {
+            
+            if (p == "") next
+            
+            # species
+            sp <- sub("X.*", "", p)
+            
+            # color extrahieren (zwischen Y und Y1)
+            col <- str_split(p, "Y")[[1]][2]
+            col <- gsub("\\d+", "", col)
+            col <- tolower(col)
+            
+            if (col == color) {
+              found_species <- sp
+              break
+            }
+          }
+          
+          # 👉 FALL 1: Treffer
+          if (!is.na(found_species)) {
+            df$species[df$ID == row_id] <- found_species
+            
           } else {
-            df$species[df$ID == df_map_name$ID[i]] <- paste(unique(cleaned_species), collapse = "_")
+            # 👉 FALL 2: KEIN Treffer → alle speichern (wie vorher)
+            df$species[df$ID == row_id] <- paste(unique(cleaned_species), collapse = "_")
           }
         }
         
