@@ -1,3 +1,27 @@
+# # ============================================================
+# File: polygonize.py
+# Author: Spaska Forteva
+# ============================================================
+# Polygonization and centroid extraction
+# ============================================================
+# This script converts raster-based detection results into
+# structured geospatial vector data.
+#
+# Core functionality:
+# - Raster → polygon conversion (GDAL)
+# - Centroid extraction from colored regions
+# - Coordinate transformation (pixel → real world)
+# - Attribute assignment (color, template, species)
+#
+# Output:
+# - Shapefiles (vector GIS data)
+# - CSV files (tabular data)
+#
+# Role in workflow:
+# - Final step: computer vision → GIS integration
+# ============================================================
+
+
 from osgeo import gdal, ogr, osr
 import os
 import glob
@@ -28,6 +52,22 @@ color_ranges = [
     (np.array([130, 50, 50]), np.array([160, 255, 255]))
 ]
 
+# ------------------------------------------------------------
+# Polygonize raster → vector
+# ------------------------------------------------------------
+# Converts raster pixels (e.g. binary masks or centroids)
+# into vector polygons using GDAL.
+#
+# Key idea:
+# - Each connected pixel region becomes a polygon.
+# - Only relevant pixels (value = 255) are kept.
+#
+# Output:
+# - Shapefile with filtered polygons (foreground only)
+#
+# Role in workflow:
+# - Transition from image processing → GIS vector data
+# ------------------------------------------------------------
 def polygonize(input_raster, output_shape, dst_layername):
     """
     Polygonizes the pixels of an input raster image and filters relevant pixels representing symbols or symbol centroids.
@@ -88,7 +128,23 @@ def polygonize(input_raster, output_shape, dst_layername):
         print("An error occurred in polygonize:", e)
     # End of function
 
-# Function to execute polygonize function for multiple raster images
+
+# ------------------------------------------------------------
+# Batch polygonization (general)
+# ------------------------------------------------------------
+# Processes all rectified raster files and converts them
+# into shapefiles.
+#
+# Key idea:
+# - Loop over all TIFFs in rectifying folder
+# - Apply polygonize() per file
+#
+# Output:
+# - polygonize/*.shp
+#
+# Role in workflow:
+# - Generic polygonization step after rectifying
+# ------------------------------------------------------------
 def mainPolygonize(workingDir, outDir):
     """
     Executes the polygonize function for all raster images in the given directory.
@@ -115,7 +171,22 @@ def mainPolygonize(workingDir, outDir):
         print("An error occurred in mainPolygonize:", e)
     # End of function
 
-# Function to execute polygonize function for multiple raster images
+
+# ------------------------------------------------------------
+# Polygonization for maps (Point Filtering)
+# ------------------------------------------------------------
+# Converts rectified map images (not masks) into polygons.
+#
+# Key idea:
+# - Works on full maps instead of centroid masks
+# - Used for map-level vectorization
+#
+# Output:
+# - polygonize/maps/*.shp
+#
+# Role in workflow:
+# - Optional map-level vector extraction
+# ------------------------------------------------------------
 def mainPolygonize_Map_PF(workingDir, outDir):
     """
     Executes the polygonize function for all raster images in the given directory.
@@ -143,6 +214,19 @@ def mainPolygonize_Map_PF(workingDir, outDir):
         print("An error occurred in mainPolygonize_Map_PF:", e)
     # End of function
 
+
+# ------------------------------------------------------------
+# Match RGB color → template name
+# ------------------------------------------------------------
+# Assigns a detected centroid color to a template.
+#
+# Key idea:
+# - Simple threshold-based color classification
+# - Maps color → symbol template
+#
+# Role in workflow:
+# - Links visual detection to semantic symbol type
+# ------------------------------------------------------------
 def match_color_to_template(r, g, b, template_list):
     # einfache Farbklassifikation
     if r > 200 and g < 100 and b < 100:
@@ -167,6 +251,27 @@ def match_color_to_template(r, g, b, template_list):
 
     return "unknown"
   
+  
+# ------------------------------------------------------------
+# Extract centroids + create shapefile + CSV
+# ------------------------------------------------------------
+# Detects colored regions, extracts centroids,
+# converts them to georeferenced coordinates,
+# and stores results in shapefile + CSV.
+#
+# Key steps:
+# - Detect colors (HSV)
+# - Find contours → centroids
+# - Convert pixel → real-world coordinates
+# - Assign template + species
+#
+# Output:
+# - Shapefile (points)
+# - CSV (attributes)
+#
+# Role in workflow:
+# - Core step: image detection → geospatial data
+# ------------------------------------------------------------
 def create_centroid_mask_and_csv(outDir, workingDir, image_path, color_ranges, output_shapefile_path, output_csv_path, map_id):
     """
     Processes an image to identify specific colored regions, calculates the centroids of these regions, 
@@ -340,6 +445,19 @@ def create_centroid_mask_and_csv(outDir, workingDir, image_path, color_ranges, o
 
 
 
+# ------------------------------------------------------------
+# Match centroid → species
+# ------------------------------------------------------------
+# Finds species name for a detected centroid
+# using previously extracted coordinate data.
+#
+# Matching criteria:
+# - template (symbol type)
+# - file name (map)
+#
+# Role in workflow:
+# - Connects detection results with species info
+# ------------------------------------------------------------
 def find_species_match(lx, ly, template, file_name, coords_data, threshold=25):
     """
     Find matching species from coordinates data using:
@@ -382,6 +500,26 @@ def find_species_match(lx, ly, template, file_name, coords_data, threshold=25):
         return best_match.get("species", "unknown")
 
     return "unknown"
+  
+  
+# ------------------------------------------------------------
+# Main polygonize workflow (Point Filtering)
+# ------------------------------------------------------------
+# Processes all rectified centroid masks and converts
+# them into georeferenced point data.
+#
+# Key idea:
+# - Loop over map types (1..n)
+# - Extract centroids
+# - Save shapefile + CSV per map type
+#
+# Output:
+# - polygonize/pointFiltering/*.shp
+# - csvFiles/centroids_colors_pf.csv
+#
+# Role in workflow:
+# - Final step: structured GIS-ready dataset
+# ------------------------------------------------------------
 def mainPolygonize_PF(workingDir, outDir, nMapTypes):
     """
     Polygonize for multiple map types.
