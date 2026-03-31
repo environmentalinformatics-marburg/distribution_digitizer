@@ -1,26 +1,24 @@
-"""
-File: mask_georeferencing.py
-Author: Spaska Forteva
-
-Last modified on 2023/11/10 by Kai Richter:
-  Addition of functions 'mainmaskgeoreferencingMasks_CD', 'mainmaskgeoreferencingMasks_PF', and 'mainmaskgeoreferencingMaps_CD'
-
-Description: 
-Script for georeference tif files based on GCP file. 
-
-The function 'maskgeoreferencing' georeferences input tif files based on geopoints file. 
-
-function 'mainmaskgeoreferencingMaps': Georeferences maps containing symbols and centroids detected by Point Filtering.
-
-function 'mainmaskgeoreferencingMaps_CD': Georeferences maps containing symbols and centroids detected by Circle Detection.
-
-function 'mainmaskgeoreferencingMasks': Georeferences tif files masking detected symbols.
-
-function 'mainmaskgeoreferencingMasks_CD': Georeferences tif files masking centroids detected by Circle Detection.
-
-function 'mainmaskgeoreferencingMasks_PF': Georeferences tif files masking centroids detected by Point Filtering.
-"""
-
+# ============================================================
+# File: mask_georeferencing.py
+# Author: Spaska Forteva
+# Modified on 2023/11/10 by Kai Richter
+# Last modified on 2026/03/32 by Spaska Forteva:
+#
+# Description:
+# This script performs georeferencing of raster images using
+# Ground Control Points (GCPs).
+#
+# It transforms pixel-based image coordinates into real-world
+# geographic coordinates (WGS84), enabling spatial analysis
+# of detected features such as centroids and symbols.
+#
+# The script supports multiple processing variants:
+# - maps (point filtering / circle detection)
+# - masks (centroid masks)
+#
+# This step represents the transition from image space to
+# geographic coordinate space.
+# ============================================================
 from osgeo import gdal, gdalconst
 import string
 from functools import reduce
@@ -28,12 +26,27 @@ import shutil
 from osgeo import gdal, osr
 import pandas as pd
 import os, glob
+import sys
 #os.environ['PROJ_LIB'] = "C:/ProgramData/miniconda3/Library/share/proj"
 #os.environ['PROJ_LIB'] = "C:/Users/user/miniconda3/Library/share/proj/"
 
-import sys
 
-# Working with the Input GCP points from the csv file and then rearranging them according to the function
+
+# ------------------------------------------------------------
+# Core georeferencing function using GCPs
+# ------------------------------------------------------------
+# Core idea:
+# - Read Ground Control Points (GCPs)
+# - Assign them to the raster image
+# - Define spatial reference (WGS84)
+#
+# Output:
+# - Georeferenced GeoTIFF file
+#
+# Important:
+# - This does NOT yet warp the image
+#   → only assigns spatial reference and GCPs
+# ------------------------------------------------------------
 def maskgeoreferencing(input_raster, output_raster, gcp_points):
 
     try:
@@ -54,14 +67,18 @@ def maskgeoreferencing(input_raster, output_raster, gcp_points):
 
         df = f[required_cols].copy()
 
-        # invert Y
+        # --------------------------------------------------------
+        # Coordinate transformation (important!)
+        # --------------------------------------------------------
         df['sourceY'] = df['sourceY'] * (-1)
 
         if df.empty:
             print("⚠️ No valid GCP points found")
             return
 
-        # ---------- Open raster ----------
+        # --------------------------------------------------------
+        # Open input raster
+        # --------------------------------------------------------
         src_ds = gdal.Open(input_raster)
         if src_ds is None:
             print("❌ Could not open raster")
@@ -76,7 +93,9 @@ def maskgeoreferencing(input_raster, output_raster, gcp_points):
             print("❌ Could not create output file")
             return
 
-        # ---------- Create GCP list ----------
+        # --------------------------------------------------------
+        # Create GCP list
+        # --------------------------------------------------------
         gcp_list = []
         for _, row in df.iterrows():
             gcp = gdal.GCP(
@@ -92,7 +111,9 @@ def maskgeoreferencing(input_raster, output_raster, gcp_points):
             print("⚠️ GCP list empty")
             return
 
-        # ---------- Projection ----------
+        # --------------------------------------------------------
+        # Define spatial reference system (WGS84)
+        # --------------------------------------------------------
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326)
         dest_wkt = srs.ExportToWkt()
@@ -116,6 +137,9 @@ def maskgeoreferencing(input_raster, output_raster, gcp_points):
             pass
 
 
+# ------------------------------------------------------------
+# Georeferencing maps (Point Filtering results)
+# ------------------------------------------------------------
 def mainmaskgeoreferencingMaps(workingDir, outDir):
   output_raster= os.path.join(outDir,"georeferencing", "maps","pointFiltering")
   os.makedirs(output_raster, exist_ok=True) 
@@ -150,6 +174,11 @@ def mainmaskgeoreferencingMasks(workingDir, outDir):
     for input_raster in glob.glob(inputdir + "/*.tif"):
        maskgeoreferencing(input_raster, output_raster,gcp_points)
 
+
+
+# ------------------------------------------------------------
+# Georeferencing maps (Circle Detection results)
+# ------------------------------------------------------------
 def mainmaskgeoreferencingMasks_CD(workingDir, outDir):      
   output_raster= os.path.join(outDir, "georeferencing", "masks", "circleDetection")
   os.makedirs(output_raster, exist_ok=True) 
@@ -166,6 +195,9 @@ def mainmaskgeoreferencingMasks_CD(workingDir, outDir):
        maskgeoreferencing(input_raster, output_raster,gcp_points)
        
 
+# ------------------------------------------------------------
+# Georeferencing masks (generic)
+# ------------------------------------------------------------
 def mainmaskgeoreferencingMasks_PF(workingDir, outDir, nMapTypes=1):
     print("workingDir =", workingDir)
     print("Full GCP path =", os.path.join(workingDir, "data", "input", "templates", "1", "geopoints"))
