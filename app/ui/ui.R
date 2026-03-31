@@ -700,55 +700,6 @@ body <- dashboardBody(
       tabName = "tab4",
       
       fluidRow(
-        
-        # ================= LEFT: Masking =================
-        column(
-          6,
-          
-          wellPanel(
-            h3(shinyfields5$head_sub, style = "color:black"),
-            h4("You can extract masks with white background", style = "color:black"),
-            p(shinyfields5$inf1, style = "color:black"),
-            
-            numericInput(
-              "morph_ellipse",
-              label = shinyfields5$lab1,
-              value = 5
-            ),
-            
-            actionButton(
-              "masking",
-              label = shinyfields5$lab2,
-              style = "color:#FFFFFF;background:#999999"
-            ),
-            
-            conditionalPanel(
-              condition = "input.masking > 0",
-              
-              fluidRow(
-                column(
-                  6,
-                  h4("White masks"),
-                  textInput(
-                    "range_list_Masks",
-                    HTML(shinyfields2$inf7),
-                    "1-2"
-                  ),
-                  selectInput(
-                    "map_type_Masks",
-                    "Select map type:",
-                    mapTypes
-                  ),
-                  actionButton("listMasks", "List masks")
-                )
-              ),
-              
-              tags$hr(),
-              uiOutput("listMS")
-            )
-          )
-        ),
-        
         # ================= RIGHT: Masking Centroids =================
         column(
           6,
