@@ -1,15 +1,43 @@
 # ============================================================
-# Script Author: [Spaska Forteva]
-# Script Author: [Madhu Venkates]
+# Script Author: Spaska Forteva
+# Script Author: Madhu Venkatesh
 # Created On: 2023-01-10
-# Description: This script edits book pages and creates map images using the matching method.
+# Last updated on: 2026-03-31 (improved matching workflow and structure)
+
+# Description:
+# This script processes scanned book pages to automatically detect,
+# extract, and save map regions using two alternative approaches:
+#
+# 1. Template Matching:
+#    - Uses normalized cross-correlation to locate map regions
+#      based on predefined template images.
+#
+# 2. Contour-Based Detection:
+#    - Identifies map regions by detecting contours that match
+#      expected template dimensions.
+#
+# The script supports multiple map types (groups), processes pages
+# sequentially, and stores extracted maps together with metadata
+# in structured CSV files.
+#
+# The output is used in further steps of the Distribution Digitizer
+# workflow (e.g., georeferencing, point detection, polygonization).
 # ============================================================
 
-
-# It is recommended the use of Snake Case for functions and variables, 
-# for examples: find_page_number!
-
-# Import libraries
+# ------------------------------------------------------------
+# Import required libraries
+# ------------------------------------------------------------
+# OpenCV (cv2): image processing and template matching
+# PIL: image loading and format handling
+# numpy: array operations
+# pytesseract: OCR for page number detection
+# csv: writing structured output
+# glob/os: file system operations
+# shutil: file copying and cleanup
+# re: string processing
+# time: performance measurement
+# sys: console encoding handling
+# ------------------------------------------------------------
 import cv2
 import PIL
 from PIL import Image
@@ -25,11 +53,21 @@ import shutil
 import re
 import sys
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
+# ------------------------------------------------------------
+# Configure Tesseract OCR
+# ------------------------------------------------------------
+# Ensure that the correct path to the Tesseract executable
+# and tessdata directory is set. This is required for reliable
+# OCR-based page number detection.
+# ------------------------------------------------------------
 # Set path to tesseract.exe
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 # Optional: set tessdata prefix if needed
 os.environ["TESSDATA_PREFIX"] = r"C:\Program Files\Tesseract-OCR\tessdata"
+
+
 start_time = time.time()
 
 # Define fields for the records CSV files
@@ -38,11 +76,20 @@ fields = ['page_number', 'previous_page_path', 'next_page_path', 'file_name',  '
 # Define fields for the page records CSV files
 fields_page_record = ['page_number','previous_page_path', 'next_page_path', 'file_name',  'map_name', 'x', 'y', 'w', 'h', 'size', 'threshold', 'time', 'map_group']   
 
-# Input validation
-# Consider using argparse to handle command-line arguments.
 
-
-# Function to extract the page number from a specific region of an image
+# ------------------------------------------------------------
+# Extract page number from scanned page
+# ------------------------------------------------------------
+# This function crops a small region (top or bottom of the page),
+# applies smoothing (bilateral filter), and uses OCR to detect
+# numeric values.
+#
+# Only numbers within a reasonable range (1–99) are accepted,
+# which reduces noise from OCR misdetections.
+#
+# This step is essential for naming outputs and maintaining
+# correct page references in downstream processing.
+# ------------------------------------------------------------
 def find_page_number(image, page_position):
   """
   Extracts the page number from a specific region of an image based on the provided page position.
@@ -89,6 +136,20 @@ def find_page_number(image, page_position):
   # Return 0 if no suitable number is found
   return result
 
+
+# ------------------------------------------------------------
+# Remove duplicate template matches using IoU filtering
+# ------------------------------------------------------------
+# Template matching often produces multiple overlapping detections
+# for the same object. This function keeps only the best match
+# (highest correlation score) within overlapping regions.
+#
+# IoU (Intersection-over-Union) is used to measure overlap between
+# bounding boxes.
+#
+# Result:
+# Cleaner detection with fewer redundant map extractions.
+# ------------------------------------------------------------
 def filter_overlapping_matches(loc, res, w, h, iou_thresh=0.6):
     """
     Filter overlapping template matches using IoU (Intersection-over-Union).
@@ -132,7 +193,34 @@ def filter_overlapping_matches(loc, res, w, h, iou_thresh=0.6):
 
     return kept
 
-
+# ------------------------------------------------------------
+# Template-based map extraction
+# ------------------------------------------------------------
+# Core idea:
+# Detect map regions on a scanned page by comparing it with
+# predefined template images.
+#
+# Key steps:
+# - Perform template matching using normalized cross-correlation
+# - Collect all matches above a given threshold
+# - Sort candidates by similarity score
+# - Apply spatial filtering (Y-distance constraint) to avoid
+#   duplicate detections of the same map
+# - Extract and save the best match per template
+#
+# Important design decisions:
+# - Only ONE match per template is kept (robust and predictable)
+# - Y-distance filtering prevents overlapping maps being saved twice
+# - Output filenames encode full traceability (page, template, position)
+#
+# Output:
+# - Cropped map images (.tif)
+# - Global CSV (records.csv)
+# - Per-map CSV files (for modular processing)
+#
+# This function is the backbone of the "matching" stage in the
+# Distribution Digitizer pipeline.
+# ------------------------------------------------------------
 def match_template(previous_page_path, next_page_path, current_page_path,
                    template_map_files, output_dir, output_page_records,
                    records, threshold, page_position, map_group="1"):
@@ -196,11 +284,10 @@ def match_template(previous_page_path, next_page_path, current_page_path,
 
     try:
         print("🗺️ Page:", current_page_path)
-
         start_time = time.time()
         img = np.array(Image.open(current_page_path))
         imgc = img.copy()
-
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         page_number = find_page_number(current_page_path, page_position)
 
         os.makedirs(output_dir, exist_ok=True)
@@ -212,31 +299,25 @@ def match_template(previous_page_path, next_page_path, current_page_path,
         # ------------------------------------------------------------
         # Loop over ALL templates
         # ------------------------------------------------------------
-        for template_map_file in template_map_files:
+        for template_map_file, tmp in template_map_files:
             print("📌 Template:", template_map_file)
 
-            tmp = np.array(Image.open(template_map_file))
+           # tmp = np.array(Image.open(template_map_file))
             h, w, c = tmp.shape
 
-            res = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
+            tmp_gray = cv2.cvtColor(tmp, cv2.COLOR_BGR2GRAY)
+            res = cv2.matchTemplate(img_gray, tmp_gray, cv2.TM_CCOEFF_NORMED)
             loc = np.where(res >= threshold)
 
             candidates = [(x, y, float(res[y, x]))
                           for (x, y) in zip(loc[1], loc[0])]
             
-            #print(f"   DEBUG: {len(candidates)} raw candidates found")
-
-            # zeige die besten 10 Kandidaten (y + score)
-            for i, (xx, yy, sc) in enumerate(
-                    sorted(candidates, key=lambda z: z[2], reverse=True)[:10]
-                ):
-                print(f"     cand[{i}]: y={yy}, score={sc:.3f}")
                 
             if not candidates:
                 continue
 
             # best match only
-            candidates.sort(key=lambda z: z[2], reverse=True)
+            candidates = sorted(candidates, key=lambda z: z[2], reverse=True)
             y_tol = int(h * 0.25)
             chosen = None
             
@@ -254,7 +335,7 @@ def match_template(previous_page_path, next_page_path, current_page_path,
                     break  # ← erster gültiger Treffer reicht
             
             if chosen is None:
-                print("⚠️ No suitable candidate found after Y-filtering")
+                #print("⚠️ No suitable candidate found after Y-filtering")
                 continue
             
             x, y, score = chosen
@@ -321,7 +402,28 @@ def match_template(previous_page_path, next_page_path, current_page_path,
 
 
 
-
+# ------------------------------------------------------------
+# Contour-based map detection (alternative approach)
+# ------------------------------------------------------------
+# Instead of matching pixel patterns, this method detects map regions
+# based on geometric properties (size and shape).
+#
+# Key steps:
+# - Convert image to binary (adaptive thresholding)
+# - Enhance structures using morphological operations
+# - Detect contours (external boundaries)
+# - Filter contours based on template size ranges
+#
+# Advantages:
+# - Works even if template matching fails (e.g., low contrast)
+# - More robust to variations in map appearance
+#
+# Limitations:
+# - Less precise than template matching
+# - Depends strongly on thresholding and morphology parameters
+#
+# This method is useful as a fallback or alternative detection strategy.
+# ------------------------------------------------------------
 def match_template_contours(previous_page_path, next_page_path, current_page_path,
                             template_map_files, output_dir, output_page_records,
                             records, threshold, page_position, map_group="1"):
@@ -428,7 +530,7 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
         # Loop over ALL templates (size reference only)
         # ------------------------------------------------------------
         for template_map_file in template_map_files:
-            print("📌 Template:", template_map_file)
+            #print("📌 Template:", template_map_file)
 
             template = np.array(Image.open(template_map_file))
             th, tw = template.shape[:2]
@@ -439,8 +541,8 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
             max_w = int(tw * 1.40)
             max_h = int(th * 1.40)
 
-            print(f"   ↳ size filter: "
-                  f"w=[{min_w},{max_w}], h=[{min_h},{max_h}]")
+            #print(f"   ↳ size filter: "
+                  #f"w=[{min_w},{max_w}], h=[{min_h},{max_h}]")
 
             for contour in contours:
                 x, y, w, h = cv2.boundingRect(contour)
@@ -503,7 +605,7 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
                     writer.writerow(fields_page_record)
                     writer.writerow(record_row)
 
-                print(f"💾 Saved map: w={w}, h={h}, y={y}")
+                #print(f"💾 Saved map: w={w}, h={h}, y={y}")
                 count += 1
 
         if count == 0:
@@ -513,22 +615,37 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
         print("❌ Error in match_template_contours:", e)
 
 
-# Beispielaufruf
-# params = {
-#     "previous_page_path": previous_page_path,
-#     "next_page_path": next_page_path,
-#     "current_page_path": current_page_path,
-#     "template_map_file": template_map_file,
-#     "output_dir": output_dir,
-#     "output_page_records": output_page_records,
-#     "records": records,
-#     "threshold": threshold,
-#     "page_position": page_position
-# }
-# match_template_images(**params)
-
-#working_dir="D:/distribution_digitizer"
-# Function to perform the main template matching in a loop
+# ------------------------------------------------------------
+# Main workflow controller for template matching
+# ------------------------------------------------------------
+# This function orchestrates the entire matching process:
+#
+# 1. Loads all page images
+# 2. Loads templates for each map group
+# 3. Iterates over pages
+# 4. Applies matching (template or contour-based)
+#
+# Key optimization:
+# - Each page is loaded only ONCE into memory
+# - All templates across all groups are applied to that page
+#   → significantly reduces I/O overhead
+#
+# Flexible features:
+# - Supports multiple map types (groups)
+# - Allows page selection (single page, range, or ALL)
+# - Switch between matching methods:
+#     1 = template matching
+#     2 = contour-based detection
+#
+# Output structure:
+# output/<group>/
+#   ├── maps/matching/
+#   ├── pagerecords/
+#   └── records.csv
+#
+# This function connects the input data with the full
+# Distribution Digitizer processing pipeline.
+# ------------------------------------------------------------
 
 def main_template_matching(
     working_dir,
@@ -586,8 +703,7 @@ def main_template_matching(
 
         print(f"➡️ Processing {len(pages)} page(s)")
 
-        # --- Matching loop over each map type ---
-                # --- Matching loop over each map type ---
+        # --- Setup output folders and clean previous results ---
         for group in map_groups:
             print(f"\n🔍 Processing map type: {group}")
 
@@ -621,49 +737,60 @@ def main_template_matching(
                 os.remove(records)
 
             print(f"📁 Output directory for map group {group}: {output_dir}")
-
-            # --- Matching pro Template ---
-                   # ============================================================
-        # Optimierte Variante:
-        # Jede Seite nur einmal öffnen und alle Template-Gruppen prüfen
-        # ============================================================
-
-        # --- Templates aller Gruppen vorab laden ---
+        
+        # --- Load templates into memory for faster matching ---
         all_templates = {}
+
         for group in map_groups:
             maps_dir = os.path.join(templates_root, group, "maps")
+        
             if not os.path.isdir(maps_dir):
                 print(f"⚠️ No 'maps' directory found for group {group}")
                 continue
+        
             templates = sorted(glob.glob(os.path.join(maps_dir, "*.tif")))
+        
+            # ✅ FIRST: check if templates exist
             if not templates:
                 print(f"⚠️ No .tif templates found in {maps_dir}")
                 continue
-            all_templates[group] = templates
-            print(f"✅ {len(templates)} templates loaded for group {group}")
+        
+            # ✅ THEN: load them
+            loaded_templates = []
+            for t in templates:
+                try:
+                    img = np.array(Image.open(t))
+                    loaded_templates.append((t, img))
+                except:
+                    continue
+        
+            all_templates[group] = loaded_templates
+        
+            print(f"✅ {len(loaded_templates)} templates loaded for group {group}")
 
         if not all_templates:
             print("❌ No templates found in any group.")
             return
 
-        # --- Output-Struktur vorbereiten ---
+       # --- Create and organize output folders for storing results ---
         for group in map_groups:
             base = os.path.join(outDir, group)
             os.makedirs(os.path.join(base, "maps", "matching"), exist_ok=True)
             os.makedirs(os.path.join(base, "pagerecords"), exist_ok=True)
 
-        # --- Matching pro Seite (jede Seite einmal öffnen) ---
+       # --- Process matching per page to avoid repeated image loading ---
         for i, current_page_path in enumerate(pages):
             print(f"\n🗎 Processing page {os.path.basename(current_page_path)}")
 
             prev_path = pages[i - 1] if i > 0 else 'None'
             next_path = pages[i + 1] if i < len(pages) - 1 else 'None'
 
-            # Seite einmal laden
+            # Load page only once and reuse it for all template groups
+            # → avoids repeated disk I/O and improves performance
             img = np.array(Image.open(current_page_path))
-            imgc = img.copy()
+            
 
-            # Durch alle Gruppen und Templates iterieren
+            # Iterate over all template groups and apply matching for each template
             for group, template_files in all_templates.items():
                 output_base = os.path.join(outDir, group)
                 output_dir = os.path.join(output_base, "maps", "matching")
