@@ -1,5 +1,33 @@
+# ============================================================
+# File: point_matching.py
 # Author: Spaska Forteva
-# Description: Point matching for distribution maps
+# Last updated on: 2026-03-31
+#
+# Description:
+# This script detects and extracts point symbols (e.g., species
+# occurrence markers) from previously aligned distribution maps.
+#
+# The detection is based on template matching using predefined
+# symbol templates (e.g., red, blue, green markers).
+#
+# Core functionality:
+# - Detect symbol locations using normalized cross-correlation
+# - Apply non-maximum suppression to remove duplicate detections
+# - Validate uncertain detections using partial matching
+# - Assign colors and template labels to detected points
+# - Store results as CSV (coordinates + attributes)
+# - Visualize detections directly on the map image
+#
+# The output is used for further processing steps such as:
+# - polygonization
+# - spatial analysis
+# - georeferencing
+#
+# Key design goals:
+# - Robust detection across varying image quality
+# - Avoid duplicate detections
+# - Maintain full traceability (template, color, position)
+# ============================================================
 
 import cv2
 import os
@@ -8,7 +36,14 @@ import numpy as np
 import csv
 import shutil
 
-
+# ------------------------------------------------------------
+# Define color mapping for each symbol type
+# ------------------------------------------------------------
+# Each template is associated with a specific color.
+# This mapping is used to:
+# - visualize detected points on the map
+# - store RGB values in the output CSV
+# ------------------------------------------------------------
 COLOR_MAP = {
     "red": "#FF0000",
     "green": "#00FF00",
@@ -19,6 +54,16 @@ COLOR_MAP = {
 }
 
 
+# ------------------------------------------------------------
+# Copy aligned map images into working directory
+# ------------------------------------------------------------
+# This step ensures that:
+# - original aligned images remain unchanged
+# - point detection is performed on a working copy
+#
+# This avoids accidental overwriting of previous results
+# and enables reproducibility of the workflow.
+# ------------------------------------------------------------
 def copy_tiff_images(input_dir, output_dir):
 
     os.makedirs(output_dir, exist_ok=True)
@@ -29,8 +74,24 @@ def copy_tiff_images(input_dir, output_dir):
                 os.path.join(input_dir, file),
                 os.path.join(output_dir, file)
             )
+            
 
-
+# ------------------------------------------------------------
+# Non-Maximum Suppression (NMS)
+# ------------------------------------------------------------
+# Purpose:
+# Template matching often produces multiple overlapping detections
+# for the same symbol. This function removes redundant detections
+# and keeps only the strongest (most relevant) ones.
+#
+# Method:
+# - Sort bounding boxes by position
+# - Iteratively remove overlapping boxes based on overlap threshold
+#
+# Result:
+# - Cleaner and more reliable point detections
+# - Reduced false positives and duplicates
+# ------------------------------------------------------------
 def non_max_suppression_fast(points, overlapThresh):
 
     if len(points) == 0:
@@ -73,8 +134,13 @@ def non_max_suppression_fast(points, overlapThresh):
         )
 
     return points[pick].astype("int")
+  
 
-
+# ------------------------------------------------------------
+# Convert HEX color to RGB format
+# ------------------------------------------------------------
+# Required for OpenCV visualization and CSV storage.
+# ------------------------------------------------------------
 def hex_to_rgb(hex_color):
 
     hex_color = hex_color.lstrip('#')
@@ -82,8 +148,35 @@ def hex_to_rgb(hex_color):
     return tuple(
         int(hex_color[i:i+2],16) for i in (0,2,4)
     )
+    
 
-
+# ------------------------------------------------------------
+# Detect symbol points using template matching
+# ------------------------------------------------------------
+# Core idea:
+# Identify occurrences of a given symbol template within a map
+# using normalized cross-correlation.
+#
+# Key steps:
+# - Convert map and template to grayscale
+# - Apply Gaussian smoothing to reduce noise
+# - Perform template matching (cv2.matchTemplate)
+# - Extract candidate locations above threshold
+#
+# Additional robustness:
+# - Partial matching check allows detection of slightly degraded symbols
+# - Non-maximum suppression removes duplicate detections
+# - Spatial filtering avoids overlapping detections across templates
+#
+# Output:
+# - Draw detected points on the map image
+# - Store coordinates and attributes in CSV
+#
+# Important design decisions:
+# - Only one detection per spatial neighborhood is kept
+# - Better matches replace weaker ones
+# - Color and template type are stored for later analysis
+# ------------------------------------------------------------
 def point_match(img_color, template_path, threshold, template_name, color, coord_writer, current_id, used_points,tiffile):
 
     img_gray = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
@@ -169,6 +262,22 @@ def point_match(img_color, template_path, threshold, template_name, color, coord
 
     return img_color,detected,current_id
 
+
+# ------------------------------------------------------------
+# Validate uncertain matches using pixel comparison
+# ------------------------------------------------------------
+# Purpose:
+# Allow detection of symbols that are slightly degraded or noisy.
+#
+# Method:
+# - Compare template with image patch
+# - Compute pixel-wise difference
+# - Calculate ratio of matching pixels
+#
+# Result:
+# - Improves robustness of detection
+# - Reduces false negatives in low-quality scans
+# ------------------------------------------------------------
 def partial_match_ok(img_gray, tmp_gray, x, y, w, h, min_ratio=0.6):
     
     patch = img_gray[y:y+h, x:x+w]
@@ -187,6 +296,37 @@ def partial_match_ok(img_gray, tmp_gray, x, y, w, h, min_ratio=0.6):
 
     return match_ratio >= min_ratio
   
+  
+# ------------------------------------------------------------
+# Main workflow: point detection for all map types
+# ------------------------------------------------------------
+# This function orchestrates the complete point matching process.
+#
+# Workflow:
+# 1. Iterate over all map types (groups)
+# 2. Load symbol templates for each group
+# 3. Process all aligned map images
+# 4. Detect symbol points for each template
+# 5. Store results in CSV and visualize detections
+#
+# Key optimizations:
+# - Reuse aligned maps (no re-loading from earlier stages)
+# - Avoid duplicate detections using spatial filtering
+# - Incremental CSV writing for large datasets
+#
+# Output structure:
+# output/<type>/maps/pointMatching/
+# output/<type>/maps/csvFiles/coordinates.csv
+#
+# Each detected point contains:
+# - spatial position (X, Y)
+# - template type
+# - color information
+# - detection method
+#
+# This step transforms raster-based symbol information
+# into structured point data for further geospatial analysis.
+# ------------------------------------------------------------
 def map_points_matching(workingDir,outDir,threshold,nMapTypes=1):
 
     print("Points matching")
@@ -206,7 +346,7 @@ def map_points_matching(workingDir,outDir,threshold,nMapTypes=1):
 
         map_type=os.path.basename(map_dir)
 
-        print("Processing map type:",map_type)
+       # print("Processing map type:",map_type)
 
         pointTemplates=os.path.join(
             workingDir,

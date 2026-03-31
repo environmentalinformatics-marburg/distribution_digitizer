@@ -1,9 +1,33 @@
-"""
-Author: Spaska Forteva
-Last modified on 2024-08-09 by Spaska Forteva:
-Description: This script processes images to detect and mask centroids of specific colors (red, blue, green) in TIFF files. 
-It applies various image processing techniques, including color filtering, contour detection, and template matching, and logs the results in a CSV file.
-"""
+# ============================================================
+# File: point_filtering.py
+# Author: Spaska Forteva
+# Last updated on: 2026-03-31
+#
+# Description:
+# This script refines detected point symbols from the previous
+# point matching stage by applying image processing techniques
+# to identify clean and reliable centroids.
+#
+# Core functionality:
+# - Remove previously detected colored symbols from the image
+# - Detect object regions using morphological operations
+# - Separate overlapping symbols using distance transformation
+# - Extract contour-based centroids
+# - Classify points based on dominant color
+# - Filter out invalid detections (e.g., outside map area)
+#
+# Additional features:
+# - Integration of map boundary constraints (map hull)
+# - Filtering based on previously detected points
+# - Robust color classification using pixel statistics
+#
+# Output:
+# - Refined centroid coordinates stored in CSV files
+# - Processed images with visualized centroids
+#
+# This step improves the quality of detected point data and
+# prepares it for polygonization and spatial analysis.
+# ============================================================
 
 import cv2
 import PIL
@@ -12,10 +36,20 @@ import os
 import glob
 import numpy as np
 import csv
-
-
 import pandas as pd
 
+
+# ------------------------------------------------------------
+# Load map boundary (convex hull) from .points file
+# ------------------------------------------------------------
+# The hull defines the valid spatial region of the map.
+#
+# Purpose:
+# - Remove detections outside the actual map area
+#
+# Note:
+# - Y-coordinates are inverted to match image coordinate system
+# ------------------------------------------------------------
 def load_map_hull(points_file):
 
     df = pd.read_csv(points_file)
@@ -33,6 +67,12 @@ def load_map_hull(points_file):
 
     return pts.reshape((-1,1,2))
   
+  
+# ------------------------------------------------------------
+# Check if a point lies inside the map boundary
+# ------------------------------------------------------------
+# Uses OpenCV pointPolygonTest for efficient spatial filtering.
+# ------------------------------------------------------------
 def point_inside_map(cx, cy, map_hull):
 
     if map_hull is None:
@@ -42,6 +82,8 @@ def point_inside_map(cx, cy, map_hull):
 
     return result >= 0
   
+  
+  
 # Function to convert image to black and white
 def convert_to_black_and_white(image_path):
     image = cv2.imread(image_path)
@@ -49,8 +91,23 @@ def convert_to_black_and_white(image_path):
     _, bw_image = cv2.threshold(gray_image, 128, 255, cv2.THRESH_BINARY)
     return bw_image
 
-# Function to mask existing red, blue, and green circles
-# Function to mask existing circles of multiple colors
+
+
+# ------------------------------------------------------------
+# Remove previously detected colored symbols
+# ------------------------------------------------------------
+# Purpose:
+# - Prevent already detected points from interfering with
+#   contour detection
+#
+# Method:
+# - Convert image to HSV
+# - Mask predefined color ranges (red, blue, green, etc.)
+# - Remove these regions from the image
+#
+# Result:
+# - Cleaner input for contour-based detection
+# ------------------------------------------------------------
 def mask_existing_circles(image_array):
     hsv_image = cv2.cvtColor(image_array, cv2.COLOR_RGB2HSV)
 
@@ -106,6 +163,8 @@ def mask_existing_circles(image_array):
     final_image = cv2.addWeighted(image_array, 1, masked_image, 0, 0)
 
     return final_image
+  
+  
 # Function to determine the average color of a contour
 def get_contour_color(image, contour):
     # Erstellt eine Maske nur für den aktuellen Kontur
@@ -114,9 +173,11 @@ def get_contour_color(image, contour):
     mean_val = cv2.mean(image, mask=mask)
     return (int(mean_val[2]), int(mean_val[1]), int(mean_val[0]))  # Return as BGR
 
+
 # Function to convert RGB to hex
 def rgb_to_hex(rgb_color):
     return '#{:02x}{:02x}{:02x}'.format(rgb_color[0], rgb_color[1], rgb_color[2])
+
 
 def determine_color(color_count, min_pixels=20):
     filtered = {k: v for k, v in color_count.items() if v >= min_pixels}
@@ -125,6 +186,7 @@ def determine_color(color_count, min_pixels=20):
         return 'orange'
     
     return max(filtered, key=filtered.get)
+
 
 def count_color_pixels(image, contour, color_ranges):
     mask = np.zeros(image.shape[:2], dtype=np.uint8)
@@ -136,6 +198,7 @@ def count_color_pixels(image, contour, color_ranges):
         count = np.count_nonzero(color_mask)
         color_count[color] = count
     return color_count
+
 
 def get_last_id(csv_file_path):
     if not os.path.exists(csv_file_path):
@@ -153,11 +216,39 @@ def get_last_id(csv_file_path):
             return 0
           
           
+# ------------------------------------------------------------
+# Detect centroids of map symbols using contour analysis
+# ------------------------------------------------------------
+# Core idea:
+# Identify spatial regions corresponding to point symbols
+# and extract their centroids.
+#
+# Key steps:
+# - Remove colored symbols (masking)
+# - Convert to grayscale and smooth image
+# - Apply thresholding to isolate objects
+# - Use morphological opening to remove noise
+# - Apply distance transform to separate overlapping points
+# - Detect contours representing candidate objects
+#
+# Advanced filtering:
+# - Skip contours containing multiple previously detected points
+# - Restrict detections to valid map region (map hull)
+#
+# Color classification:
+# - Determine dominant color within each contour
+# - Assign RGB values based on pixel statistics
+#
+# Output:
+# - List of centroid coordinates with color attributes
+# - Processed image with visualized detections
+#
+# This function is central for transforming raster-based
+# symbol clusters into clean point representations.
+# ------------------------------------------------------------
 def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius, map_hull=None, df_existing=None):
-    #image_array = np.array(PIL.Image.open(tiffile))
-    #image_array = mask_existing_circles(image_array)
-    original_image = np.array(PIL.Image.open(tiffile))
 
+    original_image = np.array(PIL.Image.open(tiffile))
     # Für Kontur-Erkennung (bereinigt)
     image_array = mask_existing_circles(original_image.copy())
     gray_image = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
@@ -260,47 +351,6 @@ def initialize_csv_file(csv_file_path, x_col, y_col):
             file.write(f"ID,File,Detection method,{x_col},{y_col},georef,template,Red,Green,Blue\n")
     return csv_file_path
 
-# Append coordinates to CSV file
-def append_to_csv(csv_file_path, centroids, filename, method, georef, template='none'):
-    if not os.path.exists(csv_file_path):
-        initialize_csv_file(csv_file_path, "X_WGS84", "Y_WGS84")
-        last_id = 0
-    else:
-        with open(csv_file_path, 'r') as file:
-            lines = file.readlines()
-            if len(lines) > 1:  # Skip header line
-                last_line = lines[-1]
-                last_id = int(last_line.split(',')[0])  # Read last ID
-            else:
-                last_id = 0
-    
-    existing_templates = {}
-    with open(csv_file_path, 'r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-
-            # 🔴 Header oder kaputte Zeilen überspringen
-            if not row['Red'].isdigit():
-                continue
-        
-            key = (int(row['Red']), int(row['Green']), int(row['Blue']))
-        
-            if row['template'] != 'none':
-                existing_templates[key] = row['template']
-    
-    # Open the file in append mode and add the new line
-    with open(csv_file_path, 'a', newline='') as file:
-        writer = csv.writer(file)
-        if last_id == 0:
-            writer.writerow(['ID', 'File', 'Detection method', 'X_WGS84', 'Y_WGS84', 'template', 'Red', 'Green', 'Blue', 'georef'])
-        for centroid in centroids:
-
-            color_key = (centroid[2], centroid[3], centroid[4])
-            assigned_template = existing_templates.get(color_key, template)
-            if (assigned_template == "none"):
-              assigned_template = 'b_1'
-            writer.writerow([last_id + 1, filename, method, centroid[0], centroid[1], assigned_template, centroid[2], centroid[3], centroid[4], georef])
-            last_id += 1
 
 def template_matching(image_path, template_path, method=cv2.TM_CCOEFF_NORMED):
     bw_image = convert_to_black_and_white(image_path)
@@ -310,6 +360,19 @@ def template_matching(image_path, template_path, method=cv2.TM_CCOEFF_NORMED):
     return result, max_loc
   
   
+# ------------------------------------------------------------
+# Filter contours containing multiple known points
+# ------------------------------------------------------------
+# Purpose:
+# Avoid merging multiple detections into a single centroid.
+#
+# Logic:
+# - Check how many existing points lie within the contour
+# - If >= 2 → discard contour
+#
+# Result:
+# - Prevents incorrect centroid merging
+# ------------------------------------------------------------
 def contour_contains_multiple_existing_points(contour, df_existing, threshold=5):
 
     if df_existing.empty:
@@ -333,6 +396,33 @@ def contour_contains_multiple_existing_points(contour, df_existing, threshold=5)
     return False
   
 
+# ------------------------------------------------------------
+# Main workflow: point filtering for all map types
+# ------------------------------------------------------------
+# This function orchestrates the refinement of detected points.
+#
+# Workflow:
+# 1. Iterate over all map type directories
+# 2. Load previously detected points (if available)
+# 3. Load map boundary (optional)
+# 4. Process each map image:
+#    - detect centroids
+#    - classify colors
+#    - filter invalid detections
+# 5. Store refined points in CSV
+#
+# Key features:
+# - Incremental ID assignment across runs
+# - Reuse of existing template-color associations
+# - Fallback handling for unknown templates
+#
+# Output:
+# output/<type>/maps/pointFiltering/
+# output/<type>/maps/csvFiles/coordinates.csv
+#
+# This step significantly improves the spatial accuracy
+# and reliability of detected point data.
+# ------------------------------------------------------------
 def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMapTypes=1):
     """
     Process point filtering for multiple map types (1 or 2).
