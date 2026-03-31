@@ -6,18 +6,13 @@ Author: Spaska Forteva
 """
 
 import cv2
-import PIL
 from PIL import Image
 import os.path
 import glob
 import numpy as np
 import csv
-import time
 from pytesseract import Output
 import pytesseract
-import argparse
-import math
-import statistics
 import os
 import re
 import shutil
@@ -69,49 +64,113 @@ def cropImage(source_image, outdir, x, y, w, h, i):
     
     return cropedImagespecie
 
-def load_symbols(symbol_dir):
-    """
-    Load all symbol images from a directory into a dictionary.
-    """
-    symbols = {}
-    
-    for symbol_file in glob.glob(os.path.join(symbol_dir, '*.tif')):
-        symbol_name = os.path.basename(symbol_file).rsplit('.', 1)[0]
-        symbols[symbol_name] = cv2.imread(symbol_file, cv2.IMREAD_GRAYSCALE)
-    
-    return symbols
+
 
 def match_symbol(image, symbols):
-    """
-    Match a given image with a set of symbol templates and return the best match.
-    """
-    best_match = 'none'
-    highest_score = 0
+
+    scores = {}
 
     for symbol_name, symbol_image in symbols.items():
-        # Ensure the template is smaller than the image to match
-        if symbol_image.shape[0] <= image.shape[0] and symbol_image.shape[1] <= image.shape[1]:
-            # Template matching using normalized cross-correlation
-            result = cv2.matchTemplate(image, symbol_image, cv2.TM_CCOEFF_NORMED)
-            _, max_val, _, _ = cv2.minMaxLoc(result)
-            
-            # Update the best match if the score is higher
-            if max_val > highest_score:
-                highest_score = max_val
-                best_match = symbol_name
 
-    return best_match if highest_score > 0.5 else 'none'
+        if (symbol_image.shape[0] > image.shape[0] or 
+            symbol_image.shape[1] > image.shape[1]):
+            continue
 
-def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_list=None, attempt=1):
+        result = cv2.matchTemplate(image, symbol_image, cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, _ = cv2.minMaxLoc(result)
+
+        print(f"{symbol_name} → score={max_val:.3f}")
+
+        scores[symbol_name] = max_val
+
+    return scores
+  
+def match_symbol_on_map(full_image, symbols):
+
+    gray_full = cv2.cvtColor(full_image, cv2.COLOR_BGR2GRAY)
+
+    scores = {}
+
+    for symbol_name, symbol_image in symbols.items():
+
+        if (symbol_image.shape[0] > gray_full.shape[0] or 
+            symbol_image.shape[1] > gray_full.shape[1]):
+            continue
+
+        result = cv2.matchTemplate(gray_full, symbol_image, cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, _ = cv2.minMaxLoc(result)
+
+        scores[symbol_name] = max_val
+
+    return scores
+  
+def assign_templates_global(all_scores):
+
+    # 🔹 Sortiere nach Score (höchster zuerst)
+    all_scores = sorted(all_scores, key=lambda x: x["score"], reverse=True)
+
+    used_keys = set()
+    used_colors = set()   # 🔥 NEU
+    final_matches = []
+
+    for row in all_scores:
+
+        key = row["candidate"] + "_" + row["first_word"]
+        color = row["color"]
+
+        # ❌ gleiche candidate + legend doppelt
+        if key in used_keys:
+            continue
+
+        # ❌ Farbe schon vergeben → überspringen
+        if color in used_colors:
+            continue
+
+        # ✅ akzeptieren
+        final_matches.append(row)
+        used_keys.add(key)
+        used_colors.add(color)
+
+    # 🔥 FALLBACK (falls etwas leer bleibt)
+    if len(final_matches) < len(set([r["candidate"] for r in all_scores])):
+
+        print("[WARNING] Not enough unique colors → fallback aktiv")
+
+        for row in all_scores:
+
+            key = row["candidate"] + "_" + row["first_word"]
+
+            if key in used_keys:
+                continue
+
+            final_matches.append(row)
+            used_keys.add(key)
+
+    return final_matches
+  
+
+def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_list=None, symbol_list=None, attempt=1):
 
     print("Legend list received:", legend_list)
     print("Attempt:", attempt)
 
     try:
-
-        # -------------------------------
-        # Normalize legend list
-        # -------------------------------
+        
+        loaded_symbols = {}
+    
+        if isinstance(symbol_list, list):
+            for path in symbol_list:
+                name = os.path.basename(path).rsplit('.', 1)[0]
+                loaded_symbols[name] = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    
+        elif isinstance(symbol_list, dict):
+            loaded_symbols = symbol_list
+    
+        if not loaded_symbols:
+            raise ValueError("No symbols provided or symbols empty")
+    
+        symbols = loaded_symbols
+  
         if legend_list is None:
             legend_list = ['distribution']
 
@@ -122,15 +181,11 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
 
         print("Legend list normalized:", legend_list)
 
-        # -------------------------------
-        # Load image
-        # -------------------------------
         image = cv2.imread(path_to_page)
 
         if attempt == 1:
             print("[INFO] Versuch 1: Originalbild")
             rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
         else:
             print(f"[INFO] Versuch {attempt}: mit Thresholding")
 
@@ -144,100 +199,103 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
 
             rgb = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB)
 
-        # -------------------------------
-        # OCR
-        # -------------------------------
         d = pytesseract.image_to_data(rgb, output_type=Output.DICT)
         n_boxes = len(d['level'])
 
         specie = ''
         double_specie = ''
 
-        symbols = load_symbols(
-            os.path.join(
-                working_dir,
-                "data",
-                "input",
-                "templates",
-                "1",
-                "symbols/"
-            )
-        )
+        # 🔥 NEU: Kandidaten + Scores sammeln
+        candidates = []
+        all_scores = []
 
         # -------------------------------
         # OCR scanning
         # -------------------------------
         for i in range(n_boxes):
 
-           # x1 = d['left'][i]
             y1 = d['top'][i]
-            #w1 = d['width'][i]
             h1 = d['height'][i]
 
-            # skip empty OCR tokens
             if d['text'][i].strip() == "":
                 continue
+
             text = d['text'][i].strip().lower()
-            # -------------------------------------------------
-            # try to match legend phrases of variable length
-            # -------------------------------------------------
+
             for legend in legend_list:
 
                 legend_words = legend.split()
                 first_word = legend_words[0]
                 last_word  = legend_words[-1]
             
-                # erstes Wort prüfen
                 if levenshtein_ratio(text, first_word) > 70:
+
                     if i + len(legend_words) < n_boxes:
+                        next_word = d['text'][i + len(legend_words)-1].strip().lower()
 
-                      next_word = d['text'][i + len(legend_words)-1].strip().lower()
-
-                   
                     if next_word == last_word and abs(y1 - (y + h)) < h:
+
                         candidate = d['text'][i + len(legend_words)].strip()
-                        print("candidate:",candidate)
+                        print("candidate:", candidate)
+
                         if not candidate.isalpha():
                             continue
+
                         if double_specie != candidate:
 
                             double_specie = candidate
+                            candidates.append(candidate)
 
-                            symbol_crop = image[
-                                y1:y1 + h1 + 3#,
-                                #x1 - 100:x1
-                            ]
+                            symbol_crop = image[y1-20:y1 + h1 + 20, :]
+                            gray_symbol_crop = cv2.cvtColor(symbol_crop, cv2.COLOR_BGR2GRAY)
 
-                            gray_symbol_crop = cv2.cvtColor(
-                                symbol_crop,
-                                cv2.COLOR_BGR2GRAY
-                            )
+                            scores_crop = match_symbol(gray_symbol_crop, symbols)
+                            scores_map  = match_symbol_on_map(image, symbols)
 
-                            matched_symbol = match_symbol(
-                                gray_symbol_crop,
-                                symbols
-                            )
+                            print("----- COMBINED SCORES -----")
 
-                            matched_symbol = re.sub(
-                                r'\d+_',
-                                '',
-                                matched_symbol
-                            )
-                            matched_symbol = matched_symbol.replace("_", "Y")
-                            specie += "_" + candidate + "X" + first_word.lower() + "Y" + matched_symbol
+                            for name in scores_crop.keys():
 
-                            print("[FOUND]", specie)
+                                sc_crop = scores_crop.get(name, 0)
+                                sc_map  = scores_map.get(name, 0)
+                                total = sc_crop + sc_map
+
+                                print(f"{name:<10} crop={sc_crop:.3f} map={sc_map:.3f} → total={total:.3f}")
+
+                                all_scores.append({
+                                    "candidate": candidate,
+                                    "template": name,
+                                    "color": name.split("_")[0],
+                                    "score": total,
+                                    "first_word": first_word
+                                })
 
                     break
 
-        # -------------------------------
-        # clean specie string
-        # -------------------------------
+        # 🔥 GLOBAL MATCHING
+        print("=== GLOBAL MATCHING ===")
+
+        final_matches = assign_templates_global(all_scores)
+
+
+        # 🔥 Ergebnis bauen
+        for match in final_matches:
+
+            candidate = match["candidate"]
+            template  = match["template"]
+            first_word = match["first_word"]
+
+            print("→ FINAL:", candidate, template)
+
+            template_clean = re.sub(r'\d+_', '', template)
+            template_clean = template_clean.replace("_", "Y")
+
+            specie += "_" + candidate + "X" + first_word.lower() + "Y" + template_clean
+
+        print("[FINAL RESULT]", specie)
+
         specie = re.sub(r"[^\w\s_\|]", "", specie)
 
-        # -------------------------------
-        # Retry logic
-        # -------------------------------
         if specie == '' and attempt < 3:
 
             print(f"[RETRY] Versuch {attempt+1}")
@@ -250,6 +308,7 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
                 y,
                 h,
                 legend_list,
+                symbol_list,
                 attempt + 1
             )
 
@@ -296,17 +355,11 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
             )
 
         if os.path.isfile(align_map):
-
             shutil.copy(align_map, map_new_name)
-
         else:
-
-            raise FileNotFoundError(
-                "File not found: " + align_map
-            )
+            raise FileNotFoundError("File not found: " + align_map)
 
         return specie
 
     except Exception as e:
-
         return str(e)

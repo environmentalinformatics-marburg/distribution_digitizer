@@ -39,6 +39,20 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
     # Initialize the species column
     df$species <- NA
     df$legende <- NA
+    symbol_dir <- file.path(
+      working_dir,
+      "data", "input", "templates",
+      as.character(type_id),
+      "symbols"
+    )
+    
+    symbol_list <- list.files(
+      symbol_dir,
+      pattern = "\\.tif$",
+      full.names = TRUE
+    )
+    print(symbol_list)
+    legend_list = c("distribution of", "type locality of")
     # Process each records page
     for (j in seq_along(records_pages)) {  
       records_page <- read.csv(records_pages[j], sep = ",", check.names = FALSE, quote = "\"", na.strings = c("NA", "NaN", " "))
@@ -47,9 +61,9 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
       print(records_page)
       if (!is.na(records_page$y[1]) && !is.na(records_page$h[1])) {
         # Extract species information
-        legend_list = c("distribution of", "type locality of")
+        
         species <- crop_specie(working_dir, out_dir_type, file_name, map_name,
-                               as.integer(records_page$y[1]), as.integer(records_page$h[1]),legend_list=legend_list)
+                               as.integer(records_page$y[1]), as.integer(records_page$h[1]),legend_list=legend_list,  symbol_list = symbol_list)   # 🔥 NEU symbol_list legend_list
         print("Here the specie:")
         print(species)
         

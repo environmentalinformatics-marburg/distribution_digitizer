@@ -470,9 +470,8 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         
         
         source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
-        mergeFinalData(workingDir, current_out_dir, nMapTypes = as.integer(input$nMapTypes))
-        spatialFinalData(current_out_dir, nMapTypes = as.integer(input$nMapTypes))
-        spatialRealCoordinats(current_out_dir, nMapTypes = as.integer(input$nMapTypes))
+        merge_all_maps(current_out_dir, nMapTypes = as.integer(input$nMapTypes))
+        
       },
       error = function(e) {
         messageOnClose = e$message

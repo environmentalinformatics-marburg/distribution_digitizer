@@ -153,7 +153,7 @@ def get_last_id(csv_file_path):
             return 0
           
           
-def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius, map_hull=None):
+def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius, map_hull=None, df_existing=None):
     #image_array = np.array(PIL.Image.open(tiffile))
     #image_array = mask_existing_circles(image_array)
     original_image = np.array(PIL.Image.open(tiffile))
@@ -198,6 +198,10 @@ def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius, map_hu
     }
 
     for contour in contours:
+          # 🔥 NEU: prüfe ob Kontur mehrere Punkte enthält
+        if df_existing is not None:
+            if contour_contains_multiple_existing_points(contour, df_existing):
+                continue
         #color_count = count_color_pixels(image_array, contour, color_ranges)
         color_count = count_color_pixels(original_image, contour, color_ranges)
         dominant_color = determine_color(color_count)
@@ -235,7 +239,7 @@ def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius, map_hu
 
             if inside:
                 # normaler Punkt
-                cv2.drawContours(processed_image, [contour], -1, color_rgb, 3)
+                cv2.drawContours(processed_image, [contour], -1, color_rgb, -1)
                 cv2.circle(processed_image, (cx, cy), 5, color_rgb, -1)
             
                 centroids.append((cx, cy, color_rgb[2], color_rgb[1], color_rgb[0]))
@@ -304,6 +308,30 @@ def template_matching(image_path, template_path, method=cv2.TM_CCOEFF_NORMED):
     result, max_loc = cv2.matchTemplate(bw_image, bw_template, method)
     _, _, _, max_loc = cv2.minMaxLoc(result)
     return result, max_loc
+  
+  
+def contour_contains_multiple_existing_points(contour, df_existing, threshold=5):
+
+    if df_existing.empty:
+        return False
+
+    count = 0
+
+    for _, row in df_existing.iterrows():
+        px = int(row["X_WGS84"])
+        py = int(row["Y_WGS84"])
+
+        # Prüfe ob Punkt in Kontur liegt
+        inside = cv2.pointPolygonTest(contour, (px, py), False)
+
+        if inside >= 0:
+            count += 1
+
+        if count >= 2:
+            return True  # 🔥 mehrere Punkte → ignorieren
+
+    return False
+  
 
 def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMapTypes=1):
     """
@@ -348,8 +376,11 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMap
         # CSV-Datei für diesen Typ
         csv_path_type = os.path.join(csv_dir_type, "coordinates.csv")
         existing_templates = {}
-
+        df_existing = None
         if os.path.exists(csv_path_type):
+          
+            df_existing = pd.read_csv(csv_path_type)
+            
             with open(csv_path_type, 'r') as file:
                 reader = csv.DictReader(file)
                 for row in reader:
@@ -396,7 +427,7 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMap
             # --- Alle TIFs verarbeiten ---
             for file in glob.glob(os.path.join(input_tif_dir, "*.tif")):
                 print(f"Processing: {os.path.basename(file)}")
-                centroids, output_file = detect_edges_and_centroids(file, output_tif_dir_type, int(kernel_size), int(blur_radius),  map_hull)
+                centroids, output_file = detect_edges_and_centroids(file, output_tif_dir_type, int(kernel_size), int(blur_radius),  map_hull, df_existing=df_existing)
                 
                 
                 print("Centroids detected:")

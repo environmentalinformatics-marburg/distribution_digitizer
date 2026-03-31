@@ -1291,17 +1291,22 @@ server <- shinyServer(function(input, output, session) {
     tryCatch({
       
       current_out_dir <- outDir()
+     # current_out_dir = "D:/test/output_2026-03-26_11-00-43"
       selected_type   <- input$map_type_Spatial
-      
+      selected_type <- trimws(as.character(input$map_type_Spatial))
+      #selected_type=1
       if(is.null(selected_type) || selected_type == "") return()
-      
+    
       mapDir <- file.path(current_out_dir, selected_type)
       
       spatial_path <- file.path(
         mapDir,
-        "spatial_final_data_with_realXY.csv"
+        "spatial_data_final.csv"
       )
       
+      cat("selected_type:", selected_type, "\n")
+      cat("spatial_path:", spatial_path, "\n")
+      cat("exists:", file.exists(mapDir), "\n")
       if(!file.exists(spatial_path)){
         showModal(modalDialog(
           title = "No data",
@@ -1312,20 +1317,35 @@ server <- shinyServer(function(input, output, session) {
         return()
       }
       
-      marker_data <- read.csv2(spatial_path, stringsAsFactors = FALSE)
+      marker_data <- read.csv2(spatial_path, sep = ",", stringsAsFactors = FALSE)
       
       if(nrow(marker_data) == 0) return()
       
       # Koordinaten numerisch
       marker_data$Real_X <- as.numeric(gsub(",", ".", marker_data$Real_X))
       marker_data$Real_Y <- as.numeric(gsub(",", ".", marker_data$Real_Y))
+      marker_data$template_clean <- sub("_.*", "", marker_data$template)
+      marker_data$file_base <- basename(marker_data$File)
+      marker_data$page <- sub(".*_(\\d{4})_map_.*", "\\1.png", marker_data$file_base)
+      # 🔥 HIER DER FIX
+      marker_data$file_base <- gsub("\\.tiff?$", ".png", marker_data$file_base)
       
-      # PNG Name
-      name <- gsub("\\.tiff?$", ".png", marker_data$File)
+      color_map <- c(
+        red = "#FF0000",
+        green = "#00FF00",
+        blue = "#0000FF",
+        yellow = "#FFFF00",
+        orange = "#FFA500",
+        magenta = "#FF00FF"
+      )
       
-      # Seitenbild
-      page <- sub(".*_(\\d{4})map_.*", "\\1.tif", name)
-      page <- gsub("\\.tiff?$", ".png", page)
+      marker_data$color <- color_map[marker_data$template_clean]
+      
+      print(unique(marker_data$template_clean))
+      print(unique(marker_data$color))
+      
+
+
       
       output$mapSpatialViewPF <- renderLeaflet({
         
@@ -1335,16 +1355,18 @@ server <- shinyServer(function(input, output, session) {
             data = marker_data,
             lat = ~Real_Y,
             lng = ~Real_X,
+            color = ~color,        # 👈 wichtig!
+            fillColor = ~color,    # 👈 wichtig!
             radius = 5,
             fillOpacity = 0.8,
             popup = ~paste0(
-              "<p><b>Species: ", species, "</b></p>",
-              "<p><b>", Title, "</b></p>",
+              "<p><b>Species: ", specie, "</b></p>",
+              "<p><b>", title, "</b></p>",
               "<a href='/output/", selected_type,
-              "/maps/matching/", name,
+              "/matching_png/", file_base,
               "' target='_blank'>",
               "<img src='/output/", selected_type,
-              "/maps/matching/", name,
+              "/matching_png/", file_base,
               "' width='100'></a>",
               "<br>",
               "<a href='/pages/", page,
@@ -1352,7 +1374,7 @@ server <- shinyServer(function(input, output, session) {
               "<img src='/pages/", page,
               "' width='100'></a>"
             ),
-            label = ~species
+            label = ~specie
           )
         
       })

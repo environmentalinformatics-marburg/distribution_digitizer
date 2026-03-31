@@ -167,7 +167,7 @@ def match_color_to_template(r, g, b, template_list):
 
     return "unknown"
   
-def create_centroid_mask_and_csv(workingDir, image_path, color_ranges, output_shapefile_path, output_csv_path, map_id):
+def create_centroid_mask_and_csv(outDir, workingDir, image_path, color_ranges, output_shapefile_path, output_csv_path, map_id):
     """
     Processes an image to identify specific colored regions, calculates the centroids of these regions, 
     and stores the results in both a shapefile and a CSV file. The centroids are saved with their 
@@ -183,6 +183,22 @@ def create_centroid_mask_and_csv(workingDir, image_path, color_ranges, output_sh
         None
     """
     try:
+        coords_data = []
+
+        coordinates_csv_path = os.path.join(
+            outDir,              # ← WICHTIG!
+            str(map_id),
+            "maps",
+            "csvFiles",
+            "coordinates.csv"
+        )
+        
+        if os.path.exists(coordinates_csv_path):
+            with open(coordinates_csv_path, 'r') as f:
+                reader = csv.DictReader(f)
+                coords_data = list(reader)
+        else:
+            print("WARNING: coordinates.csv not found:", coordinates_csv_path)
         template_dir = os.path.join(workingDir, "data/input/templates", str(map_id),"symbols")
         template_list = [
             os.path.splitext(f)[0]
@@ -248,6 +264,7 @@ def create_centroid_mask_and_csv(workingDir, image_path, color_ranges, output_sh
         layer.CreateField(ogr.FieldDefn("Local_X", ogr.OFTInteger))
         layer.CreateField(ogr.FieldDefn("Local_Y", ogr.OFTInteger))
         layer.CreateField(ogr.FieldDefn("template", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("specie", ogr.OFTString))  
         layer.CreateField(ogr.FieldDefn("File", ogr.OFTString))
 
         # Extract the basename of the TIFF file
@@ -255,7 +272,7 @@ def create_centroid_mask_and_csv(workingDir, image_path, color_ranges, output_sh
 
         # Prepare the CSV file
         with open(output_csv_path, mode='a', newline='') as csv_file:
-            fieldnames = ['ID', 'Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue', 'template', 'File']
+            fieldnames = ['ID', 'Local_X', 'Local_Y', 'Real_X', 'Real_Y', 'Red', 'Green', 'Blue', 'template', 'File','specie']
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
 
             # Save centroids and colors to the shapefile and CSV file
@@ -268,9 +285,20 @@ def create_centroid_mask_and_csv(workingDir, image_path, color_ranges, output_sh
                 point.AddPoint(x, y)
                 r = int(colors[i][0])
                 g = int(colors[i][1])
+                
                 b = int(colors[i][2])
                 template_name = match_color_to_template(r, g, b, template_list)
+                species_name = find_species_match(
+                    local_coords[i][0],
+                    local_coords[i][1],
+                    template_name,
+                    file_basename,
+                    coords_data
+                )
                 
+                if not species_name:
+                  species_name = None
+                print(species_name)
                 feature = ogr.Feature(layer.GetLayerDefn())
                 feature.SetGeometry(point)
 
@@ -283,8 +311,10 @@ def create_centroid_mask_and_csv(workingDir, image_path, color_ranges, output_sh
                 feature.SetField("Local_Y", local_coords[i][1])
                 feature.SetField("template", template_name)
                 feature.SetField("File", file_basename)
+                feature.SetField("specie", species_name)
                 layer.CreateFeature(feature)
                 feature = None
+                
 
                 # Write to the CSV file
                 writer.writerow({
@@ -297,6 +327,7 @@ def create_centroid_mask_and_csv(workingDir, image_path, color_ranges, output_sh
                     'Green': colors[i][1],
                     'Blue': colors[i][0],
                     'template': template_name,
+                    'specie': species_name,
                     'File': file_basename
                 })
 
@@ -309,7 +340,48 @@ def create_centroid_mask_and_csv(workingDir, image_path, color_ranges, output_sh
 
 
 
+def find_species_match(lx, ly, template, file_name, coords_data, threshold=25):
+    """
+    Find matching species from coordinates data using:
+    - template
+    - file_name
+    - nearest coordinates
+    """
 
+    best_match = None
+    best_dist = float("inf")
+
+    template = str(template).lower()
+    file_name = str(file_name).lower()
+
+    for row in coords_data:
+        try:
+            row_template = str(row["template"]).lower()
+            row_template_clean = row_template.split("_")[0]
+
+            template_clean = str(template).lower().split("_")[0]
+            if row_template_clean != template_clean:
+                continue
+            if str(row["File"]).lower() != file_name:
+                continue
+
+            #cx = float(row["X_WGS84"])
+            #cy = float(row["Y_WGS84"])
+
+           # d = ((lx - cx)**2 + (ly - cy)**2) ** 0.5
+
+            #if d < threshold and d < best_dist:
+            #    best_dist = d
+              #best_match = row
+            return row.get("species", "unknown")
+
+        except:
+            continue
+
+    if best_match:
+        return best_match.get("species", "unknown")
+
+    return "unknown"
 def mainPolygonize_PF(workingDir, outDir, nMapTypes):
     """
     Polygonize for multiple map types.
@@ -346,8 +418,10 @@ def mainPolygonize_PF(workingDir, outDir, nMapTypes):
                         'ID',
                         'Local_X', 'Local_Y',
                         'Real_X', 'Real_Y',
-                        'Red', 'Green', 'Blue', 'template'
-                        'File'
+                        'Red', 'Green', 'Blue', 
+                        'template',
+                        'File',
+                        'specie'
                     ])
 
             print(f"\nProcessing MapType {map_id}")
@@ -370,7 +444,9 @@ def mainPolygonize_PF(workingDir, outDir, nMapTypes):
                     f"{os.path.splitext(image_file)[0]}.shp"
                 )
 
-                create_centroid_mask_and_csv(workingDir,
+                create_centroid_mask_and_csv(
+                    outDir, 
+                    workingDir,
                     image_path,
                     color_ranges,
                     output_shapefile_path,

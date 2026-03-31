@@ -67,6 +67,17 @@ def create_centroid_mask(image_path, output_dir, csv_writer, existing_points):
     
     for lower, upper, color in color_ranges:
         mask = cv2.inRange(hsv_img, lower, upper)
+        hsv = hsv_img
+
+        # Sättigung extrahieren
+        sat = hsv[:,:,1]
+        
+        # nur stark gesättigte Farben behalten
+        sat_mask = cv2.inRange(sat, 100, 255)
+        
+        # kombinieren
+        mask = cv2.bitwise_and(mask, sat_mask)
+        
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         for contour in contours:

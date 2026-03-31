@@ -99,10 +99,16 @@ def point_match(img_color, template_path, threshold, template_name, color, coord
 
     loc = np.where(res >= threshold)
 
+    # zusätzlich: knapp darunter prüfen
+    loc_partial = np.where((res >= threshold - 0.1) & (res < threshold))
+
     points = []
 
     for pt in zip(*loc[::-1]):
-        points.append([pt[0], pt[1], w, h])
+        x, y = pt
+    
+        if partial_match_ok(img_gray, tmp_gray, x, y, w, h, min_ratio=0.6):
+            points.append([x, y, w, h])
 
     points = np.array(points)
 
@@ -141,7 +147,7 @@ def point_match(img_color, template_path, threshold, template_name, color, coord
         else:
             used_points.append((center_x,center_y,score))
 
-        radius=min(w,h)//2.5
+        radius=min(w,h)//4
 
         cv2.circle(img_color,(center_x,center_y),int(radius),(blue,green,red),-1)
 
@@ -163,7 +169,24 @@ def point_match(img_color, template_path, threshold, template_name, color, coord
 
     return img_color,detected,current_id
 
+def partial_match_ok(img_gray, tmp_gray, x, y, w, h, min_ratio=0.6):
+    
+    patch = img_gray[y:y+h, x:x+w]
 
+    if patch.shape != tmp_gray.shape:
+        return False
+
+    # Differenzbild
+    diff = cv2.absdiff(patch, tmp_gray)
+
+    # kleine Unterschiede ignorieren
+    _, diff_bin = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY_INV)
+
+    # Anteil der passenden Pixel
+    match_ratio = np.sum(diff_bin > 0) / (w * h)
+
+    return match_ratio >= min_ratio
+  
 def map_points_matching(workingDir,outDir,threshold,nMapTypes=1):
 
     print("Points matching")
