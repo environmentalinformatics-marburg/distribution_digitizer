@@ -1,8 +1,54 @@
+# ------------------------------------------------------------
+# Author: Spaska Forteva
+# Last updated: 2026-03-31
+#
+# Description:
+# This script processes page-level species information and
+# integrates extended species titles extracted from scanned
+# book pages into the Distribution Digitizer workflow.
+#
+# It acts as a bridge between R-based data handling and
+# Python-based OCR text extraction, enriching previously
+# detected species (from map legends) with additional
+# contextual information (e.g., full species names, titles).
+#
+# The workflow includes:
+# - Reading intermediate CSV files (pagerecords)
+# - Filtering and deduplicating species entries
+# - Calling Python functions for species context extraction
+# - Parsing structured OCR results
+# - Storing extracted titles in a consolidated CSV file
+# - Linking titles back to spatial coordinate data
+#
+# This module extends the species extraction pipeline by
+# incorporating textual context from book pages, enabling
+# more complete species identification and validation.
+# ------------------------------------------------------------
+
 # Required libraries
 library(stringr)
 library(dplyr)
 os <- import("os") 
 
+
+# ------------------------------------------------------------
+# Main function for extracting species titles from page-level
+# OCR results and storing them in a structured CSV format.
+#
+# Workflow:
+# - Reads all pagerecord CSV files for a given map type
+# - Validates and combines species entries
+# - Removes duplicate species
+# - Calls Python function 'find_species_context' to extract
+#   textual context (titles) from page images
+# - Parses encoded results into structured components
+# - Writes results incrementally to 'pageSpeciesData.csv'
+#
+# Includes robust error handling at both file and row level.
+#
+# Output:
+# - CSV file containing species titles and metadata
+# ------------------------------------------------------------
 readPageSpecies <- function(
     workingDir,
     outDir,
@@ -148,7 +194,19 @@ readPageSpecies <- function(
 }
 
 
-
+# ------------------------------------------------------------
+# Updates a CSV file by assigning textual titles to species
+# based on matching entries in a provided list of titles.
+#
+# Workflow:
+# - Iterates over species names
+# - Searches for occurrences in the title list
+# - Appends matching titles to the corresponding rows
+# - Cleans formatting (removes duplicate separators)
+#
+# Output:
+# - Updated CSV file with a populated 'Title' column
+# ------------------------------------------------------------
 update_titles <- function(csv_path, species_list, titles_list) {
   # Read the CSV file
   df <- read.csv(csv_path, stringsAsFactors = FALSE)
@@ -188,7 +246,16 @@ update_titles <- function(csv_path, species_list, titles_list) {
   cat("Updated CSV file successfully for species:", paste(species_list, collapse = ", "), "\n")
 }
 
-# Wrapper function for multiple map types
+
+# ------------------------------------------------------------
+# Wrapper function for processing multiple map types.
+#
+# Iterates over all specified map types and applies the
+# 'readPageSpecies' function independently to each type.
+#
+# Ensures that species title extraction is performed
+# consistently across multiple datasets or map categories.
+# ------------------------------------------------------------
 readPageSpeciesMulti <- function(
     workingDir,
     outDir,
@@ -227,7 +294,21 @@ readPageSpeciesMulti <- function(
 }
 
 
-# Function to read and process data
+# ------------------------------------------------------------
+# Integrates extracted species titles into spatial coordinate
+# data by linking page-level species information with
+# coordinate-based records.
+#
+# Workflow:
+# - Reads coordinate data and extracted page species data
+# - Matches species based on map name and species identifier
+# - Handles different species formats (single vs. multiple)
+# - Assigns corresponding titles to each coordinate entry
+# - Writes updated coordinates CSV with a new 'title' column
+#
+# Output:
+# - Updated coordinates.csv enriched with species titles
+# ------------------------------------------------------------
 processCoordinates <- function(coordinatesPath, pageSpeciesDataPath) {
   # Read coordinates.csv and pageSpeciesData.csv
   coordinates <- read.csv(coordinatesPath, stringsAsFactors = FALSE)

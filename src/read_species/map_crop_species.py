@@ -1,8 +1,23 @@
 """
 Author: Spaska Forteva
- Last modified on 2024-08-09 by Spaska Forteva:
- Description: This script processes images to extract species names from map symbols using OCR and template matching. 
- It includes functions for Levenshtein distance calculation, image cropping, symbol loading, and matching.
+Last updated: 2026-03-31
+
+Description:
+This script is part of the Distribution Digitizer workflow and is designed to
+automatically extract species names from scanned distribution maps.
+
+The approach combines Optical Character Recognition (OCR) and template matching
+to identify relationships between legend entries and corresponding map symbols.
+Species names are detected from text regions located below map legends, using
+robust string matching (Levenshtein similarity) to handle OCR inaccuracies.
+
+For each detected species candidate, symbol matching is performed both locally
+(on cropped regions) and globally (on the full map). The results are combined
+and resolved through a global assignment strategy to ensure consistent and
+unique mapping between species and symbol classes (colors).
+
+The final output is an encoded representation of species–symbol associations,
+which is appended to the map filename for downstream spatial processing steps.
 """
 
 import cv2
@@ -17,6 +32,14 @@ import os
 import re
 import shutil
 
+# ------------------------------------------------------------
+# Computes the similarity between two strings using the
+# Levenshtein distance.
+# This function is used to robustly match OCR-extracted text
+# against predefined legend keywords (e.g., "distribution of"),
+# tolerating typical OCR errors.
+# Returns a similarity score in percent (0–100).
+# ------------------------------------------------------------
 def levenshtein_ratio(s, t):
     """
     Calculate the Levenshtein distance between two strings and return a ratio of similarity.
@@ -43,6 +66,15 @@ def levenshtein_ratio(s, t):
     
     return ((len(s) + len(t)) - v1[len(t)]) / (len(s) + len(t)) * 100
 
+
+# ------------------------------------------------------------
+# Crops a region of interest from the input image, typically
+# located below a detected legend entry where species names
+# are expected.
+# Applies thresholding to enhance text visibility and stores
+# the cropped image as a TIFF file.
+# Returns the file path of the saved cropped image.
+# ------------------------------------------------------------
 def cropImage(source_image, outdir, x, y, w, h, i):
     """
     Crop a portion of the image and save it as a new file.
@@ -65,7 +97,14 @@ def cropImage(source_image, outdir, x, y, w, h, i):
     return cropedImagespecie
 
 
-
+# ------------------------------------------------------------
+# Performs template matching on a cropped image region.
+# Each provided symbol template is compared against the input
+# image using normalized cross-correlation.
+# Used to identify the most likely symbol associated with a
+# detected species label.
+# Returns a dictionary of matching scores per symbol.
+# ------------------------------------------------------------
 def match_symbol(image, symbols):
 
     scores = {}
@@ -79,12 +118,19 @@ def match_symbol(image, symbols):
         result = cv2.matchTemplate(image, symbol_image, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, _ = cv2.minMaxLoc(result)
 
-        print(f"{symbol_name} → score={max_val:.3f}")
+        #print(f"{symbol_name} → score={max_val:.3f}")
 
         scores[symbol_name] = max_val
 
     return scores
   
+  
+# ------------------------------------------------------------
+# Performs template matching on the full map image.
+# Provides a global context of symbol occurrences across the
+# entire map, complementing local (cropped) matching results.
+# Returns a dictionary of matching scores per symbol.
+# ------------------------------------------------------------
 def match_symbol_on_map(full_image, symbols):
 
     gray_full = cv2.cvtColor(full_image, cv2.COLOR_BGR2GRAY)
@@ -104,6 +150,17 @@ def match_symbol_on_map(full_image, symbols):
 
     return scores
   
+  
+# ------------------------------------------------------------
+# Resolves symbol assignments globally to ensure consistent
+# and unique mapping between detected species and symbols.
+# Constraints:
+# - Each species–legend combination is assigned only once
+# - Each color (symbol class) is used only once
+# If insufficient unique assignments are found, a fallback
+# strategy relaxes the color constraint.
+# Returns a list of final matched assignments.
+# ------------------------------------------------------------
 def assign_templates_global(all_scores):
 
     # 🔹 Sortiere nach Score (höchster zuerst)
@@ -148,7 +205,20 @@ def assign_templates_global(all_scores):
 
     return final_matches
   
-
+# ------------------------------------------------------------
+# Main function for extracting species names and assigning
+# corresponding map symbols from scanned map pages.
+# Workflow:
+# 1. Load symbol templates
+# 2. Perform OCR to detect legend entries
+# 3. Identify candidate species names based on legend keywords
+# 4. Perform local (crop-based) and global (map-based) template matching
+# 5. Combine scores and assign symbols using a global optimization step
+# 6. Encode results into a structured string and rename the map file
+# Includes retry logic with image preprocessing (thresholding)
+# to improve OCR robustness.
+# Returns the encoded species-symbol assignment string.
+# ------------------------------------------------------------
 def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_list=None, symbol_list=None, attempt=1):
 
     print("Legend list received:", legend_list)
@@ -179,12 +249,12 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
 
         legend_list = [l.strip().lower() for l in legend_list]
 
-        print("Legend list normalized:", legend_list)
+        #print("Legend list normalized:", legend_list)
 
         image = cv2.imread(path_to_page)
 
         if attempt == 1:
-            print("[INFO] Versuch 1: Originalbild")
+            #print("[INFO] Versuch 1: Originalbild")
             rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         else:
             print(f"[INFO] Versuch {attempt}: mit Thresholding")
@@ -205,10 +275,13 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
         specie = ''
         double_specie = ''
 
-        # 🔥 NEU: Kandidaten + Scores sammeln
+        # NEU: candiats + scores summary
         candidates = []
         all_scores = []
 
+        # GLOBAL template matching just one time
+        global_scores_map = match_symbol_on_map(image, symbols)
+        
         # -------------------------------
         # OCR scanning
         # -------------------------------
@@ -221,7 +294,8 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
                 continue
 
             text = d['text'][i].strip().lower()
-
+            
+            crop_cache = {}
             for legend in legend_list:
 
                 legend_words = legend.split()
@@ -236,7 +310,7 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
                     if next_word == last_word and abs(y1 - (y + h)) < h:
 
                         candidate = d['text'][i + len(legend_words)].strip()
-                        print("candidate:", candidate)
+                        #print("candidate:", candidate)
 
                         if not candidate.isalpha():
                             continue
@@ -247,12 +321,26 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
                             candidates.append(candidate)
 
                             symbol_crop = image[y1-20:y1 + h1 + 20, :]
+                            
+                            # Skip very small or empty crops (noise reduction)
+                            if symbol_crop.shape[0] < 20 or symbol_crop.shape[1] < 20:
+                              continue
                             gray_symbol_crop = cv2.cvtColor(symbol_crop, cv2.COLOR_BGR2GRAY)
 
-                            scores_crop = match_symbol(gray_symbol_crop, symbols)
-                            scores_map  = match_symbol_on_map(image, symbols)
-
-                            print("----- COMBINED SCORES -----")
+                            #scores_crop = match_symbol(gray_symbol_crop, symbols)
+                            # 🔥 Cache key (simple but effective)
+                            crop_key = gray_symbol_crop.shape
+                            
+                            if crop_key in crop_cache:
+                                scores_crop = crop_cache[crop_key]
+                            else:
+                                scores_crop = match_symbol(gray_symbol_crop, symbols)
+                                crop_cache[crop_key] = scores_crop
+                                
+                            # OLD (slowly)
+                            #scores_map  = match_symbol_on_map(image, symbols)
+                            scores_map = global_scores_map
+                            #print("----- COMBINED SCORES -----")
 
                             for name in scores_crop.keys():
 
@@ -260,7 +348,7 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
                                 sc_map  = scores_map.get(name, 0)
                                 total = sc_crop + sc_map
 
-                                print(f"{name:<10} crop={sc_crop:.3f} map={sc_map:.3f} → total={total:.3f}")
+                                #print(f"{name:<10} crop={sc_crop:.3f} map={sc_map:.3f} → total={total:.3f}")
 
                                 all_scores.append({
                                     "candidate": candidate,
@@ -285,7 +373,7 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
             template  = match["template"]
             first_word = match["first_word"]
 
-            print("→ FINAL:", candidate, template)
+            #print("→ FINAL:", candidate, template)
 
             template_clean = re.sub(r'\d+_', '', template)
             template_clean = template_clean.replace("_", "Y")
@@ -340,7 +428,6 @@ def crop_specie(working_dir, out_dir, path_to_page, path_to_map, y, h, legend_li
             )
 
         else:
-
             align_map = os.path.join(
                 working_dir,
                 "data/output/maps/align/",

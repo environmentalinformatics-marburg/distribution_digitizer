@@ -1,16 +1,67 @@
+# ------------------------------------------------------------
+# Author: Spaska Forteva
+# Last updated: 2026-03-31
+#
+# Description:
+# This script serves as the interface between the R-based data
+# processing workflow and the Python-based species extraction
+# module within the Distribution Digitizer pipeline.
+#
+# It processes intermediate CSV files containing map regions,
+# calls a Python function to extract species names from map
+# legends (using OCR and template matching), and integrates
+# the extracted information into spatial coordinate data.
+#
+# The workflow includes:
+# - Iteration over multiple map types
+# - Reading page-level detection results
+# - Calling the Python function 'crop_specie' for species extraction
+# - Parsing encoded species–template relationships
+# - Matching species to spatial points based on template colors
+# - Updating and writing final CSV files (coordinates.csv)
+#
+# This script ensures the linkage between textual legend
+# information and spatial point data, enabling subsequent
+# geospatial analysis (e.g., polygonization and mapping).
+# ------------------------------------------------------------
+
+
 # Required libraries
 library(tesseract)
 library(stringr)
 
-
+# ------------------------------------------------------------
+# Cleans species strings by removing underscores and trimming
+# whitespace. Used as a preprocessing step for standardized
+# species name handling across the workflow.
+# ------------------------------------------------------------
 clean_species <- function(species) {
   species <- gsub("_", "", species)  # Entferne alle Unterstriche
   species <- trimws(species)         # Entferne führende und nachfolgende Leerzeichen
   return(species)
 }
 
-# Call the function with specified arguments
-# Function to read the species
+
+# ------------------------------------------------------------
+# Main function for reading legend information and assigning
+# species names to spatial point data.
+#
+# Workflow:
+# 1. Iterates over all map types (nMapTypes)
+# 2. Loads intermediate CSV files containing detected map regions
+# 3. Calls the Python function 'crop_specie' to extract species
+#    names from map legends using OCR and template matching
+# 4. Parses and cleans the encoded species–template string
+# 5. Matches species names to spatial points based on template color
+# 6. Updates the coordinates CSV with species and legend information
+#
+# The function acts as the interface between R (data handling,
+# CSV integration) and Python (OCR + symbol detection).
+#
+# Output:
+# - Updated CSV files containing species assignments per point
+# - HTML-like summary string of detected species per map
+# ------------------------------------------------------------
 read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
   
   results <- "The following species were found: "

@@ -1,8 +1,31 @@
-# ============================================================
-# Script Author: [Spaska Forteva]
-# Created On: 2023-24-09
-# ============================================================
-# Description: This script edits book pages and crops the main spacies titles.
+# ------------------------------------------------------------
+# Author: Spaska Forteva
+# Created on: 2023-09-24
+# Last updated: 2026-03-31
+#
+# Description:
+# This script extracts species title information from scanned
+# book pages using Optical Character Recognition (OCR) and
+# rule-based text analysis.
+#
+# It is designed to identify species descriptions associated
+# with previously detected species names (e.g., from map legends)
+# and to retrieve contextual information such as full species
+# titles and publication years.
+#
+# The workflow includes:
+# - OCR-based text extraction from page images
+# - Line-wise text filtering and normalization
+# - Context-aware search for species names
+# - Extraction of relevant lines containing species titles
+# - Fallback strategies across adjacent pages (previous/next)
+# - Multiple matching strategies (direct match, regex-based,
+#   and heuristic line reconstruction)
+#
+# This module complements the legend-based species detection
+# by providing extended textual context from book pages,
+# enabling more complete species identification and validation.
+# ------------------------------------------------------------
 
 # Required libraries
 import cv2
@@ -23,6 +46,11 @@ if os.path.exists(TESSERACT_EXE):
     print("Tesseract fixed to:", TESSERACT_EXE)
     
     
+# ------------------------------------------------------------
+# Reads a configuration value from a CSV file.
+# Used to retrieve paths (e.g., Tesseract installation)
+# required for OCR processing.
+# ------------------------------------------------------------
 def read_config(file_path, key):
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -32,6 +60,15 @@ def read_config(file_path, key):
         return config.get(key, None)
 
 
+
+# ------------------------------------------------------------
+# Sets the TESSDATA_PREFIX environment variable once,
+# based on a configuration file.
+#
+# Ensures that Tesseract OCR uses the correct language data
+# directory without repeatedly resetting the environment.
+# Includes safety checks for missing or invalid paths.
+# ------------------------------------------------------------
 # Use a global variable to track if TESSDATA_PREFIX is already set
 tessdata_prefix_set = False
 
@@ -76,7 +113,26 @@ def set_tessdata_prefix_once(workingDir, key="tesserAct"):
         return
 
       
-# Function to find species context with a keyword
+
+# ------------------------------------------------------------
+# Main function to extract species-related textual context
+# from a given page and optionally from neighboring pages.
+#
+# Workflow:
+# - Iterates over detected species names
+# - Searches for matching text lines using OCR
+# - Applies multiple fallback strategies:
+#     1. Current page search
+#     2. Previous page search
+#     3. Next page search
+#     4. Heuristic line reconstruction
+#
+# Encodes results including legend information and indices.
+#
+# Returns:
+# A list of structured strings containing species names
+# and their corresponding textual context.
+# ------------------------------------------------------------
 def find_species_context(workingDir="", page_path="", words_to_find="", previous_page_path=None, next_page_path=None, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
 
   set_tessdata_prefix_once(workingDir, key="tesserAct")
@@ -123,8 +179,8 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
     specie_content = find_specie_context(page_path,
                       search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
 
-    print("if aktuelle")
-    print(specie_content)
+    #print("if aktuelle")
+    #print(specie_content)
     if (len(specie_content) > 3):
 
       all_results.append(f"{flag}_{legI}_{search_specie}_{specie_content}")
@@ -132,7 +188,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
 
     # print(specie_content)
     if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
-      print("if 1")
+      #print("if 1")
       #print(previous_page_path)
       specie_content = find_specie_context(previous_page_path,
                           search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
@@ -141,7 +197,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
         continue
       
     if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
-      print("if3")
+      #print("if3")
       #print(next_page_path)
       specie_content = find_specie_context(next_page_path,
                            search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
@@ -160,7 +216,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
     #print(specie_content)    
     print("if5 pre get_lines_last_check")  
     if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
-      print("if1")
+      #print("if1")
       #print(previous_page_path)
       specie_content = get_lines_last_check(previous_page_path,
                           search_specie)
@@ -170,9 +226,9 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
       
       
     #print(specie_content)    
-    print("if6 next get_lines_last_check")
+    #print("if6 next get_lines_last_check")
     if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
-      print("if6")
+      #print("if6")
       #print(next_page_path)
       specie_content = get_lines_last_check(next_page_path,
                            search_specie)
@@ -186,7 +242,23 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
   return all_results
 
 
-# Function to find species context with a given keyword
+
+# ------------------------------------------------------------
+# Searches for a species name within a page and extracts
+# the corresponding text line containing contextual information.
+#
+# Applies multiple filtering rules to exclude legend lines
+# and irrelevant text (e.g., distribution or locality entries).
+#
+# Optionally validates results based on:
+# - Presence of a four-digit year
+# - Relative position within the page (middle detection)
+# - Proximity to additional keywords
+#
+# Returns:
+# A cleaned line containing the species context, or an empty
+# string if no valid match is found.
+# ------------------------------------------------------------
 def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
   """
   This function searches for a species name and a year in the context of a specified keyword in an image.
@@ -269,7 +341,7 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
               
         if re.search(r"\blocality\b", line, re.IGNORECASE):
           print(f"Originalwwww line: {_result}")
-        print(f"Original line: {_result}")
+        #print(f"Original line: {_result}")
         #print("214")
         #print( _result )
         #print("214")
@@ -313,7 +385,20 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
     return "Error in function find_specie_context"
 
 
-# Function to find species context with a given keyword
+
+# ------------------------------------------------------------
+# Alternative regex-based method for extracting species context.
+#
+# Used as a fallback when direct matching fails.
+# Focuses on identifying species names together with a year
+# pattern using regular expressions.
+#
+# Supports optional positional filtering similar to the main
+# method (e.g., middle-of-page constraint).
+#
+# Returns:
+# A reduced text line containing species name and year.
+# ------------------------------------------------------------
 def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
   
   try:
@@ -374,7 +459,7 @@ def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page
             return _result # search_specie in the line and the line and in middle and regEx year
          
           return _result # search_specie in the line and regEx year
-    print(_result)      
+    #print(_result)      
     return _result
   except Exception as e:
       print("An error occurred during find_specie_context_RegEx processing:")
@@ -384,7 +469,17 @@ def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page
       return "Error find_specie_context_RegEx"
 
 
-# Function to find species context with a given keyword
+# ------------------------------------------------------------
+# Simplified regex-based extraction method.
+#
+# Focuses on extracting species names and associated years
+# from OCR text with minimal contextual constraints.
+#
+# Used as a lightweight fallback when other methods fail.
+#
+# Returns:
+# A shortened text segment containing species and year.
+# ------------------------------------------------------------
 def find_specie_context_RegExReduce(page_path, search_specie):
   try:
     print("RegExReduce")
@@ -440,7 +535,20 @@ def find_specie_context_RegExReduce(page_path, search_specie):
       return "Error find_specie_context_RegExReduce"
     
     
-
+# ------------------------------------------------------------
+# Final fallback method for extracting species-related lines.
+#
+# Searches OCR text for lines containing the target keyword,
+# applies heuristic rules to reconstruct meaningful text
+# segments (e.g., capitalized names + year patterns),
+# and filters out irrelevant legend or locality lines.
+#
+# Used when all previous matching strategies fail.
+#
+# Returns:
+# A concatenated string of candidate lines containing species
+# context information.
+# ------------------------------------------------------------
 def get_lines_last_check(image_path, keyword):
     try:
         """
