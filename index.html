@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Distribution Digitizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1100px;
+            margin: auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+            line-height: 1.6;
+        }
+        h1 { color: #2c3e50; }
+        h2 { color: #34495e; margin-top: 40px; }
+        h3 { color: #2c3e50; margin-top: 25px; }
+
+        .box {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }
+
+        img {
+            width: 100%;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        a {
+            color: #2980b9;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        ul {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>🌍 Distribution Digitizer</h1>
+
+<p>
+The <b>Distribution Digitizer</b> is a semi-automated software framework for extracting, reconstructing,
+and spatially integrating species distribution data from scanned historical maps and associated book pages.
+</p>
+
+<p>
+The system combines <b>computer vision, Optical Character Recognition (OCR), and geospatial processing</b>
+within a hybrid <b>Python–R architecture</b>, enabling the transformation of analogue biodiversity data
+into structured and georeferenced datasets.
+</p>
+
+<div class="box">
+<h2>🧠 Concept</h2>
+
+<p>
+Historical species distributions are often available only in printed form, embedded in maps and descriptive text.
+Manual digitization is time-consuming and error-prone.
+</p>
+
+<p>
+The Distribution Digitizer provides a reproducible workflow that automatically:
+</p>
+
+<ul>
+<li>detects maps in scanned book pages</li>
+<li>extracts species information from legends</li>
+<li>links species to map symbols (colors)</li>
+<li>retrieves contextual species titles from book text</li>
+<li>transforms detected points into spatial data</li>
+<li>integrates all information into a unified dataset</li>
+</ul>
+
+</div>
+
+<div class="box">
+<h2>⚙️ Workflow</h2>
+
+<p>The software follows a structured multi-stage pipeline:</p>
+
+<img src="workflow.png">
+
+</div>
+
+<div class="box">
+<h2>🔄 Processing Pipeline</h2>
+
+<h3>1. GUI-Based Configuration</h3>
+<p>Users define book metadata, legend keywords, map types, and processing parameters.</p>
+
+<h3>2. Template Preparation</h3>
+<ul>
+<li>Map cropping for detection</li>
+<li>Legend symbol extraction for template matching</li>
+</ul>
+
+<h3>3. Map Detection (Book Pages)</h3>
+<ul>
+<li>Template matching identifies map regions</li>
+<li>Alignment of detected maps</li>
+</ul>
+
+<h3>4. Map Processing</h3>
+<ul>
+<li>Point matching using symbol templates</li>
+<li>Filtering of detected points</li>
+<li>Masking and OCR-based legend analysis</li>
+</ul>
+
+<h3>5. Species Extraction (Text)</h3>
+<ul>
+<li>OCR-based extraction from book pages</li>
+<li>Keyword detection and filtering</li>
+<li>Pattern recognition (e.g. publication years)</li>
+<li>Multi-page fallback strategies</li>
+</ul>
+
+<h3>6. Spatial Processing</h3>
+<ul>
+<li>Georeferencing</li>
+<li>Rectifying</li>
+<li>Polygonization</li>
+</ul>
+
+<h3>7. Data Integration & Visualization</h3>
+<ul>
+<li>Matching species, titles, and coordinates</li>
+<li>Visualization using OpenStreetMap</li>
+</ul>
+
+</div>
+
+<div class="box">
+<h2>📊 Example</h2>
+
+<h3>Input</h3>
+<img src="example_input.png">
+
+<h3>Output</h3>
+<img src="example_output.png">
+
+</div>
+
+<div class="box">
+<h2>🧪 Methodological Highlights</h2>
+
+<ul>
+<li>OCR-based text extraction (Tesseract)</li>
+<li>Robust keyword matching (Levenshtein similarity)</li>
+<li>Template matching using OpenCV</li>
+<li>Combined local and global symbol detection</li>
+<li>Integration of textual and spatial data</li>
+</ul>
+
+</div>
+
+<div class="box">
+<h2>🚀 Recent Improvements</h2>
+
+<p>
+Significant effort has been invested in improving performance and scalability in the latest development version.
+</p>
+
+<ul>
+<li>Reduction of redundant computations</li>
+<li>Optimized template matching workflows</li>
+<li>Improved memory handling</li>
+<li>Preparation for <b>parallel processing</b> of large datasets</li>
+</ul>
+
+</div>
+
+<div class="box">
+<h2>📦 Software</h2>
+
+<p>
+The application is implemented using:
+</p>
+
+<ul>
+<li>Python (OpenCV, Tesseract)</li>
+<li>R (Shiny, data integration)</li>
+<li>GDAL / PROJ (geospatial processing)</li>
+</ul>
+
+</div>
+
+<div class="box">
+<h2>🔗 Source Code</h2>
+
+<p>
+<a href="https://github.com/DEINNAME/DEINREPO">
+View the project on GitHub
+</a>
+</p>
+
+</div>
+
+</body>
+</html>
