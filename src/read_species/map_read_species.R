@@ -88,8 +88,13 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
     df <- read.csv(csv_file_path, stringsAsFactors = FALSE)
     
     # Initialize the species column
-    df$species <- NA
-    df$legende <- NA
+    if (!"species" %in% colnames(df)) {
+      df$species <- NA
+    }
+    
+    if (!"legende" %in% colnames(df)) {
+      df$legende <- NA
+    }
     symbol_dir <- file.path(
       working_dir,
       "data", "input", "templates",
@@ -104,21 +109,50 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
     )
     print(symbol_list)
     legend_list = c("distribution of", "type locality of")
+    
+    records_pages <- records_pages[
+      order(sapply(records_pages, function(f) {
+        as.integer(sub(".*_y(\\d+)_.*", "\\1", basename(f)))
+      }))
+    ]
     # Process each records page
     for (j in seq_along(records_pages)) {  
       records_page <- read.csv(records_pages[j], sep = ",", check.names = FALSE, quote = "\"", na.strings = c("NA", "NaN", " "))
-      file_name <- records_page$file_name
-      map_name <- records_page$map_name
+      file_name <- records_page$file_name[1]
+      map_name  <- records_page$map_name[1]
       print(records_page)
       if (!is.na(records_page$y[1]) && !is.na(records_page$h[1])) {
-        # Extract species information
         
+        current_file <- basename(as.character(map_name))
+        current_y <- as.integer(sub(".*_y(\\d+)_.*", "\\1", current_file))
+        current_page <- sub(".*_(\\d{4})_map.*", "\\1", current_file)
+        
+        if (j < length(records_pages)) {
+          
+          next_file <- basename(records_pages[j + 1])
+          next_y <- as.integer(sub(".*_y(\\d+)_.*", "\\1", next_file))
+          next_page <- sub(".*_(\\d{4})_map.*", "\\1", next_file)
+          
+        } else {
+          next_y <- NA
+          next_page <- NA
+        }
+
+        
+        if (is.na(next_page) || current_page != next_page) {
+          next_y <- NA
+          next_page <- NA
+        }
+        # Extract species information
+        print(symbol_list)
+        print(records_page$h[1])
+        print(next_y)
         species <- crop_specie(working_dir, out_dir_type, file_name, map_name,
-                               as.integer(records_page$y[1]), as.integer(records_page$h[1]),legend_list=legend_list,  symbol_list = symbol_list)   # 🔥 NEU symbol_list legend_list
+                               as.integer(records_page$y[1]), as.integer(records_page$h[1]),legend_list=legend_list,  symbol_list = symbol_list,  next_map_y = next_y)   # 🔥 NEU symbol_list legend_list
         print("Here the specie:")
         print(species)
         
-        results <- paste0(results, "<br>", map_name, ";", species)
+        #results <- paste0(results, "<br>", map_name, ";", species)
         
         # Remove leading underscore and split species string into components
         species <- sub("^_", "", species)
@@ -127,14 +161,6 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
         # Split species string into components
         species_list <- str_split(species, "_")[[1]]
         #print(species_list)
-        
-        # Function to clean species names
-        clean_species <- function(species) {
-          species <- gsub("\\d", "", species)  # Remove digits
-          species <- gsub("X.*", "", species)  # Remove everything after 'S'
-          species <- gsub("_", "", species)
-          return(species)
-        }
         
         # Clean species names
         cleaned_species <- sapply(species_list, clean_species)
@@ -181,24 +207,30 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
             sp <- sub("X.*", "", p)
             
             # color extrahieren (zwischen Y und Y1)
-            col <- str_split(p, "Y")[[1]][2]
+            parts_col <- str_split(p, "Y")[[1]]
+            
+            if (length(parts_col) < 2) next
+            
+            col <- parts_col[2]
             col <- gsub("\\d+", "", col)
             col <- tolower(col)
             
             if (col == color) {
               found_species <- sp
+              #print(found_species)
               break
             }
+            
+            # 👉 fallback wenn "unknown" enthalten ist
+            if (grepl("unknown", col) && is.na(found_species)) {
+              found_species <- sp
+              #print(found_species)
+            }
           }
-          
-          # 👉 FALL 1: Treffer
           if (!is.na(found_species)) {
             df$species[df$ID == row_id] <- found_species
-            
-          } else {
-            # 👉 FALL 2: KEIN Treffer → alle speichern (wie vorher)
-            df$species[df$ID == row_id] <- paste(unique(cleaned_species), collapse = "_")
           }
+
         }
         
         # Remove any double underscores from the species names
@@ -212,6 +244,53 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
     
     # Save the final DataFrames to the CSV files (pro Typ!)
     write.csv(df, csv_file_path, row.names = FALSE)
+    library(dplyr)
+    
+    df_clean <- df %>%
+      filter(Detection.method == "point_matching") %>%
+      arrange(File, desc(score))
+    selected <- list()
+    
+    for (i in 1:nrow(df_clean)) {
+      
+      p <- df_clean[i,]
+      keep <- TRUE
+      
+      for (j in seq_along(selected)) {
+        
+        s <- selected[[j]]
+        
+        if (p$File == s$File) {
+          
+          dx <- abs(p$X_WGS84 - s$X_WGS84)
+          dy <- abs(p$Y_WGS84 - s$Y_WGS84)
+          
+          if ((dx <= 3 && dy <= 6) || (dy <= 3 && dx <= 6)) {
+            
+            # gleiche Gruppe → bestes behalten
+            if (p$score > s$score) {
+              selected[[j]] <- p
+            }
+            
+            keep <- FALSE
+            break
+          }
+        }
+      }
+      
+      if (keep) {
+        selected[[length(selected) + 1]] <- p
+      }
+    }
+    
+    df_clean <- do.call(rbind, selected)
+    clean_path <- file.path(
+      out_dir_type,
+      "maps", "csvFiles",
+      "coordinates_species_clean.csv"
+    )
+    
+    write.csv(df_clean, clean_path, row.names = FALSE)
   }
   
   cat("CSV files have been updated.\n")

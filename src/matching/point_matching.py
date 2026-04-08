@@ -254,6 +254,7 @@ def point_match(img_color, template_path, threshold, template_name, color, coord
             "Red":red,
             "Green":green,
             "Blue":blue,
+            "score": float(score),
             "georef":0
         })
 
@@ -371,7 +372,7 @@ def map_points_matching(workingDir,outDir,threshold,nMapTypes=1):
             coord_fieldnames=[
                 "ID","File","Detection method",
                 "X_WGS84","Y_WGS84","template",
-                "Red","Green","Blue","georef"
+                "Red","Green","Blue","score","georef"
             ]
 
             coord_writer=csv.DictWriter(coord_csvfile,fieldnames=coord_fieldnames)

@@ -294,8 +294,31 @@ def detect_edges_and_centroids(tiffile, outdir, kernel_size, blur_radius, map_hu
             if contour_contains_multiple_existing_points(contour, df_existing):
                 continue
         #color_count = count_color_pixels(image_array, contour, color_ranges)
-        color_count = count_color_pixels(original_image, contour, color_ranges)
-        dominant_color = determine_color(color_count)
+        dominant_color = None
+
+        if df_existing is not None and not df_existing.empty:
+            for _, row in df_existing.iterrows():
+                px = int(row["X_WGS84"])
+                py = int(row["Y_WGS84"])
+        
+                inside = cv2.pointPolygonTest(contour, (px, py), False)
+        
+                if inside >= 0:
+                    # 🔥 Farbe direkt übernehmen
+                    r = int(row["Red"])
+                    g = int(row["Green"])
+                    b = int(row["Blue"])
+        
+                    if r > 200 and g < 100 and b < 100:
+                        dominant_color = 'red'
+                    elif b > 200 and r < 100 and g < 100:
+                        dominant_color = 'blue'
+                    elif g > 200 and r < 100 and b < 100:
+                        dominant_color = 'green'
+                    else:
+                        dominant_color = 'unknown'
+        
+                    break
 
         # Wähle die entsprechende BGR-Farbe
         # Richtiges BGR-zu-RGB-Mapping für das Zeichnen
@@ -490,7 +513,7 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMap
             coord_fieldnames = [
                 "ID", "File", "Detection method",
                 "X_WGS84", "Y_WGS84", "template",
-                "Red", "Green", "Blue", "georef"
+                "Red", "Green", "Blue",'score', "georef"
             ]
             coord_writer = csv.DictWriter(coord_csvfile, fieldnames=coord_fieldnames)
 
@@ -538,23 +561,11 @@ def main_point_filtering(working_dir, output_dir, kernel_size, blur_radius, nMap
                         'Red': centroid[2],
                         'Green': centroid[3],
                         'Blue': centroid[4],
+                        'score': 0,   # 🔥 FIX
                         'georef': 0
                     })
                     current_id += 1
-                else:
-                    coord_writer.writerow({
-                        'ID': current_id,
-                        'File': os.path.basename(file),
-                        'Detection method': 'point_filtering',
-                        'X_WGS84': 0,
-                        'Y_WGS84': 0,
-                        'template': 'unknown_1',
-                        'Red': 0,
-                        'Green': 0,
-                        'Blue': 0,
-                        'georef': 0
-                    })
-                    current_id += 1
+                
                 if not centroids:
                   print("No centroids found for:", os.path.basename(file))
     print("\n✓ Point filtering completed for all map types.")
