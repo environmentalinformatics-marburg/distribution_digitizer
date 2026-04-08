@@ -3,6 +3,21 @@
 # FUNCTIONS       #----------------------------------------------------------------------#
 ####################
 
+# ------------------------------------------------------------
+# Function: checkTesseractWindows
+# ------------------------------------------------------------
+# Purpose:
+# Checks whether a valid Tesseract OCR installation is available
+# on a Windows system by testing common installation paths.
+#
+# Description:
+# This function verifies if the Tesseract executable exists in
+# standard directories ("Program Files" and "Program Files (x86)").
+# It is used as a prerequisite check before OCR-based processing.
+#
+# Returns:
+# Logical value (TRUE/FALSE) indicating whether Tesseract is available.
+# ------------------------------------------------------------
 checkTesseractWindows <- function() {
   candidates <- c(
     "C:/Program Files/Tesseract-OCR/tesseract.exe",
@@ -12,7 +27,49 @@ checkTesseractWindows <- function() {
 }
 
 
-# Function to manage the processing
+# ------------------------------------------------------------
+# Function: manageProcessFlow
+# ------------------------------------------------------------
+# Purpose:
+# Central control function that manages and executes the full
+# processing pipeline of the Distribution Digitizer.
+#
+# Description:
+# This function orchestrates all processing steps depending on
+# the selected workflow stage ("processing"). It dynamically
+# triggers Python and R scripts using reticulate and source(),
+# and ensures correct execution order across multiple map types.
+#
+# The function integrates:
+# - Image processing (template matching, filtering, masking)
+# - OCR-based species extraction
+# - Geospatial processing (georeferencing, rectifying, polygonization)
+# - Spatial data integration and visualization
+#
+# Key Features:
+# - Modular execution of pipeline steps (if-block per stage)
+# - Dynamic handling of multiple map types (nMapTypes)
+# - Integration of Python scripts via source_python()
+# - Error handling using tryCatch()
+# - User feedback via Shiny alerts
+#
+# Parameters:
+# - processing: Character string defining the current pipeline step
+# - allertText1 / allertText2: Messages for UI notifications
+# - input: Shiny input object (user-defined parameters)
+# - session: Shiny session object
+# - current_out_dir: Output directory for all generated results
+#
+# Notes:
+# - This function represents the core workflow engine of the software
+# - All major modules (matching, OCR, georeferencing, polygonize)
+#   are triggered from here
+# - Designed for extensibility and integration of additional steps
+#
+# Returns:
+# No explicit return value; results are written to output directories
+# and communicated via Shiny UI
+# ------------------------------------------------------------
 manageProcessFlow <- function(processing, allertText1, allertText2, input, session, current_out_dir) {
 
   print(paste("DEBUG nMapTypes =", input$nMapTypes))
@@ -32,6 +89,21 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
   )
   
   #  MATCHING
+  # ------------------------------------------------------------
+  # Step: Map Matching (Template Matching on Book Pages)
+  # ------------------------------------------------------------
+  # Purpose:
+  # Detects map regions within scanned book pages using template matching.
+  #
+  # Description:
+  # This step applies OpenCV-based template matching to identify map
+  # locations on full page images. Detected regions are stored and
+  # used for further processing (alignment and extraction).
+  #
+  # Output:
+  # - Detected map regions (maps/matching)
+  # - Visualization PNGs for validation
+  # ------------------------------------------------------------
   if(processing == "mapMatching"){
     tryCatch({
       # processing template matching
@@ -67,6 +139,21 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
   }
   
   # ALIGN
+  # ------------------------------------------------------------
+  # Step: Map Alignment
+  # ------------------------------------------------------------
+  # Purpose:
+  # Aligns detected map regions to a consistent reference position.
+  #
+  # Description:
+  # This step normalizes map positioning (primarily along the Y-axis)
+  # to ensure consistent downstream processing such as symbol detection
+  # and OCR-based analysis.
+  #
+  # Output:
+  # - Aligned map images (maps/align)
+  # - Visualization PNGs for quality control
+  # ------------------------------------------------------------
   if(processing == "alignMaps" ){
     tryCatch({
       
@@ -81,7 +168,6 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         nMapTypes = as.integer(input$nMapTypes)
       )
       
-    
       message <- computeNumberResult(
         base_output_dir = current_out_dir,
         working_dir = workingDir,
@@ -97,7 +183,21 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
   }
   
   
-  
+  # ------------------------------------------------------------
+  # Step: Point Matching (Symbol Detection)
+  # ------------------------------------------------------------
+  # Purpose:
+  # Detects map symbols (e.g. colored points) using template matching.
+  #
+  # Description:
+  # Symbol templates are matched across aligned map images using
+  # normalized cross-correlation. Candidate point locations are
+  # identified and stored for further filtering.
+  #
+  # Output:
+  # - Raw detected points (maps/pointMatching)
+  # - Coordinates stored in CSV
+  # ------------------------------------------------------------
   if(processing == "pointMatching") {
     tryCatch({
       # Processing points matching
@@ -121,14 +221,27 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         subfolder = "maps/pointMatching",
         png_subdir = "output/pointMatching_png"
       )
-
-      
     }, error = function(e) {
       cat("An error occurred during pointMatching processing:\n")
       print(e)
     })
   }
   
+  # ------------------------------------------------------------
+  # Step: Point Filtering
+  # ------------------------------------------------------------
+  # Purpose:
+  # Refines detected symbol points by removing noise and false positives.
+  #
+  # Description:
+  # Morphological operations and spatial filtering are applied to
+  # eliminate duplicate detections, merged contours, and irrelevant
+  # artifacts. This step ensures clean and reliable point datasets.
+  #
+  # Output:
+  # - Filtered points (maps/pointFiltering)
+  # - Cleaned coordinate datasets
+  # ------------------------------------------------------------
   if(processing == "pointFiltering") {
     tryCatch({
       
@@ -160,6 +273,23 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
+  # ------------------------------------------------------------
+  # Step: Masking (Image Cleaning)
+  # ------------------------------------------------------------
+  # Purpose:
+  # Removes irrelevant map regions to improve OCR and detection accuracy.
+  #
+  # Description:
+  # Two masking strategies are applied:
+  # - Standard masking to isolate relevant regions
+  # - Black masking to suppress background noise
+  #
+  # These masks are used to enhance OCR performance and symbol detection.
+  #
+  # Output:
+  # - Masked images (masking / masking_black)
+  # - PNG previews for validation
+  # ------------------------------------------------------------
   if(processing == "masking") {
     tryCatch({
       
@@ -215,7 +345,20 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
-  
+  # ------------------------------------------------------------
+  # Step: Masking Centroids
+  # ------------------------------------------------------------
+  # Purpose:
+  # Applies masking specifically to centroid-based detections.
+  #
+  # Description:
+  # This step isolates detected centroid regions after point filtering
+  # and prepares them for spatial processing and polygonization.
+  #
+  # Output:
+  # - Masked centroid images
+  # - Refined centroid-based datasets
+  # ------------------------------------------------------------
   if(processing == "maskingCentroids"){
     tryCatch({
       
@@ -247,7 +390,21 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
-  
+  # ------------------------------------------------------------
+  # Step: Species Extraction from Map Legends
+  # ------------------------------------------------------------
+  # Purpose:
+  # Extracts species names directly from map legends.
+  #
+  # Description:
+  # This step analyzes legend areas of maps using OCR and template
+  # matching. Species names are linked to symbol colors and stored
+  # in structured format.
+  #
+  # Output:
+  # - Species annotations on maps (maps/readSpecies)
+  # - Updated coordinate datasets with species information
+  # ------------------------------------------------------------
   if(processing == "mapReadRpecies"){
     tryCatch({
       
@@ -281,6 +438,21 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
+  # ------------------------------------------------------------
+  # Step: Species Extraction from Book Pages
+  # ------------------------------------------------------------
+  # Purpose:
+  # Extracts species titles and contextual information from book text.
+  #
+  # Description:
+  # OCR is applied to full book pages to identify species names and
+  # associated descriptions. Keyword-based filtering and multi-page
+  # fallback strategies are used to improve robustness.
+  #
+  # Output:
+  # - pageSpeciesData.csv (species + titles)
+  # - Enriched species information for integration
+  # ------------------------------------------------------------
   if (processing == "pageReadRpecies") {
     
     tryCatch({
@@ -334,9 +506,21 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
-  
 
-  
+  # ------------------------------------------------------------
+  # Step: Circle Detection (Alternative Point Detection)
+  # ------------------------------------------------------------
+  # Purpose:
+  # Detects circular symbols using Hough Circle Transform.
+  #
+  # Description:
+  # This optional step applies circle detection as an alternative to
+  # template matching for identifying symbol locations.
+  #
+  # Output:
+  # - Detected circles (maps/circleDetection)
+  # - Coordinates stored in CSV
+  # ------------------------------------------------------------
   if(processing == "pointCircleDetection") {
     tryCatch({
       
@@ -365,7 +549,21 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
- 
+  # ------------------------------------------------------------
+  # Step: Georeferencing and Rectifying
+  # ------------------------------------------------------------
+  # Purpose:
+  # Transforms map images into geographic coordinate space.
+  #
+  # Description:
+  # Georeferencing assigns real-world coordinates to detected points.
+  # Rectifying corrects spatial distortions and prepares data for
+  # spatial analysis.
+  #
+  # Output:
+  # - Georeferenced images
+  # - Rectified spatial datasets
+  # ------------------------------------------------------------
   if(processing == "georeferencing"){
     tryCatch({
       
@@ -407,21 +605,21 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
-  if(processing == "georef_coords_from_csv"){
-    # processing mathematical georeferencing of extracted coordinates stored in csv file
-    tryCatch({
-      
-      fname=paste0(workingDir, "/", "src/georeferencing/centroid_georeferencing.py")
-      print(" Process georef_coords_from_csv python script:")
-      print(fname)
-      source_python(fname)
-      mainCentroidGeoref(workingDir, current_out_dir)
-    }, error = function(e) {
-      cat("An error occurred during pageReadRpecies processing:\n")
-      print(e)
-    })
-  }
-  
+  # ------------------------------------------------------------
+  # Step: Polygonization
+  # ------------------------------------------------------------
+  # Purpose:
+  # Converts detected point data into spatial polygon representations.
+  #
+  # Description:
+  # Filtered and georeferenced points are transformed into polygons
+  # using GDAL-based processing. This enables spatial analysis and
+  # visualization.
+  #
+  # Output:
+  # - polygonize.csv
+  # - Spatial polygon datasets
+  # ------------------------------------------------------------
   if(processing == "polygonize"){
     tryCatch({
       
@@ -447,28 +645,26 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }   
   
+  # ------------------------------------------------------------
+  # Step: Spatial Data Integration
+  # ------------------------------------------------------------
+  # Purpose:
+  # Merges all processed data into a final spatial dataset.
+  #
+  # Description:
+  # Combines coordinates, species information, and titles into a
+  # unified dataset (spatial_final_data.csv), ready for visualization
+  # and analysis.
+  #
+  # Output:
+  # - spatial_final_data.csv
+  # ------------------------------------------------------------
   if(processing == "spatial_data_computing"){
     
     tryCatch(
       # Processing spatial data computing
       
       expr = {
-        #fname=paste0(workingDir, "/", "src/extract_coordinates/poly_to_point.py")
-        #source_python(fname)
-        #main_circle_detection(workingDir, current_out_dir)
-        #main_point_filtering(workingDir, current_out_dir)
-        
-        #fname=paste0(workingDir, "/", "src/extract_coordinates/extract_coords.py")
-        #source_python(fname)
-        #main_circle_detection(workingDir, current_out_dir)
-        #main_point_filtering(workingDir, current_out_dir)
-        
-        # prepare pages as png for the spatia view
-        #convertTifToPngSave( file.path(workingDir, "output", "input",  "pages"),  file.path(workingDir, "app", "www", "output", "pages"))
-        
-      
-        
-        
         source(paste0(workingDir, "/src/spatial_view/merge_spatial_final_data.R"))
         merge_all_maps(current_out_dir, nMapTypes = as.integer(input$nMapTypes))
         
@@ -496,12 +692,22 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     )
   }
   
+  # ------------------------------------------------------------
+  # Step: Data Visualization (CSV Viewer)
+  # ------------------------------------------------------------
+  # Purpose:
+  # Displays the final dataset within the Shiny interface.
+  #
+  # Description:
+  # Loads the final CSV file and renders it as an interactive table
+  # for inspection and validation.
+  #
+  # Output:
+  # - Interactive table in Shiny UI
+  # ------------------------------------------------------------
   if(processing == "view_csv"){
     # Hier können Sie den Pfad zu Ihrer CSV-Datei angeben
     csv_path <- paste0(current_out_dir, "/spatial_final_data.csv")
-    
-    # Hier können Sie Daten für Ihre Tabelle oder Visualisierung laden
-    # In diesem Beispiel lesen wir die CSV-Datei
     
     data <- reactive({
       dd_data <- read.table(csv_path, sep = ";", header = TRUE, check.names = FALSE)
