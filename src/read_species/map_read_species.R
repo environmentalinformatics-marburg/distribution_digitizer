@@ -116,7 +116,9 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
       }))
     ]
     # Process each records page
-    for (j in seq_along(records_pages)) {  
+    for (j in seq_along(records_pages)) { 
+      
+      species <- ""   # ✅ RESET!!!
       records_page <- read.csv(records_pages[j], sep = ",", check.names = FALSE, quote = "\"", na.strings = c("NA", "NaN", " "))
       file_name <- records_page$file_name[1]
       map_name  <- records_page$map_name[1]
@@ -177,10 +179,12 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
         write.csv(records_page, records_pages[j], row.names = FALSE)
         
         # Subset dataframe for matching records
-        df_map_name <- subset(df, grepl(basename(map_name), File))
+        df_map_name <- subset(df, grepl(paste0("^", basename(map_name), "$"), File))
         # 🔴 WICHTIG: komplette Legende speichern
         if (nrow(df_map_name) > 0) {
-          df$legende[df$ID %in% df_map_name$ID] <- species
+          if (!is.na(species) && species != "") {
+            df$legende[df$ID %in% df_map_name$ID] <- species
+          }
         }
         
         # Update species based on template matches

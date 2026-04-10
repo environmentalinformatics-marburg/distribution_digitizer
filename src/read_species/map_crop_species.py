@@ -348,11 +348,24 @@ def crop_specie(
         if next_map_y is not None and next_map_y > roi_y_start:
             y_end = next_map_y - 10
         else:
-            y_end = full_image.shape[0]
+            # 🔥 NUR diese Map!
+            y_end = y + h + 200   # oder +150 testen
         
         roi = full_image[roi_y_start:y_end, :]
         
         image = roi.copy()
+
+        # ----------------------------------------------------
+        # 🔥 IMAGE WAHL (GANZ WICHTIG!)
+        # ----------------------------------------------------
+        if attempt == 3:
+            print("[INFO] Attempt 3: using FULL MAP")
+            image = cv2.imread(path_to_map)
+        
+        else:
+            # dein bisheriger ROI Code
+            roi = full_image[roi_y_start:y_end, :]
+            image = roi.copy()
 
         # ----------------------------------------------------
         # OCR preprocessing (retry mechanism)
@@ -528,7 +541,7 @@ def crop_specie(
         # ----------------------------------------------------
         # Retry logic if no candidates found
         # ----------------------------------------------------
-        if len(candidates) == 0 and attempt < 3:
+        if (len(candidates) == 0 or specie.strip() == "") and attempt < 3:
 
             print(f"[RETRY] Attempt {attempt+1}")
 

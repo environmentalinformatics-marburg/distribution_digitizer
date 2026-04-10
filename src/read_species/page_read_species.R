@@ -62,7 +62,7 @@ readPageSpecies <- function(
   
   if (!dir.exists(folder_path)) {
     cat("ℹ️ No pagerecords directory found:", folder_path, "\n")
-    return(invisible(NULL))
+    next
   }
   
   file_list <- list.files(folder_path, pattern = "\\.csv$", full.names = TRUE)
@@ -70,7 +70,7 @@ readPageSpecies <- function(
   if (length(file_list) == 0) {
     cat("ℹ️ No pagerecord CSV files found in:", folder_path, "\n")
     cat("➡️ Skipping species reading for this map type.\n")
-    return(invisible(NULL))
+    next
   }
   
   combined_data <- data.frame()
@@ -82,7 +82,7 @@ readPageSpecies <- function(
       
       if (!"species" %in% colnames(current_data)) {
         cat("⚠️ CSV without 'species' column skipped:", file_path, "\n")
-        return(NULL)
+        next
       }
       
       combined_data <- rbind(combined_data, current_data)
@@ -95,14 +95,14 @@ readPageSpecies <- function(
   
   if (nrow(combined_data) == 0) {
     cat("ℹ️ No valid species data after reading CSVs in:", folder_path, "\n")
-    return(invisible(NULL))
+    next
   }
   
   filteredData <- combined_data[!duplicated(combined_data$species), ]
   
   if (nrow(filteredData) == 0) {
     cat("ℹ️ All species duplicated – nothing to process in:", folder_path, "\n")
-    return(invisible(NULL))
+    next
   }
   
   # Python nur laden, wenn wirklich nötig
@@ -110,25 +110,27 @@ readPageSpecies <- function(
   
   # ---------- ROW-LEVEL PROTECTION ----------
   for (i in seq_len(nrow(filteredData))) {
-    
+
     tryCatch({
       
       pagePath <- filteredData$file_name[i]
-      
+      print(pagePath)
+      print(filteredData$file_name[i])
       if (is.na(pagePath) || pagePath == "" || !file.exists(pagePath)) {
         cat("⚠️ Invalid or missing page path at row", i, "\n")
-        return(NULL)
+        next
       }
       
       speciesData <- filteredData$species[i]
       if (is.na(speciesData) || speciesData == "") {
         cat("⚠️ Empty species at row", i, "– skipping\n")
-        return(NULL)
+        next
       }
       
       previous_page_path <- filteredData$previous_page_path[i]
       next_page_path     <- filteredData$next_page_path[i]
-      
+      print(speciesData)
+      legend_list <- c("distribution of", "type locality of")
       pageTitleSpecies <- find_species_context(
         workingDir,
         pagePath,
@@ -138,13 +140,14 @@ readPageSpecies <- function(
         keywordReadSpecies,
         keywordBefore,
         keywordThen,
-        middle
+        middle,
+        legend_list = legend_list
       )
       
 
       if (length(pageTitleSpecies) == 0) {
         cat("ℹ️ Only 'Not found' entries – skipping:", basename(pagePath), "\n")
-        return(NULL)
+        next
       }
       
       pageTitleSpecies <- gsub("__", "_", pageTitleSpecies)
@@ -361,6 +364,14 @@ processCoordinates <- function(coordinatesPath, pageSpeciesDataPath) {
   cat("Updated coordinates.csv successfully.\n")
 }
 
+# readPageSpecies(
+#   workingDir = "D:/distribution_digitizer",
+#   outDir = file.path("D:/test/output_2026-04-08_22-01-21/", "1"),
+#   keywordReadSpecies = "Range",
+#   keywordBefore = 0,
+#   keywordThen = 2,
+#   middle = 1
+# )
 #species = readPageSpecies("D:/distribution_digitizer/", "D:/test/output_2024-08-07_15-46-48/", "Range", 0, 2, 1)
 # Call the function with specified arguments
 # coordinates

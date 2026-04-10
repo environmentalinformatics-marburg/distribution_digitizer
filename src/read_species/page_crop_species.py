@@ -113,7 +113,108 @@ def set_tessdata_prefix_once(workingDir, key="tesserAct"):
         return
 
       
+def find_species_context_loose(
+    workingDir="",
+    page_path="",
+    search_specie="",
+    previous_page_path=None,
+    next_page_path=None,
+    middle=None,
+    legend_list=None
+):
+    print(f"LOOSE SEARCH for: {search_specie}")
 
+    import pytesseract
+    import re
+    from PIL import Image
+
+    def search_in_page(image_path, specie):
+        candidates = []
+
+        try:
+            image = Image.open(image_path)
+            text = pytesseract.image_to_string(image)
+
+            for line in text.split("\n"):
+                line_clean = line.strip()
+
+                if len(line_clean) < 5:
+                    continue
+
+                if specie.lower() in line_clean.lower():
+
+                    clean_line = (
+                        line_clean
+                        .replace(":", "")
+                        .replace("|", "")
+                        .replace("_", "")
+                        .strip()
+                    )
+
+                    # ❌ Müll raus
+                    if len(clean_line) > 120:
+                        continue
+
+                    if "syntype" in clean_line.lower():
+                        continue
+
+                    # 🧠 Scoring
+                    score = 0
+
+                    # ⭐ Jahr = wichtigstes Kriterium
+                    if re.search(r'\b\d{4}\b', clean_line):
+                        score += 5
+
+                    # erste Position
+                    pos = clean_line.lower().find(specie.lower())
+                    if pos < 30:
+                        score += 2
+
+                    # typische Länge
+                    if 3 <= len(clean_line.split()) <= 10:
+                        score += 1
+
+                    candidates.append((score, clean_line))
+
+        except Exception as e:
+            print("Error in loose search:", e)
+
+        return candidates
+
+    # -----------------------------------------
+    # Sammeln
+    # -----------------------------------------
+    all_candidates = []
+
+    all_candidates += search_in_page(page_path, search_specie)
+
+    if previous_page_path and previous_page_path != "None":
+        all_candidates += search_in_page(previous_page_path, search_specie)
+
+    if next_page_path and next_page_path != "None":
+        all_candidates += search_in_page(next_page_path, search_specie)
+
+    if len(all_candidates) == 0:
+        return ""
+
+    # -----------------------------------------
+    # 🔥 BESTE ZEILE WÄHLEN
+    # -----------------------------------------
+
+    # 1️⃣ zuerst alle mit Jahr
+    with_year = [c for c in all_candidates if re.search(r'\b\d{4}\b', c[1])]
+
+    if len(with_year) > 0:
+        with_year.sort(key=lambda x: x[0], reverse=True)
+        best = with_year[0][1]
+    else:
+        # 2️⃣ fallback: bester Score
+        all_candidates.sort(key=lambda x: x[0], reverse=True)
+        best = all_candidates[0][1]
+
+    print("LOOSE BEST:", best)
+
+    return best
 # ------------------------------------------------------------
 # Main function to extract species-related textual context
 # from a given page and optionally from neighboring pages.
@@ -133,113 +234,133 @@ def set_tessdata_prefix_once(workingDir, key="tesserAct"):
 # A list of structured strings containing species names
 # and their corresponding textual context.
 # ------------------------------------------------------------
-def find_species_context(workingDir="", page_path="", words_to_find="", previous_page_path=None, next_page_path=None, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
+def find_species_context(workingDir="", page_path="", words_to_find="", previous_page_path=None, next_page_path=None, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None, legend_list=None):
+    print(legend_list)
+    # Normalize legend list (ONLY first word!)
+    if legend_list is None:
+        legend_list = ["distribution"]
 
-  set_tessdata_prefix_once(workingDir, key="tesserAct")
-  # Load the image
-  image = Image.open(page_path)
-  
-  words = words_to_find.split("_")
-  # Lambda function to remove empty strings from the list
-  words = list(filter(lambda x: x != "", words))
-  
-  # Patter for special species
-  pattern = r'\b\d{4}\b'
-  
-  # Map legends
-  legend1 = 'distribution'
-  #legend2 = 'locality'
-  
-  # return result
-  all_results = []
-  
-  specie_content = "" 
-  
-  if(middle==1): middle=True
-  flag = 0
-  leg1Index = 0
-  leg2Index = 0
-  legI = 0
-  for search_specie in words:
-    #print(search_specie)
-    if(legend1 in search_specie):
-      search_specie = search_specie.replace(legend1, "")
-      flag = 1
-      leg1Index = leg1Index+1
-      legI = leg1Index
-    #if(legend2 in search_specie):
-    #  search_specie = search_specie.replace(legend2, "")
-    #  flag = 2
-    #  leg2Index = leg2Index+1
-    #  legI = leg2Index
-    #print(search_specie) 
-    
-    
-    # Start search
-    specie_content = find_specie_context(page_path,
-                      search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
+    if isinstance(legend_list, str):
+        legend_list = [legend_list]
 
-    #print("if aktuelle")
-    #print(specie_content)
-    if (len(specie_content) > 3):
+    legend_list = [l.lower().strip().split()[0] for l in legend_list]
+    set_tessdata_prefix_once(workingDir, key="tesserAct")
 
-      all_results.append(f"{flag}_{legI}_{search_specie}_{specie_content}")
-      continue
+    image = Image.open(page_path)
 
-    # print(specie_content)
-    if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
-      #print("if 1")
-      #print(previous_page_path)
-      specie_content = find_specie_context(previous_page_path,
-                          search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
-      if (len(specie_content) > 3): 
-        all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
-        continue
-      
-    if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
-      #print("if3")
-      #print(next_page_path)
-      specie_content = find_specie_context(next_page_path,
-                           search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
-      if (len(specie_content) > 3):
-        all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
-        continue
-      
-    if(len(specie_content) == 0):
-      specie_content = get_lines_last_check(page_path,search_specie)
-      #print("hhh")
-      if(len(specie_content) > 5):
-        print(specie_content)
-        all_results.append((str(flag)+ "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
-        continue
-    
-    #print(specie_content)    
-    print("if5 pre get_lines_last_check")  
-    if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
-      #print("if1")
-      #print(previous_page_path)
-      specie_content = get_lines_last_check(previous_page_path,
-                          search_specie)
-      if (len(specie_content) > 5): 
-        all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
-        continue
-      
-      
-    #print(specie_content)    
-    #print("if6 next get_lines_last_check")
-    if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
-      #print("if6")
-      #print(next_page_path)
-      specie_content = get_lines_last_check(next_page_path,
-                           search_specie)
-      if (len(specie_content) > 3):
-        all_results.append((str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content))  # Here a string is formed of the flag and added instead of an index
-        continue 
-      
-  if(len(all_results) == 0):
-      return []
-   
-  return all_results
+    words = words_to_find.split("_")
+    words = list(filter(lambda x: x != "", words))
+
+    pattern = r'\b\d{4}\b'
+
+    all_results = []
+    specie_content = ""
+
+    if (middle == 1):
+        middle = True
+
+    flag = 0
+    leg1Index = 0
+    leg2Index = 0
+    legI = 0
+    species_name = ""
+
+    for search_specie in words:
+        print(search_specie)
+
+        matched_legend = None
+        flag = 0
+
+        for i, legend in enumerate(legend_list):
+            legend_first_word = legend.split()[0]
+            if legend_first_word in search_specie:
+                search_specie = search_specie.split("X")[0]
+                #print(search_specie)
+                matched_legend = legend
+                flag = i + 1
+                legI += 1
+                break
+
+        # Start search
+        specie_content = find_specie_context(
+            page_path,
+            search_specie,
+            keyword_page_Specie,
+            keyword_top,
+            keyword_bottom,
+            middle,
+            legend_list
+        )
+
+        if (len(specie_content) > 3):
+            all_results.append(f"{flag}_{legI}_{search_specie}_{specie_content}")
+            continue
+
+        if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
+            specie_content = find_specie_context(
+                previous_page_path,
+                search_specie,
+                keyword_page_Specie,
+                keyword_top,
+                keyword_bottom,
+                middle,
+                legend_list
+            )
+            if (len(specie_content) > 3):
+                all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
+                continue
+
+        if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
+            specie_content = find_specie_context(
+                next_page_path,
+                search_specie,
+                keyword_page_Specie,
+                keyword_top,
+                keyword_bottom,
+                middle,
+                legend_list
+            )
+            if (len(specie_content) > 3):
+                all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
+                continue
+
+        if (len(specie_content) == 0):
+            print("1 get_lines_last_check")
+            specie_content = get_lines_last_check(page_path, search_specie, legend_list)
+            if (len(specie_content) > 5):
+                print(specie_content)
+                all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
+                continue
+        if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
+            print("2 get_lines_last_check previous_page_path")
+            specie_content = get_lines_last_check(previous_page_path, search_specie, legend_list)
+            if (len(specie_content) > 5):
+                all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
+                continue
+
+        if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
+            print("3 get_lines_last_check next_page_path")
+            specie_content = get_lines_last_check(next_page_path, search_specie, legend_list)
+            if (len(specie_content) > 3):
+                all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
+                continue
+
+        if len(specie_content) == 0:
+            print("➡️ using loose fallback")
+            specie_content = find_species_context_loose(
+                workingDir,
+                page_path,
+                search_specie,
+                previous_page_path,
+                next_page_path,
+                middle,
+                legend_list
+            )
+            if (len(specie_content) > 3):
+              all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
+              continue
+
+    return all_results
 
 
 
@@ -259,7 +380,8 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
 # A cleaned line containing the species context, or an empty
 # string if no valid match is found.
 # ------------------------------------------------------------
-def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
+def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, 
+middle=None, legend_list=None):
   """
   This function searches for a species name and a year in the context of a specified keyword in an image.
   
@@ -276,7 +398,7 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
   """
   try:
     _result = ""  # Initialize the result variable
-
+    print("DEBUG ist in find_specie_contex")
     # Load the image from the specified file path
     image = Image.open(page_path)
   
@@ -288,7 +410,13 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
   
     # Split the text into lines
     lines = extracted_text.split('\n')
-    legend1 = 'distribution'
+    legends = []
+  
+    if legend_list:
+      if len(legend_list) > 0:
+          legends.append(legend_list[0].split()[0])
+      if len(legend_list) > 1:
+          legends.append(legend_list[1].split()[0])
     # legend2 = 'locality'
     # Regular expression for a four-digit year
     # year_pattern = re.compile(r'\(\D*\d{4}\)')
@@ -296,40 +424,37 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
     year_pattern = re.compile(r'\b\d{4}\b')
     # Remove unnecessary characters from the search_specie
     search_specie = search_specie.strip(' ,.?!()[]{}_"\';')
-  
+   
     # Initialize temp_line
     temp_line = ""
     
     # Iterate through each line and search for the keyword_page_Specie
     for line_num, line in enumerate(lines, start=0):
       _result = "" 
-      ###
-      if re.search(r"^\s*\bdistribution\b", line):
+      
+      # 🔹 NEUE LOGIK GANZ OBEN
+      if any(re.search(rf"\b{re.escape(kw)}\b", line) for kw in legends):
+        #print("DEBUG keyword hit:", line)
         continue
-      if re.search(r"^\s*\".*\b" + legend1 + r"\b", line) or (":" in line) or ("|" in line and not line.startswith("\"")):
+  
+      if re.search(r"^\s*\".*\b" + legends[0] + r"\b", line) or (":" in line) or ("|" in line and not line.startswith("\"")):
         continue
-      if re.search(r"^\s*.*\b" + "type locality" + r"\b", line):
+      if re.search(r"^\s*.*\b" + legends[1] + r"\b", line):
         continue
-      if re.search(r"^\s*\bdistribution\b", line):
+      if re.search(r"^\s*\b{re.escape(legends[0])}\b", line):
         continue
-      if re.search(r"^\s*\btype locality\b", line):
+      if re.search(r"^\s*\b{re.escape(legends[1])}\b", line):
         continue
-      if re.search(r"\bdistribution\b", line):
-        continue
-      if "distribution" in line:
-        continue
-      if re.search(r"\blocality of\b", line):  # Skip lines containing "locality of"
+      if re.search(rf"\b{re.escape(legends[0])}\b", line):
         continue
       if re.search(r"\blocality\b", line, re.IGNORECASE):
         continue
       if re.search(r"\blocality of\b", line, re.IGNORECASE):  # Skip lines containing "locality of"
         continue
-      if re.search(r"\btype locality\b", line, re.IGNORECASE):
-        continue
-      if re.search(r"\btype locality of\b", line, re.IGNORECASE):  # Skip lines containing "type locality of"
-        continue
-        
-      if search_specie in line:
+
+      
+      if search_specie in line or any(similar(search_specie.lower(), w.lower()) > 0.8 for w in line.split()):
+        print("Start", search_specie)
         line = line.replace('|', '') 
         line = line.replace("\\", "")
         line = line.strip("\\ ")
@@ -337,16 +462,14 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
         line = line.replace('“', '').replace('”', '')
         if line.startswith("[") or line.startswith("]"):
           line = line[1:]
-        _result = line
-              
+        #_result = line
+            
         if re.search(r"\blocality\b", line, re.IGNORECASE):
           print(f"Originalwwww line: {_result}")
-        #print(f"Original line: {_result}")
-        #print("214")
-        #print( _result )
-        #print("214")
-        ###  
+
         if year_pattern.search(line):
+          print("Bin mit Jahr")
+          print(line)
           _result = line
           if middle:
             index_left = extracted_data['text'].index(line.split()[0])
@@ -374,166 +497,33 @@ def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyw
           return _result # search_specie in the line and regEx year
     #if(len(_result) == 0):
     #  _result = find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page_Specie, keyword_top, keyword_bottom, middle)
-    #print(_result) 
-    return _result
+    #print(_result)
+    print("RETURN:", _result)
+
+    # ❗ nur zurückgeben wenn Jahr vorhanden
+    if _result and year_pattern.search(_result):
+        return _result
+    
+    return ""
 
   except Exception as e:
     print("An error occurred during find_specie_context processing:")
     print(e)
     # Hier können Sie den Traceback oder weitere Informationen ausgeben, um den Fehler zu lokalisieren
     print(traceback.format_exc())
-    return "Error in function find_specie_context"
+    print("RETURN Error:", _result)
+    return ""
+
+
+from difflib import SequenceMatcher
+
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
 
 
 
-# ------------------------------------------------------------
-# Alternative regex-based method for extracting species context.
-#
-# Used as a fallback when direct matching fails.
-# Focuses on identifying species names together with a year
-# pattern using regular expressions.
-#
-# Supports optional positional filtering similar to the main
-# method (e.g., middle-of-page constraint).
-#
-# Returns:
-# A reduced text line containing species name and year.
-# ------------------------------------------------------------
-def find_specie_context_RegEx(lines, extracted_data, search_specie, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None):
-  
-  try:
-    print("regEx")
-    _result = ""  # Initialize the result variable
-  
-    # Regular expression for a four-digit year
-   # year_pattern = re.compile(r'\(\D*\d{4}\)')
-    #year_pattern = re.compile(r'\b(?:\(\D*\d{4}\)|\d{4})\b')
-    year_pattern = re.compile(r'\b\d{4}\b')
-    # Remove unnecessary characters from the search_specie
-    search_specie = search_specie.strip(' ,.?!()[]{}_"\';')
-    legend1 = 'distribution'
-    #legend2 = 'locality'
-    # Initialize temp_line
-    temp_line = ""
-    
-    # Iterate through each line and search for the keyword_page_Specie
-    for line_num, line in enumerate(lines, start=0):
-      #_result = "\b" + legend1 + r"\b"
-      
-      if re.search(r"^\s*.*\b" + legend1 + r"\b", line) or (r"^\s*.*\b" + "type locality" + r"\b", line):
-        #print(f"Found '\"' and 'distribution' in: {line}")
-        continue
-  
-      if search_specie in line:
-        line = line.replace('|', '') 
-        line = line.replace("\\", "")
-        line = line.strip("\\ ")
-        line = line.replace('“', '').replace('”', '')
-        _result = line
-        year_match = year_pattern.search(line)
-
-        _result = line
-        if year_match:
-          year = year_match.group(0)
-          index_year = line.index(year)
-          _result = line[:index_year+ len(year)]
-          if middle:
-            index_left = extracted_data['text'].index(line.split()[0])
-            maxPos = max(extracted_data['left'])
-            if int(extracted_data['left'][index_left]) > (int(maxPos/4)/10):
-              #print(f"Spacie {search_specie} was FOUND in this line: {line} in the middle")
-              if keyword_page_Specie is None: return _result
-            else: return '' # Important when the spacie is not finded on this page, but is on the previous page
-            
-            if keyword_page_Specie is not None:
-              difference = 0
-              difference = keyword_bottom if keyword_bottom > 0 else -keyword_top
-          
-              if(len(lines[int(line_num + difference)])) > 3:
-                temp_line = lines[int(line_num + difference)]
-
-              if keyword_page_Specie in temp_line:
-                #print(f"The spacie {search_specie} was FOUND in this line: {line} in the middle and Keyword: {keyword_page_Specie}")
-                return _result # search_specie in the line and the line and in middle and and regEx year and has keyword
-            
-            return _result # search_specie in the line and the line and in middle and regEx year
-         
-          return _result # search_specie in the line and regEx year
-    #print(_result)      
-    return _result
-  except Exception as e:
-      print("An error occurred during find_specie_context_RegEx processing:")
-      print(e)
-      # Hier können Sie den Traceback oder weitere Informationen ausgeben, um den Fehler zu lokalisieren
-      # print(traceback.format_exc())
-      return "Error find_specie_context_RegEx"
 
 
-# ------------------------------------------------------------
-# Simplified regex-based extraction method.
-#
-# Focuses on extracting species names and associated years
-# from OCR text with minimal contextual constraints.
-#
-# Used as a lightweight fallback when other methods fail.
-#
-# Returns:
-# A shortened text segment containing species and year.
-# ------------------------------------------------------------
-def find_specie_context_RegExReduce(page_path, search_specie):
-  try:
-    print("RegExReduce")
-    image = Image.open(page_path)
-  
-    # Extract text from the image
-    extracted_text = pytesseract.image_to_string(image)
-    year_pattern = re.compile(r'\b\d{4}\b')
-    # Extract text data with detailed information
-    #extracted_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
-  
-    # Split the text into lines
-    lines = extracted_text.split('\n')
-    # Remove unnecessary characters from the search_specie
-    search_specie = search_specie.strip(' ,.?!()[]{}_"\';')
-    _result = ""
-    legend1 = 'distribution'
-    #legend2 = 'locality'
-    # Iterate through each line and search for the keyword_page_Specie
-    for line_num, line in enumerate(lines, start=0):
-      if re.search(r"^\s*.*\b" + legend1 + r"\b", line):# or ("." in line) or (":" in line):
-        #print(f"Found '\"' and 'distribution' in: {line}")
-        continue
-      if re.search(r"^\s*.*\b" + "type locality" + r"\b", line):
-        #print(f"Found '\"' and 'distribution' in: {line}")
-        continue
-      if search_specie in line:
-        line = line.replace('|', '') 
-        line = line.replace("\\", "")
-        line = line.strip("\\ ")
-        _result = line
-
-        if year_pattern.search(_result):
-          match = re.search(year_pattern, _result)
-          erster_teil = _result[:match.start()].strip()
-          year = match.group()
-          #print("Erster Teil des Satzes:", erster_teil)
-          #print("Jahr:", year)
-          
-          temp_result = re.split(year_pattern, _result)
-          temp_result = temp_result[0].strip()
-          return temp_result + year
-        else:
-          continue
-    print(_result)
-    return _result
-
-  except Exception as e:
-      print("An error occurred during find_specie_context_RegExReduce processing:")
-      print(e)
-      # Hier können Sie den Traceback oder weitere Informationen ausgeben, um den Fehler zu lokalisieren
-      # print(traceback.format_exc())
-      return "Error find_specie_context_RegExReduce"
-    
     
 # ------------------------------------------------------------
 # Final fallback method for extracting species-related lines.
@@ -549,138 +539,140 @@ def find_specie_context_RegExReduce(page_path, search_specie):
 # A concatenated string of candidate lines containing species
 # context information.
 # ------------------------------------------------------------
-def get_lines_last_check(image_path, keyword):
+def get_lines_last_check(image_path, search_specie, legend_list=None):
     try:
         """
-        Get lines containing a specific keyword, starting with a capital letter and containing a 4-digit year.
+        Get lines containing a specific search_specie, starting with a capital letter and containing a 4-digit year.
         """
-        keyword = keyword.strip(' ,.?!()[]{}_"\';')
-        legend1 = 'distribution'
-        #legend2 = 'locality'
+        print("DEBUG ist in get_lines_last_check")
+        search_specie = search_specie.strip(' ,.?!()[]{}_"\';')
+        legends = []
+        if legend_list:
+          if len(legend_list) > 0:
+              legends.append(legend_list[0].split()[0])
+          if len(legend_list) > 1:
+              legends.append(legend_list[1].split()[0])
         
         # Use pytesseract to extract text from the image
         extracted_text = pytesseract.image_to_string(image_path)
         
-        # Initialize an empty list for the lines containing the keyword
-        lines_with_keyword = []
+        # Initialize an empty list for the lines containing the search_specie
+        lines_with_search_specie = []
         result_string = ""
         
-        # Iterate through each line and search for the keyword_page_Specie
         for line in extracted_text.split('\n'):
-            # Skip lines containing specific keywords or characters
-            if (re.search(r"^\s*.*\b" + legend1 + r"\b", line) or 
+            # Skip lines containing specific search_specie or characters
+            if (re.search(r"^\s*.*\b" + legends[0] + r"\b", line) or 
                 ("=" in line) or
-                re.search(r"^\s*\bdistribution\b", line) or
-                re.search(r"^\s*\btype locality\b", line) or
-                re.search(r"\bdistribution\b", line) or
-                "distribution" in line):
+                re.search(r"^\s*\b{re.escape(legends[0])}\b", line) or
+                re.search(r"^\s*\b{re.escape(legends[1])}\b", line) or
+                re.search(r"\b{re.escape(legends[0])}\b", line) or
+                legends[0] in line):
                 continue
+
             if re.search(r"\blocality\b", line, re.IGNORECASE):
               continue
             if re.search(r"\blocality of\b", line, re.IGNORECASE):  # Skip lines containing "locality of"
               continue
-            if re.search(r"\btype locality\b", line, re.IGNORECASE):
+            if re.search(r"\b{re.escape(legends[1])}\b", line, re.IGNORECASE):
               continue
             if re.search(r"\btype locality of\b", line, re.IGNORECASE):  # Skip lines containing "type locality of"
               continue
-        
-            keyword_pos = line.lower().find(keyword.lower())
-            index_keyword = 0
             
-            if keyword_pos > 3:
-                line = line.replace(":", "")
-                line = line.replace("<!>", "")
-                line = line.replace("|", "")
-                line = line.replace(",", "")
-                line = line.replace(")", "").replace('(', '')
-                line = line.replace('“', '').replace('”', '')
-                line = line.replace("_", "")
-                if line.startswith("-"):
-                  line = line.replace("-", "")
-                                
-                line_split = line[:keyword_pos+len(keyword)].split()
-                if keyword in line_split:
-                    index_keyword = line_split.index(keyword)
-                
-                if(index_keyword > 1):
-                    prev_word = line_split[index_keyword-1]
-                    prev_prev_word = line_split[index_keyword-2]
-                    if (prev_prev_word and prev_prev_word[0].isupper()) or (prev_word and prev_word[0].isupper()):
-                        year_match = re.search(r'\b\d{2,4}[a-z]?\b', line)
-                        index_prev_prev_word = line.lower().find(prev_prev_word.lower())
-                        
-                        if year_match:
-                            year = year_match.group(0)
-                            index_year = line.index(year)
-                            word_between = line[index_prev_prev_word:index_year+len(year)]
-                            if index_year != -1 and index_year > index_prev_prev_word:
-                                word_between = line[index_prev_prev_word:index_year+len(year)]
-                            else:
-                                word_between = line[index_prev_prev_word:]
-                            word_between = word_between.replace("|", "")
-                            lines_with_keyword.append(word_between)
-                        else:
-                            word_between = line[index_prev_prev_word:keyword_pos + len(keyword)]
-                            if(len(line) > 3) and len(lines_with_keyword) == 0:
-                                lines_with_keyword.append(word_between) 
-                    else:
-                        line = line.replace("|", "")
-                        line = line.replace("_", "")
-                        word_between = line[:keyword_pos + len(keyword)]
-                        if(len(line) > 3) and len(lines_with_keyword) == 0:
-                            lines_with_keyword.append(word_between)
-                             
-                    if(index_keyword == 1):
-                        prev_word = line_split[index_keyword-1]
-                        if (prev_word and prev_word[0].isupper()):
-                            year_match = re.search(r'\b\d{2,4}[a-z]?\b', line)
-                            index_prev_word = line.lower().find(prev_word.lower())
-                            if year_match:
-                                year = year_match.group(0)
-                                index_year = line.index(year)
-                                word_between = line[index_prev_word:index_year+len(year)]
-                                word_between = word_between.replace("|", "")
-                                lines_with_keyword.append(word_between)
-                            else:
-                                word_between = line[index_prev_word:keyword_pos + len(keyword)]
-                                if(len(line) > 3) and len(lines_with_keyword) == 0:
-                                    lines_with_keyword.append(word_between)
-                else:
-                    line = line.replace("|", "")
-                    line = line.replace("_", "")
-                    word_between = line[:keyword_pos + len(keyword)]
-                    if(len(line) > 3) and len(lines_with_keyword) == 0:
-                        lines_with_keyword.append(word_between)
-                 
-        if(len(lines_with_keyword) > 0):
-            result_string = ' SSS '.join(lines_with_keyword)
-        print(result_string)
-        return result_string
+            search_specie_pos = line.lower().find(search_specie.lower())
+            index_search_specie = 0
+            
+            if search_specie_pos > 3:
+             
+              line = line.replace(":", "")
+              line = line.replace("<!>", "")
+              line = line.replace("|", "")
+              line = line.replace(",", "")
+              line = line.replace(")", "").replace('(', '')
+              line = line.replace('“', '').replace('”', '')
+              line = line.replace("_", "")
+              if line.startswith("-"):
+                line = line.replace("-", "")
+                              
+              line_split = line[:search_specie_pos+len(search_specie)].split()
+              if search_specie in line_split:
+                  index_search_specie = line_split.index(search_specie)
+              
+              if(index_search_specie > 1):
+                  print("in if >1")
+                  prev_word = line_split[index_search_specie-1]
+                  prev_prev_word = line_split[index_search_specie-2]
+                  if (prev_prev_word and prev_prev_word[0].isupper()) or (prev_word and prev_word[0].isupper()):
+                      print("in if große buchstabe")
+                      year_match = re.search(r'\b\d{2,4}[a-z]?\b', line)
+                      index_prev_prev_word = line.lower().find(prev_prev_word.lower())
+                      
+                      if year_match:
+                          print("in if year")
+                          year = year_match.group(0)
+                          index_year = line.index(year)
+                          word_between = line[index_prev_prev_word:index_year+len(year)]
+                          if index_year != -1 and index_year > index_prev_prev_word:
+                              word_between = line[index_prev_prev_word:index_year+len(year)]
+                          else:
+                              word_between = line[index_prev_prev_word:]
+                          word_between = word_between.replace("|", "")
+                          lines_with_search_specie.append(word_between)
+                      else:
+                          word_between = line[index_prev_prev_word:search_specie_pos + len(search_specie)]
+                          if(len(line) > 3) and len(lines_with_search_specie) == 0:
+                              lines_with_search_specie.append(word_between) 
+                  else:
+                      line = line.replace("|", "")
+                      line = line.replace("_", "")
+                      word_between = line[:search_specie_pos + len(search_specie)]
+                      if(len(line) > 3) and len(lines_with_search_specie) == 0:
+                          lines_with_search_specie.append(word_between)
+                           
+                  if(index_search_specie == 1):
+                      print("index_search_specie == 1")
+                      prev_word = line_split[index_search_specie-1]
+                      if (prev_word and prev_word[0].isupper()):
+                          print("pre word große buchstabe")
+                          year_match = re.search(r'\b\d{2,4}[a-z]?\b', line)
+                          index_prev_word = line.lower().find(prev_word.lower())
+                          if year_match:
+                              year = year_match.group(0)
+                              index_year = line.index(year)
+                              word_between = line[index_prev_word:index_year+len(year)]
+                              word_between = word_between.replace("|", "")
+                              lines_with_search_specie.append(word_between)
+                          else:
+                              word_between = line[index_prev_word:search_specie_pos + len(search_specie)]
+                              if(len(line) > 3) and len(lines_with_search_specie) == 0:
+                                  lines_with_search_specie.append(word_between)
+              else:
+                  print("in else")
+                  line = line.replace("|", "")
+                  line = line.replace("_", "")
+                  word_between = line[:search_specie_pos + len(search_specie)]
+                  if(len(line) > 3) and len(lines_with_search_specie) == 0:
+                      lines_with_search_specie.append(word_between)
+        print(lines_with_search_specie)
+        if len(lines_with_search_specie) == 0:
+            return ""
+        
+        # ⭐ beste Zeile wählen
+        with_year = [l for l in lines_with_search_specie if re.search(r'\b\d{4}[a-z]?\b', l)]
+        
+        if len(with_year) > 0:
+            return with_year[0]
+        
+        # fallback
+        return lines_with_search_specie[0]
     
     except Exception as e:
         print("An error occurred during get_lines_last_check processing:")
         print(e)
         # Here you can print traceback or additional information to locate the error
         print(traceback.format_exc())
-        return "Error get_lines_last_check"
+        return ""
 
       
       
-      
-      
-# Test the function
-#test = find_species_context('D:/distribution_digitizer/data/input/pages/01.tif', "_stoliczkana", previous_page_path="D:/distribution_digitizer/data/input/pages/0198.tif", next_page_path="D:/distribution_digitizer/data/input/pages/0200.tif", middle=1, keyword_page_Specie="Range", keyword_bottom=2)#test = find_specie_context('D:/distribution_digitizer_11_01_2024/data/input/pages/0056.tif', "_thrax", middle=True, keyword_page_Specie="Range", keyword_bottom=2)
-#test = find_specie_context('D:/distribution_digitizer/data/input/pages/0294.tif', "_yopala", middle=True, keyword_page_Specie="Range", keyword_bottom=2)
-#test = find_specie_context('D:/distribution_digitizer/data/input/pages/0125.tif', "_tirichmirensis", middle=True)
-#test = find_specie_context_RegExReduce('D:/distribution_digitizer_11_01_2024/data/input/pages/0041.tif', "_litoralis")
-#test = find_species_context('D:/distribution_digitizer/data/input/pages/0125.tif', "_tirichmirensis", previous_page_path="D:/distribution_digitizer/data/input/pages/0124.tif", next_page_path="D:/distribution_digitizer/data/input/pages/0126.tif", middle=1, keyword_page_Specie="Range", keyword_bottom=2)
-#test = find_specie_context('D:/distribution_digitizer/data/input/pages/0214.tif', "_sakaii", middle=True, keyword_page_Specie="Range", keyword_bottom=2)
-#test = get_lines_last_check('D:/distribution_digitizer/data/input/pages/0294.tif', "_jarmanai")
-#print(test)
-
-# The keyword Range was not everytime perfekt interpreted, It was reader as anee 
-
-#Coladenia indrani (Moore [1866])
-
-#anee: From S.-E. Afghanistan and Pakistan throughout Indian subcontinent
-#and Sri Lanka to Indo-China.
+     
