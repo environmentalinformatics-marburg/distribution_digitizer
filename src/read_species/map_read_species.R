@@ -156,14 +156,29 @@ read_legends <- function(working_dir, out_dir, legendKeywords, nMapTypes = 1) {
         # Extract species information
         #print(symbol_list)
         
-
+        # ----------------------------------------------------
+        # 🔥 Farben für diese Map bestimmen (VOR crop_specie!)
+        # ----------------------------------------------------
+        current_file <- basename(as.character(map_name))
+        
+        df_map <- df[df$File == current_file, ]
+        
+        templates <- df_map$template
+        
+        colors <- tolower(sub("_.*", "", templates))
+        colors <- colors[!grepl("unknown", colors)]
+        
+        num_colors <- length(unique(colors))
+        
+       
         print("DEBUG BEFORE crop_specie:")
         print(records_page)
         print(records_page$h[1])
         print(next_y)
+        print(paste("DEBUG num_colors:", num_colors))
 
         species <- crop_specie(working_dir, out_dir_type, file_name, map_name,
-                               as.integer(records_page$y[1]), as.integer(records_page$h[1]), legendKeywords=legendKeywords,  symbol_list = symbol_list,  next_map_y = next_y)   
+                               as.integer(records_page$y[1]), as.integer(records_page$h[1]), legendKeywords=legendKeywords,  symbol_list = symbol_list,  next_map_y = next_y, num_colors = num_colors )   
         
         print("DEBUG DONE - Here the specie:")
         print(species)

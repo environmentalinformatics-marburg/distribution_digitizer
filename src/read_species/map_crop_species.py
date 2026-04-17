@@ -289,6 +289,7 @@ def crop_specie(
     legendKeywords=None,
     symbol_list=None,
     next_map_y=None,
+    num_colors=0,
     attempt=1
 ):
 
@@ -365,6 +366,14 @@ def crop_specie(
         # 3. sonst → Standardbereich
         else:
             y_end = y + h + int(h / 2)
+
+            if num_colors >= 2:
+                print("#### SPECIAL: many colors → extend ROI")
+                y_end = map_bottom + int(h * 1.5)
+        
+            if num_colors >= 5:
+                print("#### SPECIAL: very many colors → extend more")
+                y_end = map_bottom + int(h * 1.8)
             print("#### 3 ELSE DEBUG y_end: ", y_end)
             print("#### 3 next_map_y: ", next_map_y)
         
