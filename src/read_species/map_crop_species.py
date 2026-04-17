@@ -286,13 +286,13 @@ def crop_specie(
     path_to_map,
     y,
     h,
-    legend_list=None,
+    legendKeywords=None,
     symbol_list=None,
     next_map_y=None,
     attempt=1
 ):
 
-    print("Legend list received:", legend_list)
+    print("Legend list received:", legendKeywords)
     print("Attempt:", attempt)
 
     try:
@@ -320,13 +320,13 @@ def crop_specie(
         # ----------------------------------------------------
         # Normalize legend keywords
         # ----------------------------------------------------
-        if legend_list is None:
-            legend_list = ['distribution']
+        if legendKeywords is None:
+            legendKeywords = ['distribution']
 
-        if isinstance(legend_list, str):
-            legend_list = [legend_list]
+        if isinstance(legendKeywords, str):
+            legendKeywords = [legendKeywords]
 
-        legend_list = [l.strip().lower() for l in legend_list]
+        legendKeywords = [l.strip().lower() for l in legendKeywords]
 
         # ----------------------------------------------------
         # Load full page image
@@ -336,20 +336,37 @@ def crop_specie(
         # ----------------------------------------------------
         # Define region of interest (below map)
         # ----------------------------------------------------
+        
         if next_map_y is None:
             margin = -5   # single map
         else:
             margin = -10  # multiple maps → more separation
-        
+        print("#### DEBUG Margin: ", margin)
         roi_y_start = y + h + margin
         roi_y_start = max(0, roi_y_start)
-
+        print("#### DEBUG Y Start: ", roi_y_start)
         # Avoid cutting into next map
+        page_height = full_image.shape[0]
+        map_bottom = y + h
+        
+        # 1. nächste Map vorhanden → sauber begrenzen
         if next_map_y is not None and next_map_y > roi_y_start:
-            y_end = next_map_y - 10
+            gap = next_map_y - map_bottom
+            # 🔥 FALL: nächste Map ist zu weit weg
+            if gap > h:
+              y_end = map_bottom + int(h / 2)
+            else:
+              y_end = next_map_y - 10
+            print("#### 1 IF DEBUG Y End: ", y_end)
+        # 2. keine nächste Map und unten kein Platz mehr → letzte Map
+        elif page_height - map_bottom < h:
+            y_end = page_height - 10
+            print("#### 2 ELIF DEBUG y_end: ", y_end)
+        # 3. sonst → Standardbereich
         else:
-            # 🔥 NUR diese Map!
-            y_end = y + h + 200   # oder +150 testen
+            y_end = y + h + int(h / 2)
+            print("#### 3 ELSE DEBUG y_end: ", y_end)
+            print("#### 3 next_map_y: ", next_map_y)
         
         roi = full_image[roi_y_start:y_end, :]
         
@@ -417,7 +434,7 @@ def crop_specie(
             crop_cache = {}
 
             # Compare OCR tokens with legend keywords
-            for legend in legend_list:
+            for legend in legendKeywords:
 
                 legend_words = legend.split()
                 first_word = legend_words[0]
@@ -552,7 +569,7 @@ def crop_specie(
                 path_to_map,
                 y,
                 h,
-                legend_list,
+                legendKeywords,
                 symbol_list,
                 next_map_y,
                 attempt + 1
@@ -569,7 +586,7 @@ def crop_specie(
                 final_matches.append({
                     "candidate": c,
                     "template": "unknown",
-                    "legend": legend_list[0]
+                    "legend": legendKeywords[0]
                 })
 
         # ----------------------------------------------------

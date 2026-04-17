@@ -120,7 +120,7 @@ def find_species_context_loose(
     previous_page_path=None,
     next_page_path=None,
     middle=None,
-    legend_list=None
+    legendKeywords=None
 ):
     print(f"LOOSE SEARCH for: {search_specie}")
 
@@ -234,16 +234,16 @@ def find_species_context_loose(
 # A list of structured strings containing species names
 # and their corresponding textual context.
 # ------------------------------------------------------------
-def find_species_context(workingDir="", page_path="", words_to_find="", previous_page_path=None, next_page_path=None, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None, legend_list=None):
-    print(legend_list)
+def find_species_context(workingDir="", page_path="", words_to_find="", previous_page_path=None, next_page_path=None, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, middle=None, legendKeywords=None):
+    print(legendKeywords)
     # Normalize legend list (ONLY first word!)
-    if legend_list is None:
-        legend_list = ["distribution"]
+    if legendKeywords is None:
+        legendKeywords = ["distribution"]
 
-    if isinstance(legend_list, str):
-        legend_list = [legend_list]
+    if isinstance(legendKeywords, str):
+        legendKeywords = [legendKeywords]
 
-    legend_list = [l.lower().strip().split()[0] for l in legend_list]
+    legendKeywords = [l.lower().strip().split()[0] for l in legendKeywords]
     set_tessdata_prefix_once(workingDir, key="tesserAct")
 
     image = Image.open(page_path)
@@ -271,7 +271,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
         matched_legend = None
         flag = 0
 
-        for i, legend in enumerate(legend_list):
+        for i, legend in enumerate(legendKeywords):
             legend_first_word = legend.split()[0]
             if legend_first_word in search_specie:
                 search_specie = search_specie.split("X")[0]
@@ -289,7 +289,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
             keyword_top,
             keyword_bottom,
             middle,
-            legend_list
+            legendKeywords
         )
 
         if (len(specie_content) > 3):
@@ -304,7 +304,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
                 keyword_top,
                 keyword_bottom,
                 middle,
-                legend_list
+                legendKeywords
             )
             if (len(specie_content) > 3):
                 all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
@@ -318,7 +318,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
                 keyword_top,
                 keyword_bottom,
                 middle,
-                legend_list
+                legendKeywords
             )
             if (len(specie_content) > 3):
                 all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
@@ -326,21 +326,21 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
 
         if (len(specie_content) == 0):
             print("1 get_lines_last_check")
-            specie_content = get_lines_last_check(page_path, search_specie, legend_list)
+            specie_content = get_lines_last_check(page_path, search_specie, legendKeywords)
             if (len(specie_content) > 5):
                 print(specie_content)
                 all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
                 continue
         if (len(specie_content) == 0) and (previous_page_path is not None and previous_page_path != "None"):
             print("2 get_lines_last_check previous_page_path")
-            specie_content = get_lines_last_check(previous_page_path, search_specie, legend_list)
+            specie_content = get_lines_last_check(previous_page_path, search_specie, legendKeywords)
             if (len(specie_content) > 5):
                 all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
                 continue
 
         if (len(specie_content) == 0) and (next_page_path is not None and next_page_path != "None"):
             print("3 get_lines_last_check next_page_path")
-            specie_content = get_lines_last_check(next_page_path, search_specie, legend_list)
+            specie_content = get_lines_last_check(next_page_path, search_specie, legendKeywords)
             if (len(specie_content) > 3):
                 all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
                 continue
@@ -354,7 +354,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
                 previous_page_path,
                 next_page_path,
                 middle,
-                legend_list
+                legendKeywords
             )
             if (len(specie_content) > 3):
               all_results.append(str(flag) + "_" + str(legI) + "_" + search_specie + "_" + specie_content)
@@ -381,7 +381,7 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
 # string if no valid match is found.
 # ------------------------------------------------------------
 def find_specie_context(page_path, search_specie, keyword_page_Specie=None, keyword_top=None, keyword_bottom=None, 
-middle=None, legend_list=None):
+middle=None, legendKeywords=None):
   """
   This function searches for a species name and a year in the context of a specified keyword in an image.
   
@@ -412,11 +412,11 @@ middle=None, legend_list=None):
     lines = extracted_text.split('\n')
     legends = []
   
-    if legend_list:
-      if len(legend_list) > 0:
-          legends.append(legend_list[0].split()[0])
-      if len(legend_list) > 1:
-          legends.append(legend_list[1].split()[0])
+    if legendKeywords:
+      if len(legendKeywords) > 0:
+          legends.append(legendKeywords[0].split()[0])
+      if len(legendKeywords) > 1:
+          legends.append(legendKeywords[1].split()[0])
     # legend2 = 'locality'
     # Regular expression for a four-digit year
     # year_pattern = re.compile(r'\(\D*\d{4}\)')
@@ -539,7 +539,7 @@ def similar(a, b):
 # A concatenated string of candidate lines containing species
 # context information.
 # ------------------------------------------------------------
-def get_lines_last_check(image_path, search_specie, legend_list=None):
+def get_lines_last_check(image_path, search_specie, legendKeywords=None):
     try:
         """
         Get lines containing a specific search_specie, starting with a capital letter and containing a 4-digit year.
@@ -547,11 +547,11 @@ def get_lines_last_check(image_path, search_specie, legend_list=None):
         print("DEBUG ist in get_lines_last_check")
         search_specie = search_specie.strip(' ,.?!()[]{}_"\';')
         legends = []
-        if legend_list:
-          if len(legend_list) > 0:
-              legends.append(legend_list[0].split()[0])
-          if len(legend_list) > 1:
-              legends.append(legend_list[1].split()[0])
+        if legendKeywords:
+          if len(legendKeywords) > 0:
+              legends.append(legendKeywords[0].split()[0])
+          if len(legendKeywords) > 1:
+              legends.append(legendKeywords[1].split()[0])
         
         # Use pytesseract to extract text from the image
         extracted_text = pytesseract.image_to_string(image_path)

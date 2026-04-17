@@ -62,16 +62,23 @@ clean_species <- function(species) {
 # - Updated CSV files containing species assignments per point
 # - HTML-like summary string of detected species per map
 # ------------------------------------------------------------
-read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
+read_legends <- function(working_dir, out_dir, legendKeywords, nMapTypes = 1) {
+  if (is.null(legendKeywords)) {
+    message("⚠️ legendKeywords missing → using fallback")
+    legendKeywords <- c("distribution of")
+  }
+  
+  print("LegendKeywords in function:")
+  print(legendKeywords)
   
   results <- "The following species were found: "
-  print("Read start")
   # Source Python script for additional processing if needed
   source_python(file.path(working_dir, "src/read_species/map_crop_species.py"))
   
   # --- NEU: über Map-Typen (1..nMapTypes) iterieren ---
   for (type_id in seq_len(as.integer(nMapTypes))) {
-    print("Read start 2")
+    print("START MAP:")
+    print(type_id)
     out_dir_type <- file.path(out_dir, as.character(type_id))
     
     # Directory setup (pro Typ!)
@@ -107,8 +114,8 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
       pattern = "\\.tif$",
       full.names = TRUE
     )
-    print(symbol_list)
-    legend_list = c("distribution of", "type locality of")
+    #print(symbol_list)
+
     
     records_pages <- records_pages[
       order(sapply(records_pages, function(f) {
@@ -129,29 +136,36 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
         current_y <- as.integer(sub(".*_y(\\d+)_.*", "\\1", current_file))
         current_page <- sub(".*_(\\d{4})_map.*", "\\1", current_file)
         
-        if (j < length(records_pages)) {
-          
-          next_file <- basename(records_pages[j + 1])
-          next_y <- as.integer(sub(".*_y(\\d+)_.*", "\\1", next_file))
-          next_page <- sub(".*_(\\d{4})_map.*", "\\1", next_file)
-          
-        } else {
-          next_y <- NA
-          next_page <- NA
-        }
-
+        # 🔥 alle Maps dieser Seite finden
+        all_files <- basename(records_pages)
         
-        if (is.na(next_page) || current_page != next_page) {
-          next_y <- NA
-          next_page <- NA
+        same_page_files <- all_files[grepl(current_page, all_files)]
+        
+        # Y-Werte extrahieren
+        all_y <- as.integer(sub(".*_y(\\d+)_.*", "\\1", same_page_files))
+        
+        # nur Maps unterhalb
+        candidates <- all_y[all_y > current_y]
+        
+        if (length(candidates) > 0) {
+          next_y <- min(candidates)   # nächste Map darunter
+        } else {
+          next_y <- NA_real_          # letzte Map
         }
+        
         # Extract species information
-        print(symbol_list)
+        #print(symbol_list)
+        
+
+        print("DEBUG BEFORE crop_specie:")
+        print(records_page)
         print(records_page$h[1])
         print(next_y)
+
         species <- crop_specie(working_dir, out_dir_type, file_name, map_name,
-                               as.integer(records_page$y[1]), as.integer(records_page$h[1]),legend_list=legend_list,  symbol_list = symbol_list,  next_map_y = next_y)   # 🔥 NEU symbol_list legend_list
-        print("Here the specie:")
+                               as.integer(records_page$y[1]), as.integer(records_page$h[1]), legendKeywords=legendKeywords,  symbol_list = symbol_list,  next_map_y = next_y)   
+        
+        print("DEBUG DONE - Here the specie:")
         print(species)
         
         #results <- paste0(results, "<br>", map_name, ";", species)
@@ -180,6 +194,8 @@ read_legends <- function(working_dir, out_dir, nMapTypes = 1) {
         
         # Subset dataframe for matching records
         df_map_name <- subset(df, grepl(paste0("^", basename(map_name), "$"), File))
+        
+        
         # 🔴 WICHTIG: komplette Legende speichern
         if (nrow(df_map_name) > 0) {
           if (!is.na(species) && species != "") {

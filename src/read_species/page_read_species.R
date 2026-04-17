@@ -55,6 +55,7 @@ readPageSpecies <- function(
     keywordReadSpecies,
     keywordBefore,
     keywordThen,
+    legendKeywords,
     middle
 ) {
   
@@ -130,7 +131,8 @@ readPageSpecies <- function(
       previous_page_path <- filteredData$previous_page_path[i]
       next_page_path     <- filteredData$next_page_path[i]
       print(speciesData)
-      legend_list <- c("distribution of", "type locality of")
+      legendKeywords <- strsplit(config$legendKeywords, ",")[[1]]
+      legendKeywords <- trimws(legendKeywords)
       pageTitleSpecies <- find_species_context(
         workingDir,
         pagePath,
@@ -141,7 +143,7 @@ readPageSpecies <- function(
         keywordBefore,
         keywordThen,
         middle,
-        legend_list = legend_list
+        legendKeywords = legendKeywords
       )
       
 
@@ -251,21 +253,34 @@ update_titles <- function(csv_path, species_list, titles_list) {
 
 
 # ------------------------------------------------------------
-# Wrapper function for processing multiple map types.
+# Read species information for multiple map types
 #
-# Iterates over all specified map types and applies the
-# 'readPageSpecies' function independently to each type.
+# This function call loads and processes species data based on
+# parameters defined in the configuration file (config.csv),
+# which is populated through the Shiny GUI.
 #
-# Ensures that species title extraction is performed
-# consistently across multiple datasets or map categories.
+# Key aspects:
+# - All keyword parameters (e.g., keywordReadSpecies, keywordBefore,
+#   keywordThen, middle) are dynamically read from the user-defined
+#   configuration.
+# - If no keywordReadSpecies is provided, a fallback value "None" is used.
+# - The function is specifically designed to handle workflows with
+#   multiple map types (nMapTypes), ensuring flexible and scalable
+#   species extraction across different map categories.
+# - workingDir and current_out_dir define the input/output context
+#   for the current processing run.
+#
+# This allows a fully configurable and GUI-driven species extraction
+# workflow without hardcoding parameters in the script.
 # ------------------------------------------------------------
-readPageSpeciesMulti <- function(
+readPageSpeciesTitleMulti <- function(
     workingDir,
     outDir,
     keywordReadSpecies,
     keywordBefore,
     keywordThen,
     middle,
+    legend_list,
     nMapTypes = 1
 ) {
   
@@ -291,6 +306,7 @@ readPageSpeciesMulti <- function(
       keywordReadSpecies = keywordReadSpecies,
       keywordBefore     = keywordBefore,
       keywordThen       = keywordThen,
+      legend_list       = legend_list,
       middle            = middle
     )
   }
