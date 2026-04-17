@@ -415,9 +415,13 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       source(fname)
       
       # --- 2. Für jeden Map-Typ (1, 2, ...) ---
+      legend_list <- strsplit(config$legendKeywords, ",")[[1]]
+      legend_list <- trimws(legend_list)
+      
       species <- read_legends(
         working_dir = workingDir,
         out_dir = current_out_dir,
+        legendKeywords = legend_list,
         nMapTypes = as.integer(input$nMapTypes)
       )
       
@@ -478,13 +482,35 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       
       source(fname)
       
-      species <- readPageSpeciesMulti(
+      # ------------------------------------------------------------
+      # Read species information for multiple map types
+      #
+      # This function call loads and processes species data based on
+      # parameters defined in the configuration file (config.csv),
+      # which is populated through the Shiny GUI.
+      #
+      # Key aspects:
+      # - All keyword parameters (e.g., speciesTitleKeywords, speciesTitleBefore,
+      #   speciesTitleThen, middle) are dynamically read from the user-defined
+      #   configuration.
+      # - If no speciesTitleKeywords is provided, a fallback value "None" is used.
+      # - The function is specifically designed to handle workflows with
+      #   multiple map types (nMapTypes), ensuring flexible and scalable
+      #   species extraction across different map categories.
+      # - workingDir and current_out_dir define the input/output context
+      #   for the current processing run.
+      #
+      # This allows a fully configurable and GUI-driven species extraction
+      # workflow without hardcoding parameters in the script.
+      # ------------------------------------------------------------
+      species <- readPageSpeciesTitleMulti(
         workingDir,
         current_out_dir,
-        ifelse(length(config$keywordReadSpecies) > 0, config$keywordReadSpecies, "None"),
-        config$keywordBefore,
-        config$keywordThen,
+        ifelse(length(config$specieTitleKeyword) > 0, config$specieTitleKeyword, "None"),
+        config$specieTitleBefore,
+        config$specieTitleThen,
         config$middle,
+        config$legendKeywords,
         nMapTypes = as.integer(input$nMapTypes)
       )
       

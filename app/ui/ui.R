@@ -260,7 +260,77 @@ body <- dashboardBody(
                               info$nMapTypes_infoBox)
                    )
                  ),
+                 # ============================================================
+                 # Species Detection Keywords (NEW)
+                 # ============================================================
                  
+                 fluidRow(
+                   column(10,
+                          tags$div(style = "position:relative;",
+                                   textInput(
+                                     "specieTitleKeyword",
+                                     "Title keyword to detect species title on page (e.g. genus name)",
+                                     value = config$speciesTitleKeywords
+                                   )
+                          ),
+                          div(id = "specieTitleKeyword_infoBox", class = "infobox_tab_0",
+                              "Define keyword used to detect the specie title.")
+                   )
+                 ),
+                 
+                 fluidRow(
+                   column(10,
+                          tags$div(style = "position:relative;",
+                                   textInput(
+                                     "specieTitleKeywordBefore",
+                                     "Title Keyword before species name - number of rows before!",
+                                     value = config$keywordBefore
+                                   )
+                          ),
+                          div(id = "keywordBefore_infoBox", class = "infobox_tab_0",
+                              "Title Keyword appears before the species title. Please write the number of rows before!")
+                   )
+                 ),
+                 
+                 fluidRow(
+                   column(10,
+                          tags$div(style = "position:relative;",
+                                   textInput(
+                                     "specieTitleKeywordThen",
+                                     "Title Keyword is after species title - number of rows then!",
+                                     value = config$keywordThen
+                                   )
+                          ),
+                          div(id = "keywordThen_infoBox", class = "infobox_tab_0",
+                              "Text that appears after the species title, Please write the number of rows then!")
+                   )
+                 ),
+                 
+                 fluidRow(
+                   column(10,
+                          tags$div(style = "position:relative;",
+                                   checkboxInput(
+                                     "middle",
+                                     "Title is centered on the page or no?",
+                                     value = isTRUE(as.logical(config$middle))
+                                   )
+                          ),
+                          div(id = "middle_infoBox", class = "infobox_tab_0",
+                              "Activate if species titles are typically located in the middle of the page.")
+                   )
+                 ),fluidRow(
+                   column(10,
+                          tags$div(style = "position:relative;",
+                                   textInput(
+                                     "legendKeywords",
+                                     "Legend keywords (comma separated)",
+                                     value = config$legendKeywords
+                                   )
+                          ),
+                          div(id = "legendKeywords_infoBox", class = "infobox_tab_0",
+                              "Legend keywords used to detect map legend entries (e.g. 'distribution of, type locality of').")
+                   )
+                 ),
           ),
           
           # Right column
@@ -883,38 +953,32 @@ body <- dashboardBody(
             tags$hr(),
             
             # ---------------- LIST ELEMENTS ----------------
-            conditionalPanel(
-              condition = "input.polygonize > 0",
-              
-              fluidRow(
-                
-                column(
-                  4,
-                  textInput(
-                    "range_list_Polygonize",
-                    label = HTML(shinyfields2$inf7),
-                    value = "1-2"
-                  )
-                ),
-                
-                column(
-                  4,
-                  selectInput(
-                    "map_type_Polygonize",
-                    label = "Select map type:",
-                    choices = mapTypes,
-                    selected = mapTypes[1]
-                  )
-                ),
-                
-                column(
-                  4,
-                  actionButton(
-                    "listPolygonize",
-                    "List polygonized files"
-                  )
+            fluidRow(
+              column(
+                4,
+                textInput(
+                  "range_list_Polygonize",
+                  label = HTML(shinyfields2$inf7),
+                  value = "1-2"
                 )
-                
+              ),
+              
+              column(
+                4,
+                selectInput(
+                  "map_type_Polygonize",
+                  label = "Select map type:",
+                  choices = mapTypes,
+                  selected = mapTypes[1]
+                )
+              ),
+              
+              column(
+                4,
+                actionButton(
+                  "listPolygonize",
+                  "List polygonized files"
+                )
               )
             )
           ),
@@ -956,38 +1020,32 @@ body <- dashboardBody(
             tags$hr(),
             
             # ---------------- LIST ELEMENTS ----------------
-            conditionalPanel(
-              condition = "input.startSpatialDataComputing > 0",
-              
-              fluidRow(
-                
-                column(
-                  4,
-                  textInput(
-                    "range_list_Spatial",
-                    label = HTML(shinyfields2$inf7),
-                    value = "1-2"
-                  )
-                ),
-                
-                column(
-                  4,
-                  selectInput(
-                    "map_type_Spatial",
-                    label = "Select map type:",
-                    choices = mapTypes,
-                    selected = mapTypes[1]
-                  )
-                ),
-                
-                column(
-                  4,
-                  actionButton(
-                    "spatialViewPF",
-                    "Start View point detection"
-                  )
+            fluidRow(
+              column(
+                4,
+                textInput(
+                  "range_list_Spatial",
+                  label = HTML(shinyfields2$inf7),
+                  value = "1-2"
                 )
-                
+              ),
+              
+              column(
+                4,
+                selectInput(
+                  "map_type_Spatial",
+                  label = "Select map type:",
+                  choices = mapTypes,
+                  selected = mapTypes[1]
+                )
+              ),
+              
+              column(
+                4,
+                actionButton(
+                  "spatialViewPF",
+                  "Start View point detection"
+                )
               )
             )
           ),

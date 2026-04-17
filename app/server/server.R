@@ -368,7 +368,16 @@ server <- shinyServer(function(input, output, session) {
         dataInputDir   = to_chr(input$dataInputDir),
         dataOutputDir  = run_out,
         pFormat        = to_chr(input$pFormat),
-        pColor         = to_chr(input$pColor)
+        pColor         = to_chr(input$pColor),
+        # 🔥 NEU HIER EINFÜGEN
+        specieTitleKeyword = to_chr(input$specieTitleKeyword),
+        specieTitleKeywordBefore      = to_chr(input$specieTitleKeywordBefore),
+        specieTitleKeywordThen        = to_chr(input$specieTitleKeywordThen),
+        # 🔥 LEGEND
+        legendKeywords       = to_chr(input$legendKeywords),
+        
+        # wichtig: Boolean → sauber als Text speichern
+        middle             = ifelse(isTRUE(input$middle), "TRUE", "FALSE")
       )
       
       df <- data.frame(key = names(cfg), value = unname(unlist(cfg, use.names = FALSE)), stringsAsFactors = FALSE)
@@ -1066,7 +1075,31 @@ server <- shinyServer(function(input, output, session) {
       validate(
         need(length(shp) > 0, "Keine Shapefiles gefunden.")
       )
+      # -----------------------------
+      # 🔥 RANGE FILTER (wie Spatial)
+      # -----------------------------
+      shp_base <- basename(shp)
       
+      # optional sortieren (wichtig!)
+      shp_base <- sort(shp_base)
+      
+      range_str <- input$range_list_Polygonize
+      
+      if (!is.null(range_str) && nzchar(range_str)) {
+        
+        sel <- parse_range_indices(range_str, length(shp_base))
+        
+        selected_files <- shp_base[sel]
+        
+        shp <- shp[
+          basename(shp) %in% selected_files
+        ]
+      }
+      
+      # Falls leer → abbrechen
+      validate(
+        need(length(shp) > 0, "No shapefiles in selected range.")
+      )
       # 4) Site-Filter (optional)
       site_pat <- if (!is.null(input$siteNumberPolygonize))
         as.character(input$siteNumberPolygonize) else ""
@@ -1318,7 +1351,26 @@ server <- shinyServer(function(input, output, session) {
       }
       
       marker_data <- read.csv2(spatial_path, sep = ",", stringsAsFactors = FALSE)
+      # -----------------------------
+      # 🔥 FILTER NACH RANGE (UI)
+      # -----------------------------
+      marker_data$file_base <- basename(marker_data$File)
+      files_unique <- unique(marker_data$file_base)
+      files_unique <- sort(unique(marker_data$file_base))
       
+      # Falls nichts eingegeben → alle anzeigen
+      range_str <- input$range_list_Spatial
+      
+      if (!is.null(range_str) && nzchar(range_str)) {
+        
+        sel <- parse_range_indices(range_str, length(files_unique))
+        
+        selected_files <- files_unique[sel]
+        
+        marker_data <- marker_data[
+          marker_data$file_base %in% selected_files, 
+        ]
+      }
       if(nrow(marker_data) == 0) return()
       
       # Koordinaten numerisch
@@ -1357,7 +1409,7 @@ server <- shinyServer(function(input, output, session) {
             lng = ~Real_X,
             color = ~color,        # 👈 wichtig!
             fillColor = ~color,    # 👈 wichtig!
-            radius = 5,
+            radius = 2,
             fillOpacity = 0.8,
             popup = ~paste0(
               "<p><b>Species: ", specie, "</b></p>",
