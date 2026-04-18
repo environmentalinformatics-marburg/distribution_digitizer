@@ -303,7 +303,7 @@ def create_centroid_mask_and_csv(outDir, workingDir, image_path, color_ranges, o
                 reader = csv.DictReader(f)
                 coords_data = list(reader)
         else:
-            print("WARNING: coordinates.csv not found:", coordinates_csv_path)
+            print("WARNING: coordinates_species_clean.csv not found:", coordinates_csv_path)
         template_dir = os.path.join(workingDir, "data/input/templates", str(map_id),"symbols")
         template_list = [
             os.path.splitext(f)[0]
@@ -501,11 +501,17 @@ def find_species_match(lx, ly, template, file_name, coords_data, threshold=25):
 
     return "unknown"
   
+  
+
+        
 def mainPolygonize_PF(workingDir, outDir, nMapTypes):
 
     for map_id in range(1, int(nMapTypes) + 1):
 
         collect_rectified_points_to_csv(outDir, map_id)
+        
+    mainPolygonize_PF_alt(workingDir, outDir, nMapTypes)
+        
   
 # ------------------------------------------------------------
 # Main polygonize workflow (Point Filtering)
@@ -547,7 +553,7 @@ def mainPolygonize_PF_alt(workingDir, outDir, nMapTypes):
             output_csv_path = os.path.join(
                 outDir, str(map_id),
                 "polygonize", "csvFiles",
-                "centroids_colors_pf.csv"
+                "centroids_colors_pf_alt.csv"
             )
 
             os.makedirs(output, exist_ok=True)
