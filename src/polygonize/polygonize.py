@@ -501,6 +501,11 @@ def find_species_match(lx, ly, template, file_name, coords_data, threshold=25):
 
     return "unknown"
   
+def mainPolygonize_PF(workingDir, outDir, nMapTypes):
+
+    for map_id in range(1, int(nMapTypes) + 1):
+
+        collect_rectified_points_to_csv(outDir, map_id)
   
 # ------------------------------------------------------------
 # Main polygonize workflow (Point Filtering)
@@ -520,7 +525,7 @@ def find_species_match(lx, ly, template, file_name, coords_data, threshold=25):
 # Role in workflow:
 # - Final step: structured GIS-ready dataset
 # ------------------------------------------------------------
-def mainPolygonize_PF(workingDir, outDir, nMapTypes):
+def mainPolygonize_PF_alt(workingDir, outDir, nMapTypes):
     """
     Polygonize for multiple map types.
     Each map type gets its own shapefiles AND its own CSV.
@@ -595,3 +600,86 @@ def mainPolygonize_PF(workingDir, outDir, nMapTypes):
 
     except Exception as e:
         print(f"Error in mainPolygonize_PF:", e)
+        
+        
+def collect_rectified_points_to_csv(outDir, map_id):
+
+    inputdir = os.path.join(
+        outDir, str(map_id),
+        "rectifying", "pointFiltering"
+    )
+
+    output_csv_path = os.path.join(
+        outDir, str(map_id),
+        "polygonize", "csvFiles",
+        "centroids_colors_pf.csv"
+    )
+
+    os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
+
+    print(f"\nCollecting CSVs for MapType {map_id}")
+    print(f"Input: {inputdir}")
+    print(f"Output: {output_csv_path}")
+
+    all_rows = []
+    global_id = 0
+
+    for file in os.listdir(inputdir):
+
+        if not file.endswith("_points.csv"):
+            continue
+
+        csv_path = os.path.join(inputdir, file)
+
+        print("Reading:", csv_path)
+
+        with open(csv_path, "r") as f:
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                try:
+                    lx = float(row["Local_X"])
+                    ly = float(row["Local_Y"])
+
+                    image_file = row["File"]
+                    image_path = os.path.join(inputdir, image_file)
+
+                    # Georeferenz holen
+                    dataset = gdal.Open(image_path)
+                    geotransform = dataset.GetGeoTransform()
+
+                    real_x = geotransform[0] + lx * geotransform[1] + ly * geotransform[2]
+                    real_y = geotransform[3] + lx * geotransform[4] + ly * geotransform[5]
+
+                    all_rows.append({
+                        "ID": global_id,
+                        "Local_X": lx,
+                        "Local_Y": ly,
+                        "Real_X": real_x,
+                        "Real_Y": real_y,
+                        "Red": int(row["Red"]),
+                        "Green": int(row["Green"]),
+                        "Blue": int(row["Blue"]),
+                        "template": row["template"],
+                        "File": image_file,
+                        "specie": row["specie"]
+                    })
+
+                    global_id += 1
+
+                except Exception as e:
+                    print("Error processing row:", e)
+
+    # CSV schreiben
+    if not all_rows:
+        print("⚠️ No data found!")
+        return
+
+    with open(output_csv_path, "w", newline="") as f:
+
+        writer = csv.DictWriter(f, fieldnames=all_rows[0].keys())
+        writer.writeheader()
+        writer.writerows(all_rows)
+
+    print(f"✅ Final CSV saved: {output_csv_path}")

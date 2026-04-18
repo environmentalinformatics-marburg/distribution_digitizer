@@ -304,21 +304,127 @@ def mainRectifying_PF(workingDir, outDir, nMapTypes=1):
 
         os.makedirs(output, exist_ok=True)
 
-        print("Input directory:", inputdir)
-        print("Output directory:", output)
-
         tif_files = glob.glob(os.path.join(inputdir, "*.tif"))
 
         if not tif_files:
             print("⚠️ No tif files found for rectifying")
             continue
 
+        # Templates laden (einmal pro map type)
+        template_dir = os.path.join(workingDir, "data/input/templates", str(i), "symbols")
+        template_list = [
+            os.path.splitext(f)[0]
+            for f in os.listdir(template_dir)
+            if f.endswith(".tif")
+        ]
+
+        # Species CSV laden
+        coords_path = os.path.join(
+            outDir, str(i),
+            "maps", "csvFiles",
+            "coordinates_species_clean.csv"
+        )
+
+        coords_data = []
+        if os.path.exists(coords_path):
+            with open(coords_path) as f:
+                coords_data = list(csv.DictReader(f))
+
         for input_raster in tif_files:
+
             print("Rectifying:", input_raster)
 
             dst_layername = os.path.basename(input_raster)
             output_raster = os.path.join(output, dst_layername)
 
+            # 👉 Schritt 1: rectifying
             rectifying(input_raster, output_raster)
+
+            # 👉 Schritt 2: CSV sofort erzeugen (pro Datei!)
+            rectified_path = output_raster.replace(".tif", "") + ".tif"
+
+            csv_output = rectified_path.replace(".tif", "_points.csv")
+
+            extract_points_to_csv(
+                rectified_path,
+                csv_output,
+                template_list,
+                coords_data,
+                color_ranges
+            )
+
+def extract_points_to_csv(image_path, output_csv, template_list, coords_data, color_ranges):
+
+    import cv2
+    import numpy as np
+    import csv
+    import os
+
+    img = cv2.imread(image_path)
+    hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    file_basename = os.path.basename(image_path)
+
+    rows = []
+
+    id_counter = 0
+
+    for (lower, upper) in color_ranges:
+
+        mask = cv2.inRange(hsv_img, lower, upper)
+
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for contour in contours:
+
+            M = cv2.moments(contour)
+            if M["m00"] == 0:
+                continue
+
+            cx = int(M["m10"] / M["m00"])
+            cy = int(M["m01"] / M["m00"])
+
+            h, s, v = hsv_img[cy, cx]
+
+            template_name = match_color_to_template_hsv(h, s, v, template_list)
+
+            species_name = find_species_match(
+                cx,
+                cy,
+                template_name,
+                file_basename,
+                coords_data
+            )
+
+            if not species_name:
+                species_name = "unknown"
+
+            color = img[cy, cx]
+
+            rows.append({
+                "ID": id_counter,
+                "Local_X": cx,
+                "Local_Y": cy,
+                "Red": int(color[2]),
+                "Green": int(color[1]),
+                "Blue": int(color[0]),
+                "template": template_name,
+                "File": file_basename,
+                "specie": species_name
+            })
+
+            id_counter += 1
+
+    # CSV schreiben
+    with open(output_csv, "w", newline="") as f:
+        if not rows:
+            print("⚠️ No points found:", image_path)
+            return
+        
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f"CSV gespeichert: {output_csv}")
 
 #mainRectifying_PF( "D:/distribution_digitizer/", "D:/test/output_2026-02-20_08-40-28/", 2)

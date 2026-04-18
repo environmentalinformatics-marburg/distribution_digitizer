@@ -280,7 +280,7 @@ readPageSpeciesTitleMulti <- function(
     keywordBefore,
     keywordThen,
     middle,
-    legend_list,
+    legendKeywords,
     nMapTypes = 1
 ) {
   
@@ -306,7 +306,7 @@ readPageSpeciesTitleMulti <- function(
       keywordReadSpecies = keywordReadSpecies,
       keywordBefore     = keywordBefore,
       keywordThen       = keywordThen,
-      legend_list       = legend_list,
+      legendKeywords    = legendKeywords ,
       middle            = middle
     )
   }
