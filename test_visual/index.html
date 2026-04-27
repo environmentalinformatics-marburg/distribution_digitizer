@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Spatial Viewer</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<style>
+body { margin: 0; font-family: Arial; }
+
+.tab {
+  overflow: hidden;
+  background-color: #2c3e50;
+}
+
+.tab button {
+  background-color: inherit;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  cursor: pointer;
+}
+
+.tab button:hover {
+  background-color: #34495e;
+}
+
+.tabcontent {
+  display: none;
+  padding: 10px;
+}
+
+.tabcontent.active {
+  display: block;
+}
+
+#controls {
+  padding: 10px;
+  background: #f5f5f5;
+}
+
+#map {
+  height: 70vh;
+}
+</style>
+</head>
+
+<body>
+
+<div class="tab">
+  <button onclick="openTab('mapTab')">🌍 Map</button>
+  <button onclick="openTab('configTab')">⚙️ Config</button>
+</div>
+
+<!-- MAP TAB -->
+<div id="mapTab" class="tabcontent active">
+
+  <div id="controls">
+    Filter:
+    <input type="text" id="rangeInput" value="ALL" />
+
+    Map Type:
+    <select id="mapType">
+      <option value="1">1</option>
+      <option value="2">2</option>
+    </select>
+
+    <button onclick="loadData()">Update</button>
+  </div>
+
+  <div>
+    <b>Points loaded:</b> <span id="pointCount">0</span>
+  </div>
+
+  <div id="map"></div>
+
+</div>
+
+<!-- CONFIG TAB -->
+<div id="configTab" class="tabcontent">
+  <h3>⚙️ Configuration</h3>
+  <table id="config"></table>
+</div>
+
+<script>
+
+// ---------------- Tabs ----------------
+function openTab(tabName) {
+  let tabs = document.getElementsByClassName("tabcontent");
+  for (let i = 0; i < tabs.length; i++) {
+    tabs[i].classList.remove("active");
+  }
+  document.getElementById(tabName).classList.add("active");
+}
+
+// ---------------- Map ----------------
+let map = L.map('map').setView([35, 75], 5);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+let markersLayer = L.layerGroup().addTo(map);
+let allData = [];
+
+// ---------------- Load CSV ----------------
+function loadData() {
+
+  let mapType = document.getElementById("mapType").value;
+  let path = mapType + "/spatial_data_final.csv";
+
+  Papa.parse(path, {
+    download: true,
+    header: true,
+    complete: function(results) {
+      allData = results.data;
+      updateMap();
+    }
+  });
+}
+
+// ---------------- Update Map ----------------
+function updateMap() {
+
+  markersLayer.clearLayers();
+
+  let input = document.getElementById("rangeInput").value.trim();
+  let mapType = document.getElementById("mapType").value;
+
+  let filtered = allData.filter(row => {
+
+    if (!row.File) return false;
+
+    let file = row.File;
+
+    if (!file.includes("_map_" + mapType + "_")) return false;
+
+    if (input.toUpperCase() === "ALL") return true;
+
+    if (input.toLowerCase().includes(".tif")) {
+      let num = input.replace(/\D/g, "").padStart(4, "0");
+      return file.includes("_" + num + "_");
+    }
+
+    if (input.includes("-")) {
+      let parts = input.split("-");
+      let start = parseInt(parts[0]);
+      let end = parseInt(parts[1]);
+
+      let uniqueFiles = [...new Set(allData.map(d => d.File))].sort();
+      let selected = uniqueFiles.slice(start - 1, end);
+
+      return selected.includes(file);
+    }
+
+    return true;
+  });
+
+  filtered.forEach(row => {
+
+    let lat = parseFloat(row.Real_Y);
+    let lng = parseFloat(row.Real_X);
+
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    let color = "green";
+
+    if (row.template.includes("red")) color = "red";
+    if (row.template.includes("blue")) color = "blue";
+    if (row.template.includes("yellow")) color = "yellow";
+    if (row.template.includes("orange")) color = "orange";
+    if (row.template.includes("magenta")) color = "magenta";
+
+    L.circleMarker([lat, lng], {
+      radius: 4,
+      color: color,
+      fillColor: color,
+      fillOpacity: 0.8
+    })
+    .addTo(markersLayer);
+  });
+
+  document.getElementById("pointCount").innerText = filtered.length;
+}
+
+// ---------------- Load Config ----------------
+Papa.parse("config/config.csv", {
+  download: true,
+  header: false,
+  delimiter: ";",        // 🔥 DAS ist jetzt entscheidend
+  skipEmptyLines: true,
+  complete: function(results) {
+
+    let table = document.getElementById("config");
+    let rows = results.data;
+
+    let html = "<tr><th>Parameter</th><th>Value</th></tr>";
+
+    rows.forEach(row => {
+
+      if (row.length >= 2) {
+        html += "<tr>";
+        html += "<td><b>" + row[0] + "</b></td>";
+        html += "<td>" + row[1] + "</td>";
+        html += "</tr>";
+      }
+    });
+
+    table.innerHTML = html;
+  }
+});
+// initial load
+loadData();
+
+</script>
+
+</body>
+</html>

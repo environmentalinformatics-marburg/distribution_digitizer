@@ -1,0 +1,15 @@
+workingDir;D:/distribution_digitizer
+title;Pakistan
+author;Vasilii
+pYear;2022
+tesserAct;C:/Program Files/Tesseract-OCR
+nMapTypes;2
+dataInputDir;D:/distribution_digitizer/data/input
+dataOutputDir;D:/test/output_2026-04-18_18-45-06
+pFormat;1
+pColor;1
+specieTitleKeyword;Range
+specieTitleKeywordBefore;
+specieTitleKeywordThen;2
+legendKeywords;distribution of, type locality of
+middle;TRUE
