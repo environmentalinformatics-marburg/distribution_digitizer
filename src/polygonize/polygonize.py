@@ -145,7 +145,7 @@ def polygonize(input_raster, output_shape, dst_layername):
 # Role in workflow:
 # - Generic polygonization step after rectifying
 # ------------------------------------------------------------
-def mainPolygonize(workingDir, outDir):
+def mainPolygonize_ki(workingDir, outDir):
     """
     Executes the polygonize function for all raster images in the given directory.
 
@@ -403,7 +403,7 @@ def create_centroid_mask_and_csv(outDir, workingDir, image_path, color_ranges, o
                 
                 if not species_name:
                   species_name = None
-                print(species_name)
+                #print(species_name)
                 feature = ogr.Feature(layer.GetLayerDefn())
                 feature.SetGeometry(point)
 
@@ -531,7 +531,7 @@ def mainPolygonize_PF(workingDir, outDir, nMapTypes):
 # Role in workflow:
 # - Final step: structured GIS-ready dataset
 # ------------------------------------------------------------
-def mainPolygonize_PF_alt(workingDir, outDir, nMapTypes):
+def mainPolygonize_PF(workingDir, outDir, nMapTypes):
     """
     Polygonize for multiple map types.
     Each map type gets its own shapefiles AND its own CSV.
@@ -553,7 +553,7 @@ def mainPolygonize_PF_alt(workingDir, outDir, nMapTypes):
             output_csv_path = os.path.join(
                 outDir, str(map_id),
                 "polygonize", "csvFiles",
-                "centroids_colors_pf_alt.csv"
+                "centroids_colors_pf.csv"
             )
 
             os.makedirs(output, exist_ok=True)

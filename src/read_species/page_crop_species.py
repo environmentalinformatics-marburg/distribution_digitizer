@@ -453,7 +453,16 @@ middle=None, legendKeywords=None):
         continue
 
       
-      if search_specie in line or any(similar(search_specie.lower(), w.lower()) > 0.8 for w in line.split()):
+      words_in_line = re.findall(r'\b\w+\b', line.lower())
+
+      match_found = any(
+          similar(search_specie.lower(), w) > 0.75
+          or search_specie.lower() in w
+          or w in search_specie.lower()
+          for w in words_in_line
+      )
+      
+      if match_found:
         print("Start", search_specie)
         line = line.replace('|', '') 
         line = line.replace("\\", "")
@@ -472,27 +481,40 @@ middle=None, legendKeywords=None):
           print(line)
           _result = line
           if middle:
-            index_left = extracted_data['text'].index(line.split()[0])
-            maxPos = max(extracted_data['left'])
-            if int(extracted_data['left'][index_left]) > (int(maxPos/4)/10):
-              print(f"Spacie {search_specie} was FOUND in this line: {line} in the middle")
-              _result = line
-              if keyword_page_Specie is None: return _result
-            else: return '' # Important when the spacie is not finded on this page, but is on the previous page
-            
-            if keyword_page_Specie is not None:
-              difference = 0
-              difference = keyword_bottom if keyword_bottom > 0 else -keyword_top
+              index_left = extracted_data['text'].index(line.split()[0])
+              maxPos = max(extracted_data['left'])
           
-              if(len(lines[int(line_num + difference)])) > 3:
-                temp_line = lines[int(line_num + difference)]
-              #print(difference)
-              #print(temp_line)
-              if keyword_page_Specie in temp_line:
-                #print(f"The spacie {search_specie} was FOUND in this line: {line} in the middle and Keyword: {keyword_page_Specie}")
-                return line # search_specie in the line and the line and in middle and and regEx year and has keyword
-
-            return _result # search_specie in the line and the line and in middle and regEx year
+              if int(extracted_data['left'][index_left]) > (int(maxPos/4)/10):
+                  print(f"Spacie {search_specie} was FOUND in this line: {line} in the middle")
+          
+                  if keyword_page_Specie is None:
+                      return line
+          
+                  # 👉 HIER kommt deine neue Logik RICHTIG hin
+                  if keyword_bottom is not None:
+                      difference = keyword_bottom
+                  elif keyword_top is not None:
+                      difference = -keyword_top
+                  else:
+                      print("⚠️ No keyword context for:", line)
+                      continue
+          
+                  target_index = int(line_num + difference)
+          
+                  if 0 <= target_index < len(lines):
+                      temp_line = lines[target_index]
+                  else:
+                      continue
+          
+                  if any(similar(keyword_page_Specie.lower(), w.lower()) > 0.8 for w in temp_line.split()):
+                      return line
+          
+                  # 👉 wenn keyword nicht passt → skip
+                  continue
+          
+              else:
+                  print("⚠️ middle check failed – but valid line found, returning anyway")
+                  return line
 
           return _result # search_specie in the line and regEx year
     #if(len(_result) == 0):

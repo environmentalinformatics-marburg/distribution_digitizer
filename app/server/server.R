@@ -1322,7 +1322,7 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$spatialViewPF, {
     
     tryCatch({
-      
+      print("HHH")
       current_out_dir <- outDir()
      # current_out_dir = "D:/test/output_2026-03-26_11-00-43"
       selected_type   <- input$map_type_Spatial
@@ -1350,7 +1350,8 @@ server <- shinyServer(function(input, output, session) {
         return()
       }
       
-      marker_data <- read.csv2(spatial_path, sep = ",", stringsAsFactors = FALSE)
+      #marker_data <- read.csv2(spatial_path, sep = ",", stringsAsFactors = FALSE)
+      marker_data <- read.csv(spatial_path, stringsAsFactors = FALSE)
       # -----------------------------
       # 🔥 FILTER NACH RANGE (UI)
       # -----------------------------
@@ -1363,14 +1364,57 @@ server <- shinyServer(function(input, output, session) {
       
       if (!is.null(range_str) && nzchar(range_str)) {
         
-        sel <- parse_range_indices(range_str, length(files_unique))
+        range_str <- trimws(range_str)
         
-        selected_files <- files_unique[sel]
-        
-        marker_data <- marker_data[
-          marker_data$file_base %in% selected_files, 
-        ]
+        # -------------------------------------------------
+        # 👉 FALL 1: ALL
+        # -------------------------------------------------
+        if (toupper(range_str) == "ALL") {
+          
+          cat("🔍 Showing ALL data\n")
+          
+        } else if (grepl("\\.tiff?$", range_str, ignore.case = TRUE)) {
+          
+          # -------------------------------------------------
+          # 👉 FALL 2: SEITE (nur wenn .tif/.tiff enthalten)
+          # -------------------------------------------------
+          
+          # Zahl extrahieren (z.B. 0177 aus 0177.tif)
+          page_num <- gsub("\\D", "", range_str)
+          
+          if (nchar(page_num) == 0) return()
+          
+          # auf 4-stellig bringen
+          page_num <- sprintf("%04d", as.numeric(page_num))
+          
+          cat("🔍 Filtering by page:", page_num, "\n")
+          
+          marker_data <- marker_data[
+            grepl(paste0("_", page_num, "_"), marker_data$file_base),
+          ]
+          
+        } else if (grepl("-", range_str)) {
+          
+          # -------------------------------------------------
+          # 👉 FALL 3: RANGE (z.B. 1-4)
+          # -------------------------------------------------
+          
+          cat("🔍 Filtering by range:", range_str, "\n")
+          
+          sel <- parse_range_indices(range_str, length(files_unique))
+          selected_files <- files_unique[sel]
+          
+          marker_data <- marker_data[
+            marker_data$file_base %in% selected_files,
+          ]
+          
+        }
       }
+
+      
+      
+      
+      
       if(nrow(marker_data) == 0) return()
       
       # Koordinaten numerisch
@@ -1407,10 +1451,11 @@ server <- shinyServer(function(input, output, session) {
             data = marker_data,
             lat = ~Real_Y,
             lng = ~Real_X,
-            color = ~color,        # 👈 wichtig!
-            fillColor = ~color,    # 👈 wichtig!
-            radius = 2,
-            fillOpacity = 0.8,
+            color = ~color,
+            fillColor = ~color,
+            fillOpacity = 1,
+            stroke = FALSE,   # 🔥 GANZ WICHTIG
+            radius = 4,       # 🔥 etwas größer
             popup = ~paste0(
               "<p><b>Species: ", specie, "</b></p>",
               "<p><b>", title, "</b></p>",

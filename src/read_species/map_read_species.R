@@ -74,9 +74,12 @@ read_legends <- function(working_dir, out_dir, legendKeywords, nMapTypes = 1) {
   results <- "The following species were found: "
   # Source Python script for additional processing if needed
   source_python(file.path(working_dir, "src/read_species/map_crop_species.py"))
-  
+ 
   # --- NEU: über Map-Typen (1..nMapTypes) iterieren ---
   for (type_id in seq_len(as.integer(nMapTypes))) {
+    print("START MAP:")
+    print(type_id)
+    
     print("START MAP:")
     print(type_id)
     out_dir_type <- file.path(out_dir, as.character(type_id))
@@ -124,7 +127,7 @@ read_legends <- function(working_dir, out_dir, legendKeywords, nMapTypes = 1) {
     ]
     # Process each records page
     for (j in seq_along(records_pages)) { 
-      
+      print(j)
       species <- ""   # ✅ RESET!!!
       records_page <- read.csv(records_pages[j], sep = ",", check.names = FALSE, quote = "\"", na.strings = c("NA", "NaN", " "))
       file_name <- records_page$file_name[1]
@@ -179,9 +182,9 @@ read_legends <- function(working_dir, out_dir, legendKeywords, nMapTypes = 1) {
 
         species <- crop_specie(working_dir, out_dir_type, file_name, map_name,
                                as.integer(records_page$y[1]), as.integer(records_page$h[1]), legendKeywords=legendKeywords,  symbol_list = symbol_list,  next_map_y = next_y, num_colors = num_colors )   
-        
-        print("DEBUG DONE - Here the specie:")
         print(species)
+        print("DEBUG DONE - Here the specie:")
+       
         
         #results <- paste0(results, "<br>", map_name, ";", species)
         
@@ -275,59 +278,59 @@ read_legends <- function(working_dir, out_dir, legendKeywords, nMapTypes = 1) {
         results <- paste0(results, "<br>", map_name, ";", species)
         print(paste("Updated species for map:", map_name))
       }
-    }
-    
-    # Save the final DataFrames to the CSV files (pro Typ!)
-    write.csv(df, csv_file_path, row.names = FALSE)
-    library(dplyr)
-    
-    df_clean <- df %>%
-      filter(Detection.method == "point_matching") %>%
-      arrange(File, desc(score))
-    selected <- list()
-    
-    for (i in 1:nrow(df_clean)) {
       
-      p <- df_clean[i,]
-      keep <- TRUE
       
-      for (j in seq_along(selected)) {
+      # Save the final DataFrames to the CSV files (pro Typ!)
+      write.csv(df, csv_file_path, row.names = FALSE)
+      library(dplyr)
+      
+      df_clean <- df %>%
+        filter(Detection.method == "point_matching") %>%
+        arrange(File, desc(score))
+      selected <- list()
+      
+      for (i in 1:nrow(df_clean)) {
         
-        s <- selected[[j]]
+        p <- df_clean[i,]
+        keep <- TRUE
         
-        if (p$File == s$File) {
+        for (j in seq_along(selected)) {
           
-          dx <- abs(p$X_WGS84 - s$X_WGS84)
-          dy <- abs(p$Y_WGS84 - s$Y_WGS84)
+          s <- selected[[j]]
           
-          if ((dx <= 3 && dy <= 6) || (dy <= 3 && dx <= 6)) {
+          if (p$File == s$File) {
             
-            # gleiche Gruppe → bestes behalten
-            if (p$score > s$score) {
-              selected[[j]] <- p
+            dx <- abs(p$X_WGS84 - s$X_WGS84)
+            dy <- abs(p$Y_WGS84 - s$Y_WGS84)
+            
+            if ((dx <= 3 && dy <= 6) || (dy <= 3 && dx <= 6)) {
+              
+              # gleiche Gruppe → bestes behalten
+              if (p$score > s$score) {
+                selected[[j]] <- p
+              }
+              
+              keep <- FALSE
+              break
             }
-            
-            keep <- FALSE
-            break
           }
+        }
+        
+        if (keep) {
+          selected[[length(selected) + 1]] <- p
         }
       }
       
-      if (keep) {
-        selected[[length(selected) + 1]] <- p
-      }
+      df_clean <- do.call(rbind, selected)
+      clean_path <- file.path(
+        out_dir_type,
+        "maps", "csvFiles",
+        "coordinates_species_clean.csv"
+      )
+      
+      write.csv(df_clean, clean_path, row.names = FALSE)
     }
-    
-    df_clean <- do.call(rbind, selected)
-    clean_path <- file.path(
-      out_dir_type,
-      "maps", "csvFiles",
-      "coordinates_species_clean.csv"
-    )
-    
-    write.csv(df_clean, clean_path, row.names = FALSE)
-  }
-  
+  } 
   cat("CSV files have been updated.\n")
   print("END")
   

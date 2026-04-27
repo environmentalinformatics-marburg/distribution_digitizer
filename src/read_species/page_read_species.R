@@ -75,9 +75,10 @@ readPageSpecies <- function(
   }
   
   combined_data <- data.frame()
-  
+
   # ---------- CSV-LEVEL PROTECTION ----------
   for (file_path in file_list) {
+
     tryCatch({
       current_data <- read.csv(file_path, stringsAsFactors = FALSE)
       
@@ -108,10 +109,13 @@ readPageSpecies <- function(
   
   # Python nur laden, wenn wirklich nötig
   source_python(file.path(workingDir, "src/read_species/page_crop_species.py"))
-  
+  target_map <- "0-thr18_0105_map_1_y2310_x287_n0.tif"
   # ---------- ROW-LEVEL PROTECTION ----------
   for (i in seq_len(nrow(filteredData))) {
-
+    # 👉 TEST FILTER
+    if (basename(filteredData$map_name[i]) != target_map) {
+      next
+    }
     tryCatch({
       
       pagePath <- filteredData$file_name[i]
@@ -145,8 +149,12 @@ readPageSpecies <- function(
         middle,
         legendKeywords = legendKeywords
       )
-      
-
+      pageTitleSpecies <- pageTitleSpecies[
+        grepl("\\b(18|19|20)\\d{2}\\b", pageTitleSpecies)
+      ]
+      # 🔥 HIER EINFÜGEN
+      pageTitleSpecies <- pageTitleSpecies[!is.na(pageTitleSpecies)]
+      pageTitleSpecies <- pageTitleSpecies[nchar(pageTitleSpecies) > 0]
       if (length(pageTitleSpecies) == 0) {
         cat("ℹ️ Only 'Not found' entries – skipping:", basename(pagePath), "\n")
         next
@@ -157,8 +165,14 @@ readPageSpecies <- function(
       # 👉 ERST splitten
       splitted_results <- strsplit(pageTitleSpecies, "_")
       
-      # 👉 DANN filtern
-      splitted_results <- splitted_results[sapply(splitted_results, length) >= 4]
+      # 👉 ROBUSTER FILTER (NEU)
+      splitted_results <- splitted_results[
+        sapply(splitted_results, function(x) {
+          length(x) >= 4 &&
+            suppressWarnings(!is.na(as.numeric(x[1]))) &&
+            suppressWarnings(!is.na(as.numeric(x[2])))
+        })
+      ]
      
       
       legend_keys   <- sapply(splitted_results, \(x) as.numeric(x[1]))
@@ -285,7 +299,7 @@ readPageSpeciesTitleMulti <- function(
 ) {
   
   for (type_id in seq_len(as.integer(nMapTypes))) {
-    
+
     cat("\n===============================\n")
     cat("Processing Map Type:", type_id, "\n")
     cat("===============================\n")

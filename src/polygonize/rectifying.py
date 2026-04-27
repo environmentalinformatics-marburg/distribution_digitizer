@@ -427,4 +427,26 @@ def extract_points_to_csv(image_path, output_csv, template_list, coords_data, co
 
     print(f"CSV gespeichert: {output_csv}")
 
+
+def match_color_to_template_hsv(h, s, v, template_list):
+    if (h <= 10 or h >= 170):
+        color_name = "red"
+    elif h <= 22:
+        color_name = "orange"
+    elif h <= 35:
+        color_name = "yellow"
+    elif h <= 85:
+        color_name = "green"
+    elif h <= 130:
+        color_name = "blue"
+    elif h <= 165:
+        color_name = "magenta"
+    else:
+        return "unknown"
+
+    for template in template_list:
+        if color_name in template:
+            return template
+
+    return "unknown"
 #mainRectifying_PF( "D:/distribution_digitizer/", "D:/test/output_2026-02-20_08-40-28/", 2)

@@ -279,6 +279,7 @@ def assign_templates_global(all_scores):
 # Returns:
 # Encoded species–symbol assignment string
 # ------------------------------------------------------------
+
 def crop_specie(
     working_dir,
     out_dir,
@@ -581,6 +582,7 @@ def crop_specie(
                 legendKeywords,
                 symbol_list,
                 next_map_y,
+                num_colors,
                 attempt + 1
             )
 
