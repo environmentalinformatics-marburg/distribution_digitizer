@@ -4,6 +4,18 @@
 # # Author: Adapted for portable usage
 # # ============================================================
 # 
+library(reticulate)
+Sys.setenv(
+  RETICULATE_CONDA = "C:/ProgramData/miniconda3/Scripts/conda.exe"
+)
+use_condaenv(
+  "distribution_digitizer_env",
+  required = TRUE
+)
+setwd("D:/distribution_digitizer")
+options(shiny.port = 8888, shiny.host = "127.0.0.1")
+shiny::runApp("app", launch.browser = TRUE, display.mode = "normal", test.mode = FALSE)
+
 # # -------------------------
 # # Helper: Get base directory dynamically
 # # -------------------------
@@ -204,15 +216,6 @@
 # system("grep -Rni \"prepareImage\" .", intern = TRUE)
 # system("findstr /S /I /N View *", intern = TRUE)
 
-library(reticulate)
-
-use_condaenv(
-  "distribution_digitizer_env",
-  required = TRUE
-)
-setwd("D:/distribution_digitizer")
-options(shiny.port = 8888, shiny.host = "127.0.0.1")
-shiny::runApp("app", launch.browser = TRUE, display.mode = "normal", test.mode = FALSE)
 
 # files <- list.files("D:/distribution_digitizer",
 #                     pattern = "\\.R$",

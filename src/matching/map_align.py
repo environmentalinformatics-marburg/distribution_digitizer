@@ -83,7 +83,16 @@ def align_images(image_path, template, template_gray, output_dir, max_features=5
         #template = np.array(PIL.Image.open(template_path))
         image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         #template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-        
+        # ------------------------------------------------------------
+        # 🔥 NEU: ROTATION VOR ALIGNMENT PRÜFEN
+        # ------------------------------------------------------------
+        if not is_map_rotated(image):
+            print("✅ Map already straight → skipping alignment")
+            
+            PIL.Image.fromarray(image).save(
+                os.path.join(output_dir, os.path.basename(image_path))
+            )
+            return
         # Detect keypoints and compute descriptors using ORB (fast and robust)
         orb = cv2.ORB_create(max_features)
         (keypoints_image, descriptors_image) = orb.detectAndCompute(image_gray, None)
@@ -123,9 +132,29 @@ def align_images(image_path, template, template_gray, output_dir, max_features=5
         (height, width) = template.shape[:2]
         # Warp input image to align with template coordinate system
         aligned = cv2.warpPerspective(image, homography_matrix, (width, height))
-
-        PIL.Image.fromarray(aligned).save(os.path.join(output_dir, os.path.basename(image_path)))
-
+        
+        # ------------------------------------------------------------
+        # 🔥 QUALITY CHECK
+        # ------------------------------------------------------------
+        # if not alignment_quality_ok(image, aligned):
+        #     print("⚠️ Bad alignment → using original image")
+        #     aligned = image
+        # else:
+        #     # --------------------------------------------------------
+        #     # 🔥 ROTATION CHECK
+        #     # --------------------------------------------------------
+        #     angle = compute_angle(aligned)
+        # 
+        #     if abs(angle) > 2:   # 🔥 2° Toleranz
+        #         print(f"⚠️ Unwanted rotation ({angle:.2f}°) → using original")
+        #         aligned = image
+        #     else:
+        #         print("✅ Alignment accepted")
+        
+        # speichern (egal was genommen wurde)
+        PIL.Image.fromarray(aligned).save(
+            os.path.join(output_dir, os.path.basename(image_path))
+        )
         return True  # Success
 
     except Exception as e:
@@ -133,6 +162,59 @@ def align_images(image_path, template, template_gray, output_dir, max_features=5
         return False  # Error
 
 
+def compute_angle(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 50, 150)
+
+    lines = cv2.HoughLines(edges, 1, np.pi/180, 150)
+
+    if lines is None or len(lines) < 10:
+        return 0  # 🔥 zu wenig Linien → kein Vertrauen
+
+    angles = []
+
+    for rho, theta in lines[:, 0]:
+        angle = (theta * 180 / np.pi) - 90
+        angles.append(angle)
+
+    angles = np.array(angles)
+
+    # 🔥 nur stabile Winkel behalten
+    median = np.median(angles)
+    deviation = np.std(angles)
+
+    if deviation > 10:
+        return 0  # 🔥 zu chaotisch → ignorieren
+
+    return median
+  
+def is_map_rotated(image, angle_threshold=2):
+    angle = compute_angle(image)
+    return abs(angle) > angle_threshold
+
+def alignment_quality_ok(original, aligned):
+    try:
+        orig_gray = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
+        align_gray = cv2.cvtColor(aligned, cv2.COLOR_BGR2GRAY)
+
+        # gleiche Größe erzwingen
+        align_gray = cv2.resize(align_gray, (orig_gray.shape[1], orig_gray.shape[0]))
+
+        # Kanten vergleichen
+        edges_orig = cv2.Canny(orig_gray, 50, 150)
+        edges_align = cv2.Canny(align_gray, 50, 150)
+
+        overlap = np.sum((edges_orig > 0) & (edges_align > 0))
+        total = np.sum(edges_orig > 0) + 1e-6
+
+        score = overlap / total
+
+        # 🔥 Schwellwert (anpassbar)
+        return score > 0.3
+
+    except:
+        return False
+      
 # ------------------------------------------------------------
 # Batch alignment for all map types
 # ------------------------------------------------------------

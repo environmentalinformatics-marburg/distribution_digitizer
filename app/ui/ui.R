@@ -8,6 +8,7 @@ if(!require(leaflet)){
 
 
 source("ui/helpers_ui.R")
+source("ui/tab_species_distribution.R", local = TRUE)
 
 # Reading configuration files
 config_list<- read.csv2(paste0(workingDir,'/config/config.csv'), header = FALSE, sep = ';',stringsAsFactors = FALSE)
@@ -260,6 +261,7 @@ body <- dashboardBody(
                               info$nMapTypes_infoBox)
                    )
                  ),
+                
                  # ============================================================
                  # Species Detection Keywords (NEW)
                  # ============================================================
@@ -607,160 +609,12 @@ body <- dashboardBody(
     
     
     
-    # ----------------------------------------------------------------------
-    # Tab 3 – Points Matching
-    # ----------------------------------------------------------------------
-    tabItem(
-      tabName = "tab3",
-      
-      # ============================================================
-      # TOP: Info
-      # ============================================================
-
-      
-      # ============================================================
-      # TOP: Range + Map type
-      # ============================================================
-      fluidRow(
-        fluidRow(
-          column(
-            12,
-            wellPanel(
-              h3(strong(shinyfields3$head, style = "color:black")),
-              p(shinyfields3$inf1, style = "color:black"),
-              p(shinyfields3$inf2, style = "color:black")
-            )
-          )
-        )
-      ),
-      
-      br(),
-      
-      # ============================================================
-      # MAIN: Left / Right
-      # ============================================================
-      fluidRow(
-        
-        # ---------------- LEFT ----------------
-        column(
-          6,
-
-          wellPanel(
-            
-            # ---------------- HEADER ----------------
-            h4(shinyfields3$head_sub, style = "color:black"),
-            p(shinyfields3$inf3, style = "color:black"),
-            
-            numericInput(
-              "threshold_for_PM",
-              label = shinyfields3$threshold,
-              value = 0.75,
-              min = 0,
-              max = 1,
-              step = 0.05
-            ),
-            
-            p(shinyfields3$inf4, style = "color:black"),
-            
-            actionButton(
-              "pointMatching",
-              label = shinyfields3$lab,
-              style = "color:#FFFFFF;background:#999999"
-            ),
-            
-            tags$hr(),
-            
-            # ---------------- LIST ELEMENTS (HIDDEN INITIALLY) ----------------
-            conditionalPanel(
-              condition = "input.pointMatching > 0",
-              
-              fluidRow(
-                column(
-                  4,
-                  textInput(
-                    "range_list_PointsMatching",
-                    label = HTML(shinyfields2$inf7),
-                    value = "1-2"
-                  )
-                ),
-                column(
-                  4,
-                  selectInput(
-                    "map_type_PointsMatching",
-                    label = "Select map type:",
-                    choices = mapTypes,
-                    selected = mapTypes[1]
-                  )
-                ),
-                column(
-                  4,
-                  actionButton("listPointsM", "List points matching")
-                )
-              )
-            )
-          ),
-          
-          # Ergebnis Point Matching
-          uiOutput("listPM")
-        ),
-        
-        # ---------------- RIGHT ----------------
-        column(
-          6,
-          
-          wellPanel(
-            
-            h4(shinyfields4$head, style = "color:black"),
-            
-            numericInput("filterK", shinyfields4$lab1, value = 5),
-            p(shinyfields4$inf1),
-            
-            numericInput("filterG", shinyfields4$lab2, value = 9),
-            p(shinyfields4$inf2),
-            
-            actionButton(
-              "pointFiltering",
-              label = shinyfields4$lab3,
-              style = "color:#FFFFFF;background:#999999"
-            ),
-            
-            tags$hr(),
-            
-            conditionalPanel(
-              condition = "input.pointFiltering > 0",
-              
-              fluidRow(
-                column(
-                  4,
-                  textInput(
-                    "range_list_PointsFiltering",
-                    label = HTML(shinyfields2$inf7),
-                    value = "1-2"
-                  )
-                ),
-                column(
-                  4,
-                  selectInput(
-                    "map_type_PointsFiltering",
-                    label = "Select map type:",
-                    choices = mapTypes,
-                    selected = mapTypes[1]
-                  )
-                ),
-                column(
-                  4,
-                  actionButton("listPointsF", "List points filtering")
-                )
-              )
-              
-            )
-          ),
-          
-          # Ergebnis Point Filtering
-          uiOutput("listPF")
-        )
-      )# END fluid Row
-    ),  # END tabItem 3
+    tab_species_distribution_ui(
+      shinyfields2 = shinyfields2,
+      shinyfields3 = shinyfields3,
+      shinyfields4 = shinyfields4,
+      mapTypes = mapTypes
+    ),
     
     
     # ----------------------------------------------------------------------

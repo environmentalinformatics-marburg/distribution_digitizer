@@ -131,10 +131,33 @@ set_tessdata_prefix_once <- function(tess_path) {
   invisible(TRUE)
 }
 
+# ============================================================
+# Species Distribution Detection - Server Module
+# ============================================================
+# Loads the server-side logic for species distribution detection.
+# This includes functionality for both point-based and
+# contour/area-based species representations.
+# ============================================================
+
+source("server/species_distribution_server.R", local = TRUE)
 
 server <- shinyServer(function(input, output, session) {
   #addResourcePath("root", "D:/distribution_digitizer/www")
   
+  # ============================================================
+  # Initialize Species Distribution Detection
+  # ============================================================
+  # Connects the Species Distribution UI with its server logic.
+  # The current output directory is passed to the module so that
+  # maps generated during the current processing run can be used.
+  # ============================================================
+  species_distribution_server(
+    input = input,
+    output = output,
+    session = session,
+    current_out_dir = outDir()
+  )
+  cat("### species_distribution_server STARTED ###\n")
   options(shiny.autoreload = FALSE)
   current_tab <- reactiveVal("tab0")
   
@@ -365,11 +388,13 @@ server <- shinyServer(function(input, output, session) {
         pYear          = to_chr(input$pYear),
         tesserAct      = to_chr(input$tesserAct),
         nMapTypes      = to_chr(input$nMapTypes),
+        # 🔥 NEU 
+        speciesRepresentation = to_chr(input$speciesRepresentation),
         dataInputDir   = to_chr(input$dataInputDir),
         dataOutputDir  = run_out,
         pFormat        = to_chr(input$pFormat),
         pColor         = to_chr(input$pColor),
-        # 🔥 NEU HIER EINFÜGEN
+        # 🔥 NEU 
         specieTitleKeyword = to_chr(input$specieTitleKeyword),
         specieTitleKeywordBefore      = to_chr(input$specieTitleKeywordBefore),
         specieTitleKeywordThen        = to_chr(input$specieTitleKeywordThen),
@@ -569,7 +594,6 @@ server <- shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$listMTemplates, {
-    print("Haa")
     output$listMapTemplates = renderUI({
       # Check if the directory already exists
       findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")

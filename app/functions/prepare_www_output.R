@@ -43,7 +43,7 @@ prepare_www_output <- function(workingDir, www_output, nMapTypes = 1) {
     directory_names <- c(
       "align_png", "CircleDetection_png", "readSpecies_png", "georeferencing_png",
       "masking_black_png", "masking_circleDetection", "masking_png", "maskingCentroids",
-      "matching_png", "pages", "pointFiltering_png", "pointMatching_png", "polygonize",
+      "matching_png", "pointFiltering_png", "pointMatching_png", "polygonize",
       "symbol_templates_png", "map_templates_png"
     )
     

@@ -402,6 +402,182 @@ def match_template(previous_page_path, next_page_path, current_page_path,
 
 
 
+def match_template_border(previous_page_path, next_page_path, current_page_path,
+                          template_map_files, output_dir, output_page_records,
+                          records, threshold, page_position, map_group="1"):
+
+    try:
+        print("🗺️ Page (BORDER MULTI):", current_page_path)
+        start_time_local = time.time()
+
+        img_color = np.array(Image.open(current_page_path))
+        img_gray = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
+
+        page_number = find_page_number(current_page_path, page_position)
+
+        count = 0
+        processed_areas = []
+        saved_y_markers = []
+
+        # ------------------------------------------------------------
+        # EDGE DETECTION
+        # ------------------------------------------------------------
+        edges = cv2.Canny(img_gray, 50, 150)
+
+        kernel = np.ones((3, 3), np.uint8)
+        edges = cv2.dilate(edges, kernel, iterations=1)
+
+        contours, _ = cv2.findContours(
+            edges,
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        print(f"🧪 DEBUG: {len(contours)} contours found")
+
+        # ------------------------------------------------------------
+        # Overlap check
+        # ------------------------------------------------------------
+        def is_overlapping(x, y, w, h):
+            for (px, py, pw, ph) in processed_areas:
+                if (x < px + pw and x + w > px and
+                    y < py + ph and y + h > py):
+                    return True
+            return False
+
+        # ------------------------------------------------------------
+        # MAIN LOOP (ALLE Kandidaten prüfen!)
+        # ------------------------------------------------------------
+        for contour in contours:
+
+            x, y, w, h = cv2.boundingRect(contour)
+
+            # ---------------- SIZE ----------------
+            if w < 200 or h < 200:
+                continue
+
+            area = w * h
+            img_area = img_gray.shape[0] * img_gray.shape[1]
+
+            if area < img_area * 0.02:
+                continue
+
+            # ---------------- OVERLAP ----------------
+            if is_overlapping(x, y, w, h):
+                continue
+
+            # ---------------- Y FILTER ----------------
+            y_tol = int(h * 0.25)
+            if any(abs(y - y_prev) <= y_tol for y_prev in saved_y_markers):
+                continue
+
+            # ------------------------------------------------------------
+            # 🔥 BORDER VALIDATION (KERN)
+            # ------------------------------------------------------------
+            roi_edges = edges[y:y+h, x:x+w]
+
+            inner_contours, _ = cv2.findContours(
+                roi_edges,
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_SIMPLE
+            )
+
+            if not inner_contours:
+                continue
+
+            # größte innere Kontur
+            largest = max(inner_contours, key=cv2.contourArea)
+            largest_area = cv2.contourArea(largest)
+
+            bbox_area = w * h
+
+            border_ratio = largest_area / (bbox_area + 1e-6)
+ 
+            # ------------------------------------------------------------
+            # 🆕 RECTANGLE CHECK
+            # ------------------------------------------------------------
+            epsilon = 0.02 * cv2.arcLength(largest, True)
+            approx = cv2.approxPolyDP(largest, epsilon, True)
+            
+            # bounding box der approximierten Kontur
+            x2, y2, w2, h2 = cv2.boundingRect(approx)
+            
+            # Verhältnis zur ursprünglichen Map-Box
+            width_ratio = w2 / float(w)
+            height_ratio = h2 / float(h)
+            
+            # 🔥 dein Filter
+            if width_ratio < 0.7 or height_ratio < 0.7:
+                continue
+            # nur fast-rechteckige Konturen erlauben
+            if len(approx) < 4 or len(approx) > 6:
+                continue
+            # 🔥 DAS ist dein entscheidender Filter
+            if border_ratio < 0.6:
+                continue
+
+            # optional: nicht zu komplex
+            epsilon = 0.02 * cv2.arcLength(largest, True)
+            approx = cv2.approxPolyDP(largest, epsilon, True)
+
+            if len(approx) > 15:
+                continue
+
+            # ------------------------------------------------------------
+            # ACCEPT
+            # ------------------------------------------------------------
+            processed_areas.append((x, y, w, h))
+            saved_y_markers.append(y)
+
+            size = w * h * (2.54 / 400) ** 2
+            threshold_last = str(threshold).split(".")[-1]
+
+            base_name = (
+                f"{page_number}-thr{threshold_last}_"
+                f"{os.path.basename(current_page_path).rsplit('.', 1)[0]}_"
+                f"border_"
+                f"y{y}_x{x}_n{count}"
+            )
+
+            img_path = os.path.join(output_dir, base_name + ".tif")
+            csv_path = os.path.join(output_page_records, base_name + ".csv")
+
+            crop = img_color[y:y+h, x:x+w]
+            cv2.imwrite(img_path, crop)
+
+            record_row = [
+                page_number,
+                previous_page_path,
+                next_page_path,
+                current_page_path,
+                img_path,
+                x, y, w, h,
+                size,
+                threshold,
+                round(time.time() - start_time_local, 3),
+                map_group
+            ]
+
+            is_empty = not os.path.exists(records) or os.stat(records).st_size == 0
+
+            with open(records, "a", newline="") as f:
+                writer = csv.writer(f)
+                if is_empty:
+                    writer.writerow(fields_page_record)
+                writer.writerow(record_row)
+
+            with open(csv_path, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(fields_page_record)
+                writer.writerow(record_row)
+
+            count += 1
+
+        if count == 0:
+            print("⚠️ No maps found on this page.")
+
+    except Exception as e:
+        print("❌ Error in match_template_border:", e)
 # ------------------------------------------------------------
 # Contour-based map detection (alternative approach)
 # ------------------------------------------------------------
@@ -483,14 +659,19 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
     try:
         print("🗺️ Page:", current_page_path)
 
-        img_gray = np.array(Image.open(current_page_path).convert("L"))
+        start_time_local = time.time()
+
         img_color = np.array(Image.open(current_page_path))
+        img_gray = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
 
         page_number = find_page_number(current_page_path, page_position)
+
         count = 0
+        processed_areas = []
+        saved_y_markers = []
 
         # ------------------------------------------------------------
-        # Preprocess page (robust, book-independent)
+        # Preprocessing
         # ------------------------------------------------------------
         binary = cv2.adaptiveThreshold(
             img_gray,
@@ -515,10 +696,11 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
             cv2.CHAIN_APPROX_SIMPLE
         )
 
-        print(f"🧪 DEBUG: {len(contours)} contours found on page")
+        print(f"🧪 DEBUG: {len(contours)} contours found")
 
-        processed_areas = []
-
+        # ------------------------------------------------------------
+        # Overlap check
+        # ------------------------------------------------------------
         def is_overlapping(x, y, w, h):
             for (px, py, pw, ph) in processed_areas:
                 if (x < px + pw and x + w > px and
@@ -527,43 +709,106 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
             return False
 
         # ------------------------------------------------------------
-        # Loop over ALL templates (size reference only)
+        # Loop over templates (same structure as match_template)
         # ------------------------------------------------------------
-        for template_map_file in template_map_files:
-            #print("📌 Template:", template_map_file)
+        for template_map_file, template in template_map_files:
 
-            template = np.array(Image.open(template_map_file))
-            th, tw = template.shape[:2]
+            template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+            th, tw = template_gray.shape
 
-            # ✅ Dynamic size constraints (KEY PART)
+            # Template-based reference metrics
+            template_std = np.std(template_gray)
+            template_edges = cv2.Canny(template_gray, 50, 150)
+            template_edge_density = np.sum(template_edges > 0) / (tw * th)
+
             min_w = int(tw * 0.75)
             min_h = int(th * 0.75)
             max_w = int(tw * 1.40)
             max_h = int(th * 1.40)
 
-            #print(f"   ↳ size filter: "
-                  #f"w=[{min_w},{max_w}], h=[{min_h},{max_h}]")
-
             for contour in contours:
+
                 x, y, w, h = cv2.boundingRect(contour)
 
-                # DEBUG (can be commented out later)
-                # print(f"DEBUG contour w={w}, h={h}")
-
-                # --- 1) too small → reject
+                # ----------------------------------------------------
+                # SIZE FILTER
+                # ----------------------------------------------------
                 if w < min_w or h < min_h:
                     continue
-
-                # --- 2) too large → reject
                 if w > max_w or h > max_h:
                     continue
 
-                # --- 3) overlapping → reject
+                # ----------------------------------------------------
+                # ASPECT RATIO
+                # ----------------------------------------------------
+                ratio = w / float(h)
+                if ratio < 0.6 or ratio > 2.5:
+                    continue
+
+                # ----------------------------------------------------
+                # AREA FILTER
+                # ----------------------------------------------------
+                area = w * h
+                img_area = img_gray.shape[0] * img_gray.shape[1]
+
+                if area < img_area * 0.01:
+                    continue
+                if area > img_area * 0.6:
+                    continue
+
+                # ----------------------------------------------------
+                # COMPACTNESS
+                # ----------------------------------------------------
+                contour_area = cv2.contourArea(contour)
+                extent = contour_area / float(w * h)
+
+                if extent < 0.4:
+                    continue
+
+                # ----------------------------------------------------
+                # OVERLAP
+                # ----------------------------------------------------
                 if is_overlapping(x, y, w, h):
                     continue
 
-                # ✅ ACCEPT contour
+                # ----------------------------------------------------
+                # Y FILTER
+                # ----------------------------------------------------
+                y_tol = int(h * 0.25)
+                too_close = False
+
+                for y_prev in saved_y_markers:
+                    if abs(y - y_prev) <= y_tol:
+                        too_close = True
+                        break
+
+                if too_close:
+                    continue
+
+                # ----------------------------------------------------
+                # 🆕 TEMPLATE-BASED CONTENT FILTER
+                # ----------------------------------------------------
+                roi = img_gray[y:y+h, x:x+w]
+
+                roi_std = np.std(roi)
+
+                edges = cv2.Canny(roi, 50, 150)
+                roi_edge_density = np.sum(edges > 0) / (w * h)
+
+                std_ratio = roi_std / (template_std + 1e-6)
+                edge_ratio = roi_edge_density / (template_edge_density + 1e-6)
+
+                # 🔥 entscheidender Filter, für später mit anderen Bücher, kann man aus der konfig lesen
+                USE_CONTENT_FILTER = False
+                if USE_CONTENT_FILTER:
+                  if std_ratio < 0.2 or edge_ratio < 0.2:
+                    continue
+
+                # ----------------------------------------------------
+                # ACCEPT
+                # ----------------------------------------------------
                 processed_areas.append((x, y, w, h))
+                saved_y_markers.append(y)
 
                 size = w * h * (2.54 / 400) ** 2
                 threshold_last = str(threshold).split(".")[-1]
@@ -578,7 +823,12 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
                 img_path = os.path.join(output_dir, base_name + ".tif")
                 csv_path = os.path.join(output_page_records, base_name + ".csv")
 
-                cv2.imwrite(img_path, img_color[y:y+h, x:x+w])
+                # SAME crop behaviour as template matching
+                extra_h = int(h * 0.1)
+                y_end = min(y + h + extra_h, img_color.shape[0])
+
+                crop = img_color[y:y_end, x:x + w]
+                cv2.imwrite(img_path, crop)
 
                 record_row = [
                     page_number,
@@ -589,11 +839,12 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
                     x, y, w, h,
                     size,
                     threshold,
-                    round(time.time() - start_time, 3),
+                    round(time.time() - start_time_local, 3),
                     map_group
                 ]
 
                 is_empty = not os.path.exists(records) or os.stat(records).st_size == 0
+
                 with open(records, "a", newline="") as f:
                     writer = csv.writer(f)
                     if is_empty:
@@ -605,7 +856,6 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
                     writer.writerow(fields_page_record)
                     writer.writerow(record_row)
 
-                #print(f"💾 Saved map: w={w}, h={h}, y={y}")
                 count += 1
 
         if count == 0:
@@ -613,7 +863,6 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
 
     except Exception as e:
         print("❌ Error in match_template_contours:", e)
-
 
 # ------------------------------------------------------------
 # Main workflow controller for template matching
@@ -817,6 +1066,8 @@ def main_template_matching(
                     match_template(**params)
                 elif matchingType == 2:
                     match_template_contours(**params)
+                elif matchingType == 3:
+                    match_template_border(**params)
 
         print("\n✅ Matching completed for all pages and map types.")
 

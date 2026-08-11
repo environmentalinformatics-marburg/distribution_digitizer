@@ -15,7 +15,258 @@
 #   A formatted message string summarizing number of files and output location.
 # -------------------------------------------------------------------
 
+# -------------------------------------------------------------------
+# Function: computeNumberResult
+# -------------------------------------------------------------------
+# Counts all TIF/TIFF images across map-type subdirectories,
+# converts them to PNG for display in Shiny, and returns a summary.
+#
+# Example:
+#
+# Matching:
+#   subfolder  = "maps/matching"
+#   png_subdir = "output/matching_png"
+#
+# Alignment:
+#   subfolder  = "maps/align"
+#   png_subdir = "output/align_png"
+#
+# TIF source:
+#   <base_output_dir>/<map_type>/<subfolder>/
+#
+# PNG destination:
+#   <working_dir>/app/www/output/<map_type>/<png-folder>/
+# -------------------------------------------------------------------
+
 computeNumberResult <- function(
+    base_output_dir,
+    working_dir,
+    nMapTypes = 1,
+    subfolder = "maps/align",
+    png_subdir = "output/align_png",
+    tesseract_available = TRUE
+) {
+  
+  cat("\nDEBUG computeNumberResult:\n")
+  cat("  base_output_dir =", base_output_dir, "\n")
+  cat("  working_dir     =", working_dir, "\n")
+  cat("  nMapTypes       =", nMapTypes, "\n")
+  cat("  subfolder       =", subfolder, "\n")
+  cat("  png_subdir      =", png_subdir, "\n\n")
+  
+  tryCatch({
+    
+    nMapTypes <- as.integer(nMapTypes)
+    
+    if (is.na(nMapTypes) || nMapTypes < 1) {
+      stop("nMapTypes must be an integer >= 1.")
+    }
+    
+    # ------------------------------------------------------------
+    # Result containers
+    # ------------------------------------------------------------
+    
+    all_files <- character(0)
+    summary_lines <- character(0)
+    source_directories <- character(0)
+    
+    # We only need the final folder name:
+    #
+    # "output/align_png"    -> "align_png"
+    # "output/matching_png" -> "matching_png"
+    #
+    png_folder_name <- basename(png_subdir)
+    
+    # ------------------------------------------------------------
+    # Process every map type
+    # ------------------------------------------------------------
+    
+    for (i in seq_len(nMapTypes)) {
+      
+      type_id <- as.character(i)
+      
+      # Example:
+      # D:/test/output_xxx/1/maps/matching
+      type_dir <- file.path(
+        base_output_dir,
+        type_id,
+        subfolder
+      )
+      
+      source_directories <- c(
+        source_directories,
+        type_dir
+      )
+      
+      # ----------------------------------------------------------
+      # Source directory does not exist
+      # ----------------------------------------------------------
+      
+      if (!dir.exists(type_dir)) {
+        
+        cat(
+          "⚠️ Directory not found for map type",
+          type_id, ":",
+          type_dir, "\n"
+        )
+        
+        summary_lines <- c(
+          summary_lines,
+          paste0(
+            "🗺️ Map type ",
+            type_id,
+            ": directory not found"
+          )
+        )
+        
+        next
+      }
+      
+      # ----------------------------------------------------------
+      # Find TIF images
+      # ----------------------------------------------------------
+      
+      files_i <- list.files(
+        type_dir,
+        pattern = "\\.(tif|tiff)$",
+        full.names = TRUE,
+        ignore.case = TRUE
+      )
+      
+      n_files <- length(files_i)
+      
+      all_files <- c(
+        all_files,
+        files_i
+      )
+      
+      cat(
+        "🗺️ Map type",
+        type_id, ":",
+        n_files,
+        "TIF file(s) found\n"
+      )
+      
+      # ----------------------------------------------------------
+      # PNG destination for Shiny
+      # ----------------------------------------------------------
+      #
+      # Example:
+      #
+      # D:/distribution_digitizer/
+      #     app/www/output/1/matching_png/
+      #
+      # or
+      #
+      # D:/distribution_digitizer/
+      #     app/www/output/1/align_png/
+      #
+      # ----------------------------------------------------------
+      
+      png_target <- file.path(
+        working_dir,
+        "app",
+        "www",
+        "output",
+        type_id,
+        png_folder_name
+      )
+      
+      if (!dir.exists(png_target)) {
+        dir.create(
+          png_target,
+          recursive = TRUE,
+          showWarnings = FALSE
+        )
+      }
+      
+      # ----------------------------------------------------------
+      # Convert TIF -> PNG
+      # ----------------------------------------------------------
+      
+      converted <- convertTifToPngSave(
+        tif_dir = type_dir,
+        png_target = png_target
+      )
+      
+      # ----------------------------------------------------------
+      # Summary
+      # ----------------------------------------------------------
+      
+      summary_lines <- c(
+        summary_lines,
+        paste0(
+          "🗺️ Map type ",
+          type_id,
+          ": ",
+          n_files,
+          " maps found, ",
+          converted,
+          " PNGs created"
+        )
+      )
+    }
+    
+    # ------------------------------------------------------------
+    # Total number of maps
+    # ------------------------------------------------------------
+    
+    total <- length(all_files)
+    
+    # ------------------------------------------------------------
+    # Build result message
+    # ------------------------------------------------------------
+    
+    message <- paste0(
+      paste(summary_lines, collapse = "\n"),
+      "\n\n",
+      "✅ Total generated maps: ",
+      total,
+      "\n",
+      "Ended on: ",
+      format(Sys.time(), "%H:%M:%S"),
+      "\n",
+      "Directories:\n",
+      paste(source_directories, collapse = "\n")
+    )
+    
+    # ------------------------------------------------------------
+    # Optional OCR warning
+    # ------------------------------------------------------------
+    
+    if (!tesseract_available) {
+      
+      message <- paste0(
+        message,
+        "\n\n",
+        "⚠️ OCR notice:\n",
+        "Tesseract OCR was not available on this system.\n",
+        "Species detection was skipped or incomplete.\n",
+        "To enable OCR, install Tesseract or set 'tesserAct' ",
+        "in config/config.csv."
+      )
+    }
+    
+    cat("\n✅ computeNumberResult summary:\n")
+    cat(message, "\n")
+    
+    return(message)
+    
+  }, error = function(e) {
+    
+    cat("\n🚨 Error in computeNumberResult:\n")
+    cat(conditionMessage(e), "\n")
+    
+    return(
+      paste0(
+        "Error while computing number of results: ",
+        conditionMessage(e)
+      )
+    )
+  })
+}
+
+computeNumberResult_orign <- function(
     base_output_dir,
     working_dir,
     nMapTypes = 1,
@@ -24,12 +275,12 @@ computeNumberResult <- function(
     tesseract_available = TRUE   # 👈 NEU
 ) {
   
-  print("DEBUG computeNumberResult:")
-  print(paste("  base_output_dir =", base_output_dir))
-  print(paste("  working_dir     =", working_dir))
-  print(paste("  nMapTypes       =", nMapTypes))
-  print(paste("  subfolder       =", subfolder))
-  print(paste("  png_subdir      =", png_subdir))
+  #print("DEBUG computeNumberResult:")
+  #print(paste("  base_output_dir =", base_output_dir))
+  #print(paste("  working_dir     =", working_dir))
+  #print(paste("  nMapTypes       =", nMapTypes))
+  #print(paste("  subfolder       =", subfolder))
+  #print(paste("  png_subdir      =", png_subdir))
   
   tryCatch({
     

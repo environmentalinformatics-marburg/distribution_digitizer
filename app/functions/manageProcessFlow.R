@@ -507,9 +507,9 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         workingDir,
         current_out_dir,
         ifelse(length(config$specieTitleKeyword) > 0, config$specieTitleKeyword, "None"),
-        config$specieTitleBefore,
-        config$specieTitleThen,
-        config$middle,
+        as.integer(config$specieTitleKeywordBefore),   # 🔥 FIX
+        as.integer(conrfig$specieTitleKeywordThen),     # 🔥 FIX
+        as.integer(config$middle),                     # optional, aber gut
         config$legendKeywords,
         nMapTypes = as.integer(input$nMapTypes)
       )
