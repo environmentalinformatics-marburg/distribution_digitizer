@@ -317,6 +317,13 @@ tab_species_distribution_ui <- function(
                   max = 100,
                   value = 30,
                   step = 1
+                ),
+                numericInput(
+                  "contourBorderMargin",
+                  label = "Ignore contours within border margin (pixels):",
+                  value = 10,
+                  min = 0,
+                  step = 1
                 )
               )
             ),
@@ -330,13 +337,56 @@ tab_species_distribution_ui <- function(
             ),
             
             actionButton(
-              "saveContourSettings",
-              label = "Save contour settings"
+              "processAllContours",
+              label = "Process all maps",
+              style = "color:#FFFFFF;background:#999999"
             ),
             
+            conditionalPanel(
+              condition = "input.processAllContours > 0",
+              
+              tags$hr(),
+              
+              fluidRow(
+                
+                column(
+                  4,
+                  textInput(
+                    "range_list_Contours",
+                    label = HTML(shinyfields2$inf7),
+                    value = "1-2"
+                  )
+                ),
+                
+                column(
+                  4,
+                  selectInput(
+                    "map_type_Contours",
+                    label = "Select map type:",
+                    choices = mapTypes,
+                    selected = mapTypes[1]
+                  )
+                ),
+                
+                column(
+                  4,
+                  actionButton(
+                    "listContours",
+                    "List detected areas"
+                  )
+                )
+              )
+            ),
             tags$hr(),
             
-            uiOutput("contourPreview")
+            uiOutput("contourPreview"),
+            fluidRow(
+              column(
+                4,
+                offset = 4,
+                uiOutput("listContoursOutput")
+              )
+            )
           )
         )
       )

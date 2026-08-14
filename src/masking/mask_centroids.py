@@ -69,208 +69,7 @@ def find_template_for_point(cx, cy, existing_points, threshold=10):
 def is_close(p1, p2, threshold=10):
     return ((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2) ** 0.5 < threshold
   
-  
-  
-def create_species_contour_mask(
-        image_path,
-        output_dir,
-        min_area_ratio=0.03,
-        debug=False
-    ):
-    """
-    Creates a binary mask containing large closed species distribution areas.
 
-    The detection is intended for maps where species distributions are
-    represented by large closed contours/areas rather than individual points.
-
-    The function:
-    - detects dark/gray lines
-    - detects strongly colored lines
-    - combines both into one binary image
-    - closes small gaps in contour lines
-    - finds closed contours
-    - removes small contours such as text, borders and map details
-    - keeps all sufficiently large distribution areas
-
-    Args:
-        image_path (str):
-            Input map image.
-
-        output_dir (str):
-            Directory where the resulting mask is stored.
-
-        min_area_ratio (float):
-            Minimum contour area relative to the complete map area.
-            Default = 0.03 (= 3 %).
-
-        debug (bool):
-            Print information about detected contours.
-
-    Returns:
-        bool:
-            True if processing succeeded.
-    """
-
-    try:
-        # ------------------------------------------------------------
-        # Load image
-        # ------------------------------------------------------------
-        img = cv2.imread(image_path)
-
-        if img is None:
-            print(f"❌ Could not read image: {image_path}")
-            return False
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
-        height, width = gray.shape
-        map_area = height * width
-
-        # ------------------------------------------------------------
-        # 1. Detect dark / gray lines
-        # ------------------------------------------------------------
-        # Everything clearly darker than the light map background
-        dark_mask = cv2.inRange(
-            gray,
-            0,
-            170
-        )
-
-        # ------------------------------------------------------------
-        # 2. Detect colored lines
-        # ------------------------------------------------------------
-        # Strong saturation captures red, blue, green etc.
-        saturation = hsv[:, :, 1]
-
-        color_mask = cv2.inRange(
-            saturation,
-            80,
-            255
-        )
-
-        # ------------------------------------------------------------
-        # 3. Combine dark and colored structures
-        # ------------------------------------------------------------
-        candidate_mask = cv2.bitwise_or(
-            dark_mask,
-            color_mask
-        )
-
-        # ------------------------------------------------------------
-        # 4. Close small gaps in contour lines
-        # ------------------------------------------------------------
-        # Important for old scanned maps where contour lines may be
-        # interrupted or weak in some places.
-        kernel = np.ones((3, 3), np.uint8)
-
-        candidate_mask = cv2.morphologyEx(
-            candidate_mask,
-            cv2.MORPH_CLOSE,
-            kernel,
-            iterations=2
-        )
-
-        # ------------------------------------------------------------
-        # 5. Find contours
-        # ------------------------------------------------------------
-        # RETR_EXTERNAL:
-        # We are interested primarily in the large outer distribution
-        # areas and not small structures inside them.
-        contours, _ = cv2.findContours(
-            candidate_mask,
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE
-        )
-
-        if debug:
-            print(
-                f"🔍 {os.path.basename(image_path)}: "
-                f"{len(contours)} candidate contours"
-            )
-
-        # ------------------------------------------------------------
-        # 6. Final empty mask
-        # ------------------------------------------------------------
-        final_mask = np.zeros(
-            (height, width),
-            dtype=np.uint8
-        )
-
-        accepted = 0
-
-        # ------------------------------------------------------------
-        # 7. Filter contours by size
-        # ------------------------------------------------------------
-        for contour in contours:
-
-            contour_area = cv2.contourArea(contour)
-
-            if contour_area <= 0:
-                continue
-
-            area_ratio = contour_area / float(map_area)
-
-            if debug:
-                x, y, w, h = cv2.boundingRect(contour)
-
-                print(
-                    f"   contour:"
-                    f" area={contour_area:.0f},"
-                    f" ratio={area_ratio:.4f},"
-                    f" box={w}x{h}"
-                )
-
-            # --------------------------------------------------------
-            # Ignore small map structures, text, borders etc.
-            # --------------------------------------------------------
-            if area_ratio < min_area_ratio:
-                continue
-
-            # --------------------------------------------------------
-            # ACCEPT species distribution area
-            # --------------------------------------------------------
-            cv2.drawContours(
-                final_mask,
-                [contour],
-                -1,
-                255,
-                thickness=cv2.FILLED
-            )
-
-            accepted += 1
-
-        # ------------------------------------------------------------
-        # 8. Save result
-        # ------------------------------------------------------------
-        os.makedirs(
-            output_dir,
-            exist_ok=True
-        )
-
-        output_path = os.path.join(
-            output_dir,
-            os.path.basename(image_path)
-        )
-
-        cv2.imwrite(
-            output_path,
-            final_mask
-        )
-
-        print(
-            f"✅ {os.path.basename(image_path)}: "
-            f"{accepted} large contour(s) accepted"
-        )
-
-        return True
-
-    except Exception as e:
-        print(
-            "❌ Error in create_species_contour_mask:",
-            e
-        )
-        return False
 # ------------------------------------------------------------
 # Detect colored centroids and create mask image
 # ------------------------------------------------------------
@@ -393,7 +192,7 @@ def create_centroid_mask(image_path, output_dir, csv_writer, existing_points):
 # - Detect centroids in each image
 # - Store results in CSV and images
 # ------------------------------------------------------------
-def MainMaskCentroids(workingDir, outDir, nMapTypes=1, speciesRepresentation="point"):
+def MainMaskCentroids(workingDir, outDir, nMapTypes=1):
     """
     Create centroid masks for all TIFF files in the input directory.
     Processes multiple map types (1, 2, ...).
@@ -424,44 +223,8 @@ def MainMaskCentroids(workingDir, outDir, nMapTypes=1, speciesRepresentation="po
             print(f"\n=== Processing map type folder: {map_type} ===")
 
             # Input und Output für diesen Typ
-            # ------------------------------------------------------------
-            # Input depends on species representation
-            # ------------------------------------------------------------
-            
-            if speciesRepresentation == "contour":
-            
-                # Contour maps come directly from alignment
-                inputDir = os.path.join(
-                    map_dir,
-                    "maps",
-                    "align"
-                )
-            
-                outputDir = os.path.join(
-                    map_dir,
-                    "masking_black",
-                    "align"
-                )
-            
-            else:
-            
-                # Existing point workflow
-                inputDir = os.path.join(
-                    map_dir,
-                    "maps",
-                    "pointFiltering"
-                )
-            
-                outputDir = os.path.join(
-                    map_dir,
-                    "masking_black",
-                    "pointFiltering"
-                )
-            
-            print(f"Species representation: {speciesRepresentation}")
-            print(f"Masking input: {inputDir}")
-            
-            os.makedirs(outputDir, exist_ok=True)
+            inputDir = os.path.join(map_dir, "maps", "pointFiltering")
+            outputDir = os.path.join(map_dir, "masking_black", "pointFiltering")
             csv_path = os.path.join(map_dir, "maps", "csvFiles", "coordinates_transformed.csv")
 
             # Erstelle den Output-Ordner
@@ -471,19 +234,7 @@ def MainMaskCentroids(workingDir, outDir, nMapTypes=1, speciesRepresentation="po
             with open(csv_path, 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(['ID', 'File', 'X_WGS84', 'Y_WGS84', 'template', 'Blue', 'Green', 'Red', 'georef'])
-                if speciesRepresentation == "point":
-
-                    pf_csv_path = os.path.join(
-                        map_dir,
-                        "maps",
-                        "csvFiles",
-                        "coordinates.csv"
-                    )
-                
-                    existing_points = load_existing_points(pf_csv_path)
-                
-                else:
-                    existing_points = []
+                pf_csv_path = os.path.join(map_dir, "maps", "csvFiles", "coordinates.csv")
                 existing_points = load_existing_points(pf_csv_path)
                 # --- Alle TIFs verarbeiten ---
                 for file in glob.glob(os.path.join(inputDir, "*.tif")):
@@ -497,6 +248,3 @@ def MainMaskCentroids(workingDir, outDir, nMapTypes=1, speciesRepresentation="po
 
     except Exception as e:
         print("An error occurred in MainMaskCentroids:", e)
-        
-        
-        

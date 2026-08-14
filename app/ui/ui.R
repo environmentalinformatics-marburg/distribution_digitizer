@@ -9,6 +9,7 @@ if(!require(leaflet)){
 
 source("ui/helpers_ui.R")
 source("ui/tab_species_distribution.R", local = TRUE)
+source("ui/tab_read_species.R", local = TRUE)
 
 # Reading configuration files
 config_list<- read.csv2(paste0(workingDir,'/config/config.csv'), header = FALSE, sep = ';',stringsAsFactors = FALSE)
@@ -673,32 +674,10 @@ body <- dashboardBody(
     
     
     # Tab 5 Read Spezies #----------------------------------------------------------------------
-    tabItem(
-      tabName = "tab5",
-      # which site become overview
-      fluidRow(column(3,textInput("siteNumberMapsMatching", label=shinyfields6$input, value = ''))),
-      actionButton("listCropped",  label = "List cropped maps"),
-      fluidRow(
-        column(4,
-               # speciesOnMap
-               wellPanel(  
-                 # maps species 
-                 h3(shinyfields2$head_species, style = "color:black"),
-                 p(shinyfields2$inf4, style = "color:black"),
-                 fluidRow(column(3, actionButton("mapReadRpecies",  label = shinyfields2$start3, style="color:#FFFFFF;background:#999999"))),
-               ),
-               wellPanel(  
-                 # page species
-                 h3(shinyfields2$head_page_species, style = "color:black"),
-                 p(shinyfields2$inf5, style = "color:black"),
-                 fluidRow(column(3, actionButton("pageReadRpecies",  label = shinyfields2$start4, style="color:#FFFFFF;background:#999999"))),
-               )
-        ), # col 4
-        #column(8,
-        #       uiOutput('listCropped', style="width:30%;float:left")
-        # )
-      ) # END fluid Row
-    ),  # END tabItem 5
+    tab_read_species_ui(
+      shinyfields2 = shinyfields2,
+      shinyfields6 = shinyfields6
+    ),
     
     
 
