@@ -140,6 +140,8 @@ set_tessdata_prefix_once <- function(tess_path) {
 # ============================================================
 
 source("server/species_distribution_server.R", local = TRUE)
+source("server/species_reading_server.R", local = TRUE)
+
 
 server <- shinyServer(function(input, output, session) {
   #addResourcePath("root", "D:/distribution_digitizer/www")
@@ -158,6 +160,18 @@ server <- shinyServer(function(input, output, session) {
     current_out_dir = outDir()
   )
   cat("### species_distribution_server STARTED ###\n")
+  
+  # ============================================================
+  # Initialize Read Species
+  # ============================================================
+  species_reading_server(
+    input = input,
+    output = output,
+    session = session,
+    workingDir = workingDir,
+    current_out_dir = outDir()
+  )
+  cat("### read_species__server STARTED ###\n")
   options(shiny.autoreload = FALSE)
   current_tab <- reactiveVal("tab0")
   
@@ -1346,7 +1360,7 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$spatialViewPF, {
     
     tryCatch({
-      print("HHH")
+
       current_out_dir <- outDir()
      # current_out_dir = "D:/test/output_2026-03-26_11-00-43"
       selected_type   <- input$map_type_Spatial
