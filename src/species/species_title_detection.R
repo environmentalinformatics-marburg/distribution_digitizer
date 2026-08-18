@@ -108,7 +108,7 @@ readPageSpecies <- function(
   }
   
   # Python nur laden, wenn wirklich nötig
-  source_python(file.path(workingDir, "src/read_species/page_crop_species.py"))
+  source_python(file.path(workingDir, "src/species/species_title_processing_ocr.py"))
   target_map <- "0-thr18_0105_map_1_y2310_x287_n0.tif"
   # ---------- ROW-LEVEL PROTECTION ----------
   for (i in seq_len(nrow(filteredData))) {
@@ -152,7 +152,7 @@ readPageSpecies <- function(
       pageTitleSpecies <- pageTitleSpecies[
         grepl("\\b(18|19|20)\\d{2}\\b", pageTitleSpecies)
       ]
-      # 🔥 HIER EINFÜGEN
+      #  HIER EINFÜGEN
       pageTitleSpecies <- pageTitleSpecies[!is.na(pageTitleSpecies)]
       pageTitleSpecies <- pageTitleSpecies[nchar(pageTitleSpecies) > 0]
       if (length(pageTitleSpecies) == 0) {
@@ -162,10 +162,10 @@ readPageSpecies <- function(
       
       pageTitleSpecies <- gsub("__", "_", pageTitleSpecies)
       
-      # 👉 ERST splitten
+      #  ERST splitten
       splitted_results <- strsplit(pageTitleSpecies, "_")
       
-      # 👉 ROBUSTER FILTER (NEU)
+      # ROBUSTER FILTER (NEU)
       splitted_results <- splitted_results[
         sapply(splitted_results, function(x) {
           length(x) >= 4 &&
@@ -393,6 +393,461 @@ processCoordinates <- function(coordinatesPath, pageSpeciesDataPath) {
   write.csv(coordinates, coordinatesPath, row.names = FALSE)
   cat("Updated coordinates.csv successfully.\n")
 }
+
+
+# ============================================================
+# Process direct species-title detection for all map types
+# ============================================================
+#
+# This function controls species-title processing for all
+# map-type output directories generated during the current run.
+#
+# For each map type (1, 2, 3, ...):
+# - builds the corresponding output directory
+# - checks whether records.csv exists
+# - delegates the actual page processing to
+#   readPageSpeciesDirect()
+#
+# The detailed OCR and title-detection logic remains in
+# readPageSpeciesDirect() and the corresponding Python module.
+# ============================================================
+
+readPageSpeciesDirectMulti <- function(
+    workingDir,
+    outDir,
+    nMapTypes
+) {
+  
+  cat("\n=======================================\n")
+  cat("DIRECT SPECIES TITLE PROCESSING\n")
+  cat("Map types:", nMapTypes, "\n")
+  cat("=======================================\n")
+  
+  
+  # ----------------------------------------------------------
+  # Process each map type independently
+  # ----------------------------------------------------------
+  
+  for (mapType in seq_len(nMapTypes)) {
+    
+    cat("\n---------------------------------------\n")
+    cat("MAP TYPE:", mapType, "\n")
+    cat("---------------------------------------\n")
+    
+    
+    # Output directory for this map type
+    map_out_dir <- file.path(
+      outDir,
+      as.character(mapType)
+    )
+    
+    
+    # records.csv contains the maps detected on the
+    # original book pages for this map type
+    records_path <- file.path(
+      map_out_dir,
+      "records.csv"
+    )
+    
+    
+    cat("Output directory:", map_out_dir, "\n")
+    cat("Records file:", records_path, "\n")
+    
+    
+    # --------------------------------------------------------
+    # Skip map types that were not processed
+    # --------------------------------------------------------
+    
+    if (!file.exists(records_path)) {
+      
+      cat(
+        "No records.csv found for map type",
+        mapType,
+        "- skipping.\n"
+      )
+      
+      next
+    }
+    
+    
+    # --------------------------------------------------------
+    # Process all pages belonging to this map type
+    # --------------------------------------------------------
+    
+    readPageSpeciesDirect(
+      workingDir = workingDir,
+      outDir = map_out_dir,
+      recordsPath = records_path
+    )
+  }
+  
+  
+  cat("\n=======================================\n")
+  cat("ALL MAP TYPES PROCESSED\n")
+  cat("=======================================\n")
+  
+  invisible(TRUE)
+}
+
+readPageSpeciesDirect <- function(
+    workingDir,
+    outDir,
+    recordsPath
+) {
+  
+  # ----------------------------------------------------------
+  # Read map records
+  # ----------------------------------------------------------
+  
+  if (!file.exists(recordsPath)) {
+    cat("⚠️ records.csv not found:", recordsPath, "\n")
+    return(invisible(FALSE))
+  }
+  
+  records <- read.csv(
+    recordsPath,
+    stringsAsFactors = FALSE
+  )
+  
+  if (nrow(records) == 0) {
+    cat("ℹ️ records.csv is empty.\n")
+    return(invisible(FALSE))
+  }
+  
+  
+  # ----------------------------------------------------------
+  # Load Python title detection
+  # ----------------------------------------------------------
+  
+  source_python(
+    file.path(
+      workingDir,
+      "src/species/species_title_processing_ocr.py"
+    )
+  )
+  
+  
+  # ----------------------------------------------------------
+  # Unique successfully processed pages
+  # ----------------------------------------------------------
+  
+  pages <- unique(records$file_name)
+  
+  pages <- pages[
+    !is.na(pages) &
+      pages != ""
+  ]
+  
+  
+  all_results <- data.frame()
+  
+  
+  # ==========================================================
+  # Process page by page
+  # ==========================================================
+  
+  for (pagePath in pages) {
+    
+    cat("\n=======================================\n")
+    cat("PROCESS PAGE:", basename(pagePath), "\n")
+    cat("=======================================\n")
+    
+    
+    if (!file.exists(pagePath)) {
+      
+      cat("⚠️ Page not found:", pagePath, "\n")
+      next
+    }
+    
+    
+    # --------------------------------------------------------
+    # Maps belonging to this page
+    # --------------------------------------------------------
+    
+    page_maps <- records[
+      records$file_name == pagePath,
+      ,
+      drop = FALSE
+    ]
+    
+    cat("Maps on page:", nrow(page_maps), "\n")
+    
+    
+    # --------------------------------------------------------
+    # Python:
+    # Detect all species titles on this page
+    #
+    # The Python function should return something like:
+    #
+    # text | x | y | w | h
+    # --------------------------------------------------------
+    
+    training_csv <- file.path(
+      workingDir,
+      "training",
+      "species_title_training.csv"
+    )
+    
+    detected_titles <- detect_species_titles_from_training(
+      pagePath,
+      training_csv
+    )
+    
+    
+    if (is.null(detected_titles) ||
+        length(detected_titles) == 0) {
+      
+      cat("ℹ️ No titles detected.\n")
+      next
+    }
+    cat("\n--- RAW PYTHON RESULT ---\n")
+    print(detected_titles)
+    str(detected_titles)
+    
+    # --------------------------------------------------------
+    # Convert Python list of detected titles to R data.frame
+    # --------------------------------------------------------
+    
+    titles <- do.call(
+      rbind,
+      lapply(
+        detected_titles,
+        function(item) {
+          
+          data.frame(
+            text = as.character(item$text),
+            x    = as.numeric(item$x),
+            y    = as.numeric(item$y),
+            w    = as.numeric(item$w),
+            h    = as.numeric(item$h),
+            stringsAsFactors = FALSE
+          )
+        }
+      )
+    )
+    
+    rownames(titles) <- NULL
+    
+    
+    cat("Titles detected:", nrow(titles), "\n")
+    
+    
+    # --------------------------------------------------------
+    # IMPORTANT:
+    # First test only.
+    #
+    # Do NOT assign title <-> map yet.
+    # Print both Y coordinates first.
+    # --------------------------------------------------------
+    
+    cat("\n--- TITLES ---\n")
+    
+    print(
+      titles[, c(
+        "text",
+        "x",
+        "y",
+        "w",
+        "h"
+      )]
+    )
+    
+    
+    cat("\n--- MAPS ---\n")
+    
+    print(
+      page_maps[, c(
+        "map_name",
+        "x",
+        "y",
+        "w",
+        "h"
+      )]
+    )
+    
+    
+    # --------------------------------------------------------
+    # Sort both by vertical position
+    # --------------------------------------------------------
+    
+    titles <- titles[
+      order(titles$y),
+      ,
+      drop = FALSE
+    ]
+    
+    page_maps <- page_maps[
+      order(page_maps$y),
+      ,
+      drop = FALSE
+    ]
+    
+    # --------------------------------------------------------
+    # Assign nearest title to each map using Y coordinate
+    # --------------------------------------------------------
+    
+    page_matches <- data.frame()
+    
+    for (i in seq_len(nrow(page_maps))) {
+      
+      current_map <- page_maps[i, ]
+      
+      # Distance between this map and every detected title
+      y_distance <- abs(
+        titles$y - current_map$y
+      )
+      
+      # Title with smallest Y distance
+      nearest_index <- which.min(
+        y_distance
+      )
+      
+      nearest_title <- titles[
+        nearest_index,
+        ,
+        drop = FALSE
+      ]
+      
+      match_row <- data.frame(
+        file_name = current_map$file_name,
+        map_name = current_map$map_name,
+        
+        map_x = current_map$x,
+        map_y = current_map$y,
+        map_w = current_map$w,
+        map_h = current_map$h,
+        
+        species = nearest_title$text,
+        
+        title_x = nearest_title$x,
+        title_y = nearest_title$y,
+        title_w = nearest_title$w,
+        title_h = nearest_title$h,
+        
+        y_distance = y_distance[nearest_index],
+        
+        stringsAsFactors = FALSE
+      )
+      
+      page_matches <- rbind(
+        page_matches,
+        match_row
+      )
+    }
+    
+    
+    cat("\n--- TITLE / MAP ASSIGNMENT ---\n")
+    
+    print(
+      page_matches[, c(
+        "species",
+        "map_y",
+        "title_y",
+        "y_distance"
+      )]
+    )
+    all_results <- rbind(
+      all_results,
+      page_matches
+    )
+
+  }
+  
+  # ==========================================================
+  # Prepare pageSpeciesData
+  # ==========================================================
+  
+  if (nrow(all_results) == 0) {
+    cat("ℹ️ No species results found.\n")
+    return(invisible(FALSE))
+  }
+  
+  
+  # ----------------------------------------------------------
+  # Extract search species
+  #
+  # Example:
+  # Eriogaster rimicola (...) -> rimicola
+  # Malacosoma castrensis (...) -> castrensis
+  # ----------------------------------------------------------
+  
+  search_specie <- vapply(
+    strsplit(trimws(all_results$species), "\\s+"),
+    function(words) {
+      
+      if (length(words) >= 2) {
+        return(words[2])
+      }
+      
+      NA_character_
+    },
+    character(1)
+  )
+  
+  
+  # ----------------------------------------------------------
+  # Create pageSpeciesData in the SAME structure
+  # as used by the existing workflow
+  # ----------------------------------------------------------
+  
+  pageSpeciesData <- data.frame(
+    species = all_results$species,
+    legend_key = 1,
+    legend_index = 1,
+    search_specie = search_specie,
+    file_name = all_results$file_name,
+    map_name = all_results$map_name,
+    stringsAsFactors = FALSE
+  )
+  
+  
+  # ----------------------------------------------------------
+  # Show final result
+  # ----------------------------------------------------------
+  
+  cat("\n=======================================\n")
+  cat("FINAL PAGE SPECIES DATA\n")
+  cat("=======================================\n")
+  
+  print(pageSpeciesData)
+  
+  
+  # ----------------------------------------------------------
+  # Save pageSpeciesData.csv
+  # ----------------------------------------------------------
+  
+  output_file <- file.path(
+    outDir,
+    "pageSpeciesData.csv"
+  )
+  
+  write.table(
+    pageSpeciesData,
+    file = output_file,
+    sep = ";",
+    row.names = FALSE,
+    col.names = TRUE,
+    quote = TRUE,
+    na = ""
+  )
+  
+  
+  cat("\n=======================================\n")
+  cat("PAGE SPECIES DATA SAVED\n")
+  cat("=======================================\n")
+  cat("File:", output_file, "\n")
+  cat("Species:", nrow(pageSpeciesData), "\n")
+  
+  
+  invisible(pageSpeciesData)
+}
+
+
+# readPageSpeciesDirect(
+#   workingDir = "D:/distribution_digitizer",
+#   outDir = "D:/test_eu/output_2026-08-11_11-45-32/1",
+#   recordsPath = "D:/test_eu/output_2026-08-11_11-45-32/1/records.csv"
+# )
 
 # readPageSpecies(
 #   workingDir = "D:/distribution_digitizer",

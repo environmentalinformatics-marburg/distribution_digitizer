@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 from PIL import Image 
 import os
 import traceback
-
+import pandas as pd
 import pytesseract
 import os
 
@@ -113,6 +113,65 @@ def set_tessdata_prefix_once(workingDir, key="tesserAct"):
         return
 
       
+def analyze_year_corrections(training_df):
+    """
+    Learn OCR year patterns from user-corrected training titles.
+
+    Example:
+        OCR:       (Linnaeus, | 758)
+        Confirmed: (Linnaeus, 1758)
+
+    Result:
+        three_digit_year = True
+    """
+
+    corrected_rows = training_df[
+        training_df["confirmed_text"].notna()
+    ]
+
+    total = 0
+    three_digit_year = 0
+
+    for _, row in corrected_rows.iterrows():
+
+        ocr_text = str(row["ocr_text"])
+        confirmed_text = str(row["confirmed_text"])
+
+        # Correct four-digit year from confirmed title
+        confirmed_year = re.search(
+            r"\b(17|18|19|20)\d{2}\b",
+            confirmed_text
+        )
+
+        if not confirmed_year:
+            continue
+
+        total += 1
+
+        year = confirmed_year.group()
+
+        # Last three digits of confirmed year
+        last_three = year[1:]
+
+        # Did OCR contain only these three digits?
+        if re.search(
+            rf"\b{re.escape(last_three)}\b",
+            ocr_text
+        ):
+            three_digit_year += 1
+
+    frequency = (
+        three_digit_year / total
+        if total > 0
+        else 0
+    )
+
+    return {
+        "three_digit_year": frequency >= 0.8,
+        "frequency": frequency,
+        "examples": total
+    }
+    
 def find_species_context_loose(
     workingDir="",
     page_path="",
@@ -695,6 +754,567 @@ def get_lines_last_check(image_path, search_specie, legendKeywords=None):
         print(traceback.format_exc())
         return ""
 
-      
-      
-     
+   
+# ------------------------------------------------------------
+# Reads species titles from the training CSV.
+#
+# For structural title recognition, confirmed_text is preferred
+# when available. Otherwise the original OCR text is used.
+# ------------------------------------------------------------
+def read_training_titles(training_csv):
+
+    import csv
+
+    training_titles = []
+
+    with open(
+        training_csv,
+        "r",
+        encoding="utf-8-sig",
+        newline=""
+    ) as file:
+
+        reader = csv.DictReader(file)
+
+        for row in reader:
+
+            confirmed_text = (
+                row.get("confirmed_text") or ""
+            ).strip()
+
+            ocr_text = (
+                row.get("ocr_text") or ""
+            ).strip()
+
+            # Corrected title has priority
+            if confirmed_text:
+                title = confirmed_text
+            else:
+                title = ocr_text
+
+            if title:
+                training_titles.append(title)
+
+    return training_titles
+
+
+# ------------------------------------------------------------
+# Analyses only the FIRST CHARACTER of all training titles.
+#
+# At this stage we deliberately learn only whether all titles
+# start with:
+# - an uppercase letter
+# - a letter
+# - something else
+#
+# More title structure will be added step by step later.
+# ------------------------------------------------------------
+def analyse_first_char(training_titles):
+
+    if not training_titles:
+        return None
+
+    first_chars = [
+        title.strip()[0]
+        for title in training_titles
+        if title and title.strip()
+    ]
+
+    if not first_chars:
+        return None
+
+    print("\n=======================================")
+    print("FIRST CHARACTER ANALYSIS")
+    print("=======================================")
+
+    for title in training_titles:
+
+        title = title.strip()
+
+        if title:
+            print(
+                repr(title[0]),
+                " -> ",
+                title
+            )
+
+    # --------------------------------------------------------
+    # Are ALL first characters letters?
+    # --------------------------------------------------------
+
+    all_letters = all(
+        char.isalpha()
+        for char in first_chars
+    )
+
+    # --------------------------------------------------------
+    # Are ALL first characters uppercase letters?
+    # --------------------------------------------------------
+
+    all_upper = all(
+        char.isalpha() and char.isupper()
+        for char in first_chars
+    )
+
+    # --------------------------------------------------------
+    # Create ONLY the first part of the future regex
+    # --------------------------------------------------------
+
+    if all_upper:
+
+        regex_start = r"^[A-ZÀ-ÖØ-Þ]"
+
+    elif all_letters:
+
+        regex_start = r"^[A-Za-zÀ-ÖØ-öø-ÿ]"
+
+    else:
+
+        regex_start = None
+
+    print("---------------------------------------")
+    print("Number of titles:", len(first_chars))
+    print("First characters:", first_chars)
+    print("All are letters:", all_letters)
+    print("All are uppercase:", all_upper)
+    print("Learned regex start:", regex_start)
+    print("=======================================\n")
+
+    return regex_start   
+  
+  
+def analyse_last_char(training_titles):
+    """
+    Analyse the last character of all training titles
+    and determine the corresponding regex end.
+    """
+
+    if not training_titles:
+        return None
+
+    last_chars = [
+        title.strip()[-1]
+        for title in training_titles
+        if title and title.strip()
+    ]
+
+    if not last_chars:
+        return None
+
+    print("\n=======================================")
+    print("LAST CHARACTER ANALYSIS")
+    print("=======================================")
+
+    for title in training_titles:
+
+        title = title.strip()
+
+        if title:
+            print(
+                repr(title[-1]),
+                " -> ",
+                title
+            )
+
+    # --------------------------------------------------------
+    # Check whether all titles have exactly the same
+    # last character
+    # --------------------------------------------------------
+
+    same_last_char = (
+        len(set(last_chars)) == 1
+    )
+
+    if same_last_char:
+
+        last_char = last_chars[0]
+
+        # re.escape is important for characters such as
+        # ), ], ., *, etc.
+        regex_end = (
+            re.escape(last_char) + "$"
+        )
+
+    else:
+
+        last_char = None
+        regex_end = None
+
+    print("---------------------------------------")
+    print("Number of titles:", len(last_chars))
+    print("Last characters:", last_chars)
+    print("Same last character:", same_last_char)
+    print("Learned last character:", last_char)
+    print("Learned regex end:", regex_end)
+    print("=======================================\n")
+
+    return regex_end
+  
+def analyse_digit(training_titles, threshold=0.9):
+    """
+    Analyse whether digits occur in the training titles.
+
+    If digits occur in at least `threshold` of all titles,
+    digits are considered a characteristic title feature.
+    """
+
+    titles = [
+        title.strip()
+        for title in training_titles
+        if title and title.strip()
+    ]
+
+    if not titles:
+        return False
+
+    # --------------------------------------------------------
+    # Check every title
+    # --------------------------------------------------------
+
+    titles_with_digits = 0
+
+    print("\n=======================================")
+    print("DIGIT ANALYSIS")
+    print("=======================================")
+
+    for title in titles:
+
+        has_digit = any(
+            char.isdigit()
+            for char in title
+        )
+
+        if has_digit:
+            titles_with_digits += 1
+
+        print(
+            has_digit,
+            " -> ",
+            title
+        )
+
+    # --------------------------------------------------------
+    # Frequency
+    # --------------------------------------------------------
+
+    frequency = (
+        titles_with_digits / len(titles)
+    )
+
+    use_digits = (
+        frequency >= threshold
+    )
+
+    print("---------------------------------------")
+    print("Number of titles:", len(titles))
+    print("Titles with digits:", titles_with_digits)
+    print("Frequency:", round(frequency, 2))
+    print("Use digits in regex:", use_digits)
+    print("=======================================\n")
+
+    return use_digits
+  
+
+def build_title_regex(
+    regex_start,
+    regex_end,
+    use_digits=False,
+    year_learning=None
+):
+
+    if not regex_start or not regex_end:
+        return None
+
+    # Remove $ because OCR may append text after the title
+    regex_end_search = regex_end.rstrip("$")
+
+    regex = regex_start
+    regex += r".*?"
+
+    if use_digits:
+
+        # Training showed that Tesseract can lose
+        # the first digit of a four-digit year
+        if (
+            year_learning
+            and year_learning.get("three_digit_year", False)
+        ):
+            regex += r"\d{3,4}"
+        else:
+            regex += r"\d"
+
+    regex += r".*?"
+    regex += regex_end_search
+
+    print("\nLEARNED REGEX:")
+    print(regex)
+
+    return re.compile(regex)
+
+  
+def test_title_regex_on_page(
+    image_path,
+    title_regex
+):
+    """
+    OCR page line by line and return all lines matching
+    the learned species-title regex, including coordinates.
+    """
+
+    image = cv2.imread(image_path)
+
+    if image is None:
+        print("Image could not be read:", image_path)
+        return []
+
+    gray = cv2.cvtColor(
+        image,
+        cv2.COLOR_BGR2GRAY
+    )
+
+    data = pytesseract.image_to_data(
+        gray,
+        output_type=pytesseract.Output.DICT
+    )
+
+    # --------------------------------------------------------
+    # Reconstruct OCR lines including coordinates
+    # --------------------------------------------------------
+
+    lines = {}
+
+    for i, text in enumerate(data["text"]):
+
+        text = text.strip()
+
+        if not text:
+            continue
+
+        line_key = (
+            data["block_num"][i],
+            data["par_num"][i],
+            data["line_num"][i]
+        )
+
+        if line_key not in lines:
+            lines[line_key] = {
+                "words": [],
+                "left": [],
+                "top": [],
+                "right": [],
+                "bottom": []
+            }
+
+        x = data["left"][i]
+        y = data["top"][i]
+        w = data["width"][i]
+        h = data["height"][i]
+
+        lines[line_key]["words"].append(text)
+
+        lines[line_key]["left"].append(x)
+        lines[line_key]["top"].append(y)
+        lines[line_key]["right"].append(x + w)
+        lines[line_key]["bottom"].append(y + h)
+
+    # --------------------------------------------------------
+    # Test every OCR line
+    # --------------------------------------------------------
+
+    matches = []
+
+    print("\n=======================================")
+    print("REGEX TEST")
+    print("Page:", image_path)
+    print("Regex:", title_regex.pattern)
+    print("=======================================\n")
+
+    for line in lines.values():
+
+        line_text = " ".join(
+            line["words"]
+        ).strip()
+    
+        regex_match = title_regex.match(line_text)
+    
+        if regex_match:
+    
+            # Only the part of the OCR line that matched the learned regex
+            matched_text = regex_match.group(0).strip()
+    
+            x = min(line["left"])
+            y = min(line["top"])
+    
+            x2 = max(line["right"])
+            y2 = max(line["bottom"])
+    
+            w = x2 - x
+            h = y2 - y
+    
+            match = {
+                "text": matched_text,
+                "x": x,
+                "y": y,
+                "w": w,
+                "h": h
+            }
+    
+            matches.append(match)
+    
+            print("MATCH:")
+            print(matched_text)
+            print(
+                "x:", x,
+                "y:", y,
+                "w:", w,
+                "h:", h
+            )
+            print()
+
+    print("Total matches:", len(matches))
+
+    return matches
+
+def detect_species_titles_from_training(
+    image_path,
+    training_csv
+):
+    """
+    Detect species titles on a page using a regex
+    learned automatically from the training CSV.
+    """
+
+    # --------------------------------------------------------
+    # Read complete training data
+    # --------------------------------------------------------
+
+    training_df = pd.read_csv(
+        training_csv
+    )
+
+    # --------------------------------------------------------
+    # Read titles for structural analysis
+    # confirmed_text has priority over OCR text
+    # --------------------------------------------------------
+
+    training_titles = read_training_titles(
+        training_csv
+    )
+
+    # Learn regex start
+    regex_start = analyse_first_char(
+        training_titles
+    )
+
+    # Learn regex end
+    regex_end = analyse_last_char(
+        training_titles
+    )
+
+    # Learn whether digits are characteristic
+    use_digits = analyse_digit(
+        training_titles,
+        threshold=0.9
+    )
+
+    # --------------------------------------------------------
+    # Learn OCR year errors from user corrections
+    # --------------------------------------------------------
+
+    year_learning = analyze_year_corrections(
+        training_df
+    )
+
+    print("\nYEAR CORRECTION LEARNING:")
+    print(year_learning)
+
+    # --------------------------------------------------------
+    # Build learned regex
+    # --------------------------------------------------------
+
+    title_regex = build_title_regex(
+        regex_start,
+        regex_end,
+        use_digits,
+        year_learning
+    )
+
+    # --------------------------------------------------------
+    # Detect titles on page
+    # --------------------------------------------------------
+
+    matches = test_title_regex_on_page(
+    image_path,
+    title_regex
+    )
+    
+    # --------------------------------------------------------
+    # Apply OCR corrections learned from user training
+    # --------------------------------------------------------
+    
+    for match in matches:
+    
+        original_text = match["text"]
+    
+        corrected_text = correct_learned_year_error(
+            original_text,
+            year_learning
+        )
+    
+        if corrected_text != original_text:
+    
+            print("\nLEARNED OCR CORRECTION:")
+            print("OCR:      ", original_text)
+            print("Corrected:", corrected_text)
+    
+            match["text"] = corrected_text
+    
+    
+    return matches
+
+def correct_learned_year_error(text, year_learning):
+    """
+    Correct OCR year errors learned from user corrections.
+
+    Example learned from training:
+        | 758  -> 1758
+        |775   -> 1775
+    """
+
+    if not text:
+        return text
+
+    if not year_learning:
+        return text
+
+    if not year_learning.get("three_digit_year", False):
+        return text
+
+    # --------------------------------------------------------
+    # Look for a 3-digit year immediately before ')'
+    #
+    # Examples:
+    #   | 758)
+    #   |758)
+    #   758)
+    # --------------------------------------------------------
+
+    pattern = r"(?<!\d)\|?\s*(\d{3})\s*\)"
+
+    def replace_year(match):
+
+        three_digits = match.group(1)
+
+        # For the current learned pattern:
+        # 758 -> 1758
+        corrected_year = "1" + three_digits
+
+        return corrected_year + ")"
+
+    corrected_text = re.sub(
+        pattern,
+        replace_year,
+        text
+    )
+
+    return corrected_text

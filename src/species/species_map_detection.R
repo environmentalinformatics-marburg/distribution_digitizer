@@ -73,7 +73,7 @@ read_legends <- function(working_dir, out_dir, legendKeywords, nMapTypes = 1) {
   
   results <- "The following species were found: "
   # Source Python script for additional processing if needed
-  source_python(file.path(working_dir, "src/read_species/map_crop_species.py"))
+  source_python(file.path(working_dir, "src/species/species_map_processing_ocr.py"))
  
   # --- NEU: über Map-Typen (1..nMapTypes) iterieren ---
   for (type_id in seq_len(as.integer(nMapTypes))) {
