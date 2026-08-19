@@ -52,6 +52,76 @@ color_ranges = [
     (np.array([130, 50, 50]), np.array([160, 255, 255]))
 ]
 
+
+# ------------------------------------------------------------
+# Polygonization workflow for Contour / Area Detection
+# ------------------------------------------------------------
+# Purpose:
+# Converts rectified contour masks directly into polygons.
+#
+# Unlike Point Filtering:
+# - no centroid extraction
+# - no template matching
+# - no species point CSV
+#
+# The detected contour itself represents the species
+# distribution area and is therefore polygonized directly.
+# ------------------------------------------------------------
+def mainPolygonize_Contour(workingDir, outDir, nMapTypes=1):
+
+    print(f"DEBUG Contour Polygonize nMapTypes = {nMapTypes}")
+
+    for map_id in range(1, int(nMapTypes) + 1):
+
+        print(f"\n=== Polygonizing contour map type {map_id} ===")
+
+        inputdir = os.path.join(
+            outDir,
+            str(map_id),
+            "rectifying",
+            "pointFiltering"
+        )
+
+        output = os.path.join(
+            outDir,
+            str(map_id),
+            "polygonize",
+            "pointFiltering"
+        )
+
+        os.makedirs(output, exist_ok=True)
+
+        tif_files = glob.glob(
+            os.path.join(inputdir, "*.tif")
+        )
+
+        print("Input directory:", inputdir)
+        print("Output directory:", output)
+        print("Found tif files:", len(tif_files))
+
+        if not tif_files:
+            print("⚠️ No rectified contour tif files found")
+            continue
+
+        for input_raster in tif_files:
+
+            print("Polygonizing contour:", input_raster)
+
+            filename = os.path.basename(input_raster)
+            layer_name = os.path.splitext(filename)[0]
+
+            output_shape = os.path.join(
+                output,
+                layer_name + ".shp"
+            )
+
+            polygonize(
+                input_raster,
+                output_shape,
+                layer_name
+            )
+
+    print("\n✅ Contour polygonization completed.")
 # ------------------------------------------------------------
 # Polygonize raster → vector
 # ------------------------------------------------------------
@@ -93,8 +163,18 @@ def polygonize(input_raster, output_shape, dst_layername):
         
         dst_ds = drv.CreateDataSource(output_shape)  # Create a new shapefile
         
+        # --------------------------------------------------------
+        # Use spatial reference from rectified input raster
+        # --------------------------------------------------------
+        projection = src_ds.GetProjection()
+        
         sp_ref = osr.SpatialReference()
-        sp_ref.SetFromUserInput('EPSG:4326')
+        
+        if projection:
+            sp_ref.ImportFromWkt(projection)
+            print("Polygonize CRS:", sp_ref.GetName())
+        else:
+            print("⚠️ No CRS found in input raster")
         
         dst_layername = dst_layername.replace(extension, "")
         dst_layer = dst_ds.CreateLayer(dst_layername, srs=sp_ref)  # Create a new layer

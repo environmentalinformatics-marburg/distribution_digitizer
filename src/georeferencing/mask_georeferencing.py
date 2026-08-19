@@ -31,7 +31,50 @@ import sys
 #os.environ['PROJ_LIB'] = "C:/Users/user/miniconda3/Library/share/proj/"
 
 
+def read_crs_from_points(gcp_points):
+    """
+    Read CRS information from a QGIS .points file.
 
+    If the file contains a '#CRS:' line, this CRS is used.
+    For older .points files without CRS information,
+    EPSG:4326 is used as fallback to preserve the old workflow.
+    """
+
+    for encoding in ["utf-8", "cp1252"]:
+
+        try:
+            with open(gcp_points, "r", encoding=encoding) as f:
+
+                for line in f:
+
+                    if line.startswith("#CRS:"):
+
+                        crs_wkt = line.replace("#CRS:", "", 1).strip()
+
+                        srs = osr.SpatialReference()
+
+                        if srs.ImportFromWkt(crs_wkt) == 0:
+                            print("GCP CRS found:", srs.GetName())
+                            return srs.ExportToWkt()
+
+            # Datei konnte gelesen werden,
+            # aber keine CRS-Zeile gefunden
+            break
+
+        except UnicodeDecodeError:
+            continue
+
+    # --------------------------------------------------------
+    # Fallback for old .points files
+    # --------------------------------------------------------
+    print("⚠️ No CRS information found in .points file.")
+    print("Using EPSG:4326 as fallback for legacy data.")
+
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+
+    return srs.ExportToWkt()
+  
 # ------------------------------------------------------------
 # Core georeferencing function using GCPs
 # ------------------------------------------------------------
@@ -57,7 +100,21 @@ def maskgeoreferencing(input_raster, output_raster, gcp_points):
         print("GCP file:", gcp_points)
 
         # ---------- Read GCP file ----------
-        f = pd.read_csv(gcp_points)
+        try:
+            f = pd.read_csv(
+                gcp_points,
+                encoding="utf-8",
+                comment="#"
+            )
+            print("GCP encoding: UTF-8")
+        
+        except UnicodeDecodeError:
+            f = pd.read_csv(
+                gcp_points,
+                encoding="cp1252",
+                comment="#"
+            )
+            print("GCP encoding: CP1252")
 
         required_cols = ['mapX','mapY','sourceX','sourceY']
         for col in required_cols:
@@ -111,12 +168,11 @@ def maskgeoreferencing(input_raster, output_raster, gcp_points):
             print("⚠️ GCP list empty")
             return
 
+
         # --------------------------------------------------------
-        # Define spatial reference system (WGS84)
+        # Read CRS from .points file
         # --------------------------------------------------------
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(4326)
-        dest_wkt = srs.ExportToWkt()
+        dest_wkt = read_crs_from_points(gcp_points)
 
         dst_ds.SetProjection(dest_wkt)
         dst_ds.SetGCPs(gcp_list, dest_wkt)

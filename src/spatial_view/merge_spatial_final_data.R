@@ -3,6 +3,123 @@ library(dplyr)
 library(stringr)
 
 
+merge_all_contours <- function(outDir, nMapTypes) {
+  
+  for (i in 1:nMapTypes) {
+    
+    mapDir <- file.path(outDir, as.character(i))
+    
+    cat("➡️ Processing contour data:", mapDir, "\n")
+    
+    tryCatch({
+      
+      add_species_shape_safe(
+        mapDir = mapDir
+      )
+      
+    }, error = function(e) {
+      
+      cat("❌ Error in map", i, ":\n")
+      print(e$message)
+      cat("➡️ Skipping map", i, "\n")
+    })
+  }
+}
+
+add_species_shape_safe <- function(mapDir) {
+  
+  file_species <- file.path(
+    mapDir,
+    "pageSpeciesData.csv"
+  )
+  
+  shape_dir <- file.path(
+    mapDir,
+    "polygonize",
+    "pointFiltering"
+  )
+  
+  file_output <- file.path(
+    mapDir,
+    "spatial_data_final.csv"
+  )
+  
+  # --------------------------------------------------
+  # Check input
+  # --------------------------------------------------
+  if (!file.exists(file_species)) {
+    stop(paste("❌ File not found:", file_species))
+  }
+  
+  if (!dir.exists(shape_dir)) {
+    stop(paste("❌ Shape directory not found:", shape_dir))
+  }
+  
+  # --------------------------------------------------
+  # Read species data
+  # --------------------------------------------------
+  df_species <- read.csv2(
+    file_species,
+    stringsAsFactors = FALSE
+  )
+  
+  # Original map filename
+  df_species$map_base <- tools::file_path_sans_ext(
+    basename(df_species$map_name)
+  )
+  
+  # --------------------------------------------------
+  # Find corresponding filtered shapefile
+  # --------------------------------------------------
+  df_species$shape_file <- vapply(
+    df_species$map_base,
+    function(map_base) {
+      
+      shape_name <- paste0(
+        map_base,
+        "_filtered.shp"
+      )
+      
+      shape_path <- file.path(
+        shape_dir,
+        shape_name
+      )
+      
+      if (file.exists(shape_path)) {
+        return(shape_path)
+      }
+      
+      NA_character_
+    },
+    character(1)
+  )
+  
+  # --------------------------------------------------
+  # Debug
+  # --------------------------------------------------
+  cat(
+    "Shapefiles found:",
+    sum(!is.na(df_species$shape_file)),
+    "\n"
+  )
+  
+  cat(
+    "Shapefiles missing:",
+    sum(is.na(df_species$shape_file)),
+    "\n"
+  )
+  
+  # --------------------------------------------------
+  # Write final spatial data
+  # --------------------------------------------------
+  write.csv(
+    df_species,
+    file_output,
+    row.names = FALSE
+  )
+  
+  cat("✅ spatial_data_final.csv created for contours\n\n")
+}
 
 merge_all_maps <- function(outDir, nMapTypes){
   

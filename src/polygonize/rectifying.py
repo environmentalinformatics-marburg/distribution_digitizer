@@ -56,7 +56,84 @@ import rasterio
 from osgeo import gdal, osr
 import os, glob
 
+# ------------------------------------------------------------
+# Rectifying workflow for Contour / Area Detection
+# ------------------------------------------------------------
+# Purpose:
+# Rectifies already georeferenced contour masks.
+#
+# Unlike the Point Filtering workflow, contour masks already
+# represent the final species distribution areas.
+#
+# Therefore:
+# - no centroid extraction is required
+# - no color-to-template matching is required
+# - no point CSV is generated
+#
+# Workflow:
+# <outDir>/<map_type>/georeferencing/masks/pointFiltering/
+#                         ↓
+# <outDir>/<map_type>/rectifying/pointFiltering/
+#
+# Note:
+# The directory names are currently kept compatible with the
+# existing downstream workflow. The data itself represents
+# contours / areas, not point-filtered centroids.
+# ------------------------------------------------------------
+def mainRectifying_Contour(workingDir, outDir, nMapTypes=1):
 
+    print(f"DEBUG Contour Rectifying nMapTypes = {nMapTypes}")
+
+    for i in range(1, nMapTypes + 1):
+
+        print(f"\n=== Rectifying contour map type {i} ===")
+
+        inputdir = os.path.join(
+            outDir,
+            str(i),
+            "georeferencing",
+            "masks",
+            "pointFiltering"
+        )
+
+        output = os.path.join(
+            outDir,
+            str(i),
+            "rectifying",
+            "pointFiltering"
+        )
+
+        os.makedirs(output, exist_ok=True)
+
+        tif_files = glob.glob(
+            os.path.join(inputdir, "*.tif")
+        )
+
+        print("Input directory:", inputdir)
+        print("Output directory:", output)
+        print("Found tif files:", len(tif_files))
+
+        if not tif_files:
+            print("⚠️ No contour tif files found for rectifying")
+            continue
+
+        for input_raster in tif_files:
+
+            print("Rectifying contour:", input_raster)
+
+            dst_layername = os.path.basename(input_raster)
+            output_raster = os.path.join(
+                output,
+                dst_layername
+            )
+
+            rectifying(
+                input_raster,
+                output_raster
+            )
+
+    print("\n✅ Contour rectifying completed.")
+    
 # ------------------------------------------------------------
 # Core rectification function
 # ------------------------------------------------------------
