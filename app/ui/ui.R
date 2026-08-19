@@ -8,8 +8,8 @@ if(!require(leaflet)){
 
 
 source("ui/helpers_ui.R")
-source("ui/tab_species_distribution.R", local = TRUE)
-source("ui/tab_read_species.R", local = TRUE)
+source("ui/species_distribution_ui.R", local = TRUE)
+source("ui/species_reading_ui.R", local = TRUE)
 
 # Reading configuration files
 config_list<- read.csv2(paste0(workingDir,'/config/config.csv'), header = FALSE, sep = ';',stringsAsFactors = FALSE)
@@ -262,7 +262,40 @@ body <- dashboardBody(
                               info$nMapTypes_infoBox)
                    )
                  ),
+                # ============================================================
+                # Species distribution representation
+                # ============================================================
                 
+                fluidRow(
+                  column(
+                    10,
+                    
+                    tags$div(
+                      style = "position:relative;",
+                      
+                      radioButtons(
+                        inputId = "speciesRepresentation",
+                        label = "How is the species distribution represented on the maps?",
+                        choices = c(
+                          "Points / symbols" = "point",
+                          "Contours / areas" = "contour"
+                        ),
+                        selected = if (!is.null(config$speciesRepresentation)) {
+                          config$speciesRepresentation
+                        } else {
+                          "point"
+                        },
+                        inline = TRUE
+                      )
+                    ),
+                    
+                    div(
+                      id = "speciesRepresentation_infoBox",
+                      class = "infobox_tab_0",
+                      "Select how species distributions are represented in the source maps."
+                    )
+                  )
+                ),
                  # ============================================================
                  # Species Detection Keywords (NEW)
                  # ============================================================
@@ -608,9 +641,10 @@ body <- dashboardBody(
       ) # END fluid Row
     ),  # END tabItem 2
     
-    
-    
-    tab_species_distribution_ui(
+    # ----------------------------------------------------------------------
+    # Tab 3 – Species Distribution
+    # ----------------------------------------------------------------------
+    species_distribution_ui(
       shinyfields2 = shinyfields2,
       shinyfields3 = shinyfields3,
       shinyfields4 = shinyfields4,
@@ -618,6 +652,8 @@ body <- dashboardBody(
     ),
     
     
+    
+
     # ----------------------------------------------------------------------
     # Tab 4 – Masking
     # ----------------------------------------------------------------------
@@ -673,13 +709,16 @@ body <- dashboardBody(
     ),  # END tabItem 4
     
     
-    # Tab 5 Read Spezies #----------------------------------------------------------------------
-    tab_read_species_ui(
+    # ----------------------------------------------------------------------
+    # Tab 5 – Species Reading 
+    # ----------------------------------------------------------------------
+    species_reading_ui(
       shinyfields2 = shinyfields2,
       shinyfields6 = shinyfields6
     ),
     
     
+
 
     # ----------------------------------------------------------------------
     # Tab 6 – Georeferencing
@@ -697,6 +736,18 @@ body <- dashboardBody(
             h3(strong(shinyfields6$head, style = "color:black")),
             p(shinyfields6$inf1, style = "color:black"),
             p(shinyfields6$inf2, style = "color:black"),
+            
+            # HIER EINFÜGEN
+            radioButtons(
+              "georef_mask_type",
+              label = "Species distribution representation:",
+              choices = c(
+                "Points / symbols" = "point",
+                "Contours / areas" = "contour"
+              ),
+              selected = "point",
+              inline = TRUE
+            ),
             
             actionButton(
               "georeferencing",
@@ -777,6 +828,17 @@ body <- dashboardBody(
             p(shinyfields7$inf1, style = "color:black"),
             p(shinyfields7$inf2, style = "color:black"),
             
+            radioButtons(
+              "polygonize_mask_type",
+              label = "Species distribution representation:",
+              choices = c(
+                "Points / symbols" = "point",
+                "Contours / areas" = "contour"
+              ),
+              selected = "point",
+              inline = TRUE
+            ),
+            
             actionButton(
               "polygonize",
               label = shinyfields7$lab1,
@@ -827,7 +889,7 @@ body <- dashboardBody(
     
 
     # ----------------------------------------------------------------------
-    # Tab 8 – Spatial Data View (Point Detection only)
+    # Tab 8 – Spatial Data View 
     # ----------------------------------------------------------------------
     
     tabItem(
@@ -841,8 +903,19 @@ body <- dashboardBody(
             
             # ---------------- HEADER ----------------
             h3(strong("Spatial Data View", style = "color:black")),
-            p("Select map type and range before viewing point detection results.",
+            p("Compute and explore the final species distribution data.",
               style = "color:black"),
+            # ---------------- REPRESENTATION TYPE ----------------
+            radioButtons(
+              "spatial_representation",
+              label = "Species distribution representation:",
+              choices = c(
+                "Points / symbols" = "point",
+                "Contours / areas" = "contour"
+              ),
+              selected = "point",
+              inline = TRUE
+            ),
             
             actionButton(
               "startSpatialDataComputing",
@@ -852,41 +925,87 @@ body <- dashboardBody(
             
             tags$hr(),
             
-            # ---------------- LIST ELEMENTS ----------------
-            fluidRow(
-              column(
-                4,
-                textInput(
-                  "range_list_Spatial",
-                  label = HTML(shinyfields2$inf7),
-                  value = "1-2"
-                )
-              ),
+           
+            # ---------------- POINT VIEW CONTROLS ----------------
+            conditionalPanel(
+              condition = "input.spatial_representation == 'point'",
               
-              column(
-                4,
-                selectInput(
-                  "map_type_Spatial",
-                  label = "Select map type:",
-                  choices = mapTypes,
-                  selected = mapTypes[1]
-                )
-              ),
-              
-              column(
-                4,
-                actionButton(
-                  "spatialViewPF",
-                  "Start View point detection"
+              fluidRow(
+                column(
+                  4,
+                  textInput(
+                    "range_list_Spatial",
+                    label = HTML(shinyfields2$inf7),
+                    value = "1-2"
+                  )
+                ),
+                
+                column(
+                  4,
+                  selectInput(
+                    "map_type_Spatial",
+                    label = "Select map type:",
+                    choices = mapTypes,
+                    selected = mapTypes[1]
+                  )
+                ),
+                
+                column(
+                  4,
+                  actionButton(
+                    "spatialViewPF",
+                    "Start View point detection"
+                  )
                 )
               )
             )
           ),
           
-          # ---------------- LEAFLET OUTPUT ----------------
+          # ---------------- POINT LEAFLET OUTPUT ----------------
+          conditionalPanel(
+            condition = "input.spatial_representation == 'point'",
+            
+            wellPanel(
+              leafletOutput("mapSpatialViewPF", height = 600),
+              verbatimTextOutput("hoverInfo3")
+            )
+          ),
+          # ---------------- FINAL SPECIES DATA ----------------
           wellPanel(
-            leafletOutput("mapSpatialViewPF", height = 600),
-            verbatimTextOutput("hoverInfo3")
+            
+            h4(
+              "Final Species Distribution Data",
+              style = "color:black"
+            ),
+            
+            DT::DTOutput("finalSpeciesTable"),
+            downloadButton(
+              "downloadFinalSpeciesCSV",
+              "Download CSV"
+            ),
+            tags$hr(),
+            
+            textInput(
+              "speciesSpatialSearch",
+              label = "Search species:",
+              placeholder = "e.g. Watsonalla binaria"
+            ),
+            
+            actionButton(
+              "showSpeciesDistribution",
+              "Show species distribution"
+            )
+          ),
+          
+          # ---------------- SPECIES MAP ----------------
+          wellPanel(
+            
+            uiOutput("selectedSpeciesTitle"),
+            
+            leafletOutput(
+              "speciesDistributionMap",
+              height = 600
+            )
           )
           
         )

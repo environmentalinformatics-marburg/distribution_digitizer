@@ -1,4 +1,4 @@
-tab_species_distribution_ui <- function(
+species_distribution_ui <- function(
     shinyfields2,
     shinyfields3,
     shinyfields4,
