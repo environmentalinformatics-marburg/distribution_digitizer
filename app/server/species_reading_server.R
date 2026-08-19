@@ -62,7 +62,15 @@ species_reading_server <- function(
       
       # Only populated if the user corrects OCR
       confirmed_text = character(),
+      map_x = numeric(),
+      map_y = numeric(),
+      map_width = numeric(),
+      map_height = numeric(),
       
+      map_x_relative = numeric(),
+      map_y_relative = numeric(),
+      map_width_relative = numeric(),
+      map_height_relative = numeric(),
       stringsAsFactors = FALSE
     )
   )
@@ -88,30 +96,12 @@ species_reading_server <- function(
     current_out_dir
   ) {
     
-    # ...
-    
     current_species_selection <- reactiveVal(NULL)
     
     # NEW
     current_species_map_selection <- reactiveVal(NULL)
     
-    # ...
     
-    observeEvent(input$species_training_map_region, {
-      
-      req(input$species_training_page)
-      
-      current_species_map_selection(
-        input$species_training_map_region
-      )
-      
-      cat("\n=== CURRENT ASSOCIATED MAP SELECTION ===\n")
-      cat("Page:", input$species_training_page, "\n")
-      print(input$species_training_map_region)
-      cat("========================================\n")
-    })
-    
-    # ...
   }
   # ============================================================
   # Training pages for interactive species title selection
@@ -199,9 +189,16 @@ species_reading_server <- function(
   # ============================================================
   
   output$species_training_regions <- renderUI({
-    
+    cat(
+      "\nSELECTION TYPE:",
+      input$species_selection_type,
+      "\n"
+    )
     req(input$species_training_page)
-    
+    map_selection_mode <- identical(
+      input$species_selection_type,
+      "map"
+    )
     regions <- species_training_regions()
     current_page <- input$species_training_page
     
@@ -308,41 +305,66 @@ species_reading_server <- function(
             column(
               2,
               
-              actionButton(
-                inputId = paste0(
-                  "updateSpeciesTitle_",
-                  region$region_id
-                ),
-                label = "Update",
-                class = "btn-sm btn-primary",
+              if (!map_selection_mode) {
                 
-                onclick = paste0(
-                  "Shiny.setInputValue(",
-                  "'update_species_title_region', ",
-                  "{region_id: ", region$region_id, ", nonce: Math.random()}, ",
-                  "{priority: 'event'}",
-                  ");"
+                tagList(
+                  
+                  actionButton(
+                    inputId = paste0(
+                      "updateSpeciesTitle_",
+                      region$region_id
+                    ),
+                    label = "Update",
+                    class = "btn-sm btn-primary",
+                    onclick = paste0(
+                      "Shiny.setInputValue(",
+                      "'update_species_title_region', ",
+                      "{region_id: ", region$region_id, ", nonce: Math.random()}, ",
+                      "{priority: 'event'}",
+                      ");"
+                    )
+                  ),
+                  
+                  tags$br(),
+                  tags$br(),
+                  
+                  actionButton(
+                    inputId = paste0(
+                      "removeSpeciesRegion_",
+                      region$region_id
+                    ),
+                    label = "Remove",
+                    class = "btn-sm btn-danger",
+                    onclick = paste0(
+                      "Shiny.setInputValue(",
+                      "'remove_species_training_region', ",
+                      "{region_id: ", region$region_id, ", nonce: Math.random()}, ",
+                      "{priority: 'event'}",
+                      ");"
+                    )
+                  )
                 )
-              ),
-              
-              tags$br(),
-              tags$br(),
-              
-              actionButton(
-                inputId = paste0(
-                  "removeSpeciesRegion_",
-                  region$region_id
-                ),
-                label = "Remove",
-                class = "btn-sm btn-danger",
-                onclick = paste0(
-                  "Shiny.setInputValue(",
-                  "'remove_species_training_region', ",
-                  "{region_id: ", region$region_id, ", nonce: Math.random()}, ",
-                  "{priority: 'event'}",
-                  ");"
-                )
-              )
+                
+              } else {
+                
+                    actionButton(
+                      inputId = paste0(
+                        "addSpeciesMap_",
+                        region$region_id
+                      ),
+                      label = "Add map selection",
+                      class = "btn-sm btn-success",
+                      onclick = paste0(
+                        "Shiny.setInputValue(",
+                        "'add_species_map_region', ",
+                        "{region_id: ", region$region_id,
+                        ", nonce: Math.random()}, ",
+                        "{priority: 'event'}",
+                        ");"
+                      )
+                    )
+                
+              }
             )
           )
         )
@@ -553,11 +575,14 @@ species_reading_server <- function(
     
     req(input$species_training_page)
     req(current_species_selection())
-    
+    #req(current_species_map_selection())
     current_page <- input$species_training_page
     region <- current_species_selection()
     regions <- species_training_regions()
-    
+    current_page <- input$species_training_page
+    region <- current_species_selection()
+    #map_region <- current_species_map_selection()
+    regions <- species_training_regions()
     # ----------------------------------------------------------
     # Maximum 2 confirmed regions per page
     # ----------------------------------------------------------
@@ -591,6 +616,18 @@ species_reading_server <- function(
     
     height_relative <-
       region$height / region$image_height
+    
+    # map_x_relative <-
+    #   map_region$x / map_region$image_width
+    # 
+    # map_y_relative <-
+    #   map_region$y / map_region$image_height
+    # 
+    # map_width_relative <-
+    #   map_region$width / map_region$image_width
+    # 
+    # map_height_relative <-
+    #   map_region$height / map_region$image_height
     
     # ----------------------------------------------------------
     # Read OCR text immediately from selected region
@@ -660,6 +697,17 @@ species_reading_server <- function(
       # Remains empty unless user corrects OCR
       confirmed_text = NA_character_,
       
+      # Associated map will be added later
+      map_x = NA_real_,
+      map_y = NA_real_,
+      map_width = NA_real_,
+      map_height = NA_real_,
+      
+      map_x_relative = NA_real_,
+      map_y_relative = NA_real_,
+      map_width_relative = NA_real_,
+      map_height_relative = NA_real_,
+      
       stringsAsFactors = FALSE
     )
     
@@ -679,7 +727,7 @@ species_reading_server <- function(
     
     # Temporary selection is now confirmed
     current_species_selection(NULL)
-    
+    current_species_map_selection(NULL)
     cat("\n=== CONFIRMED SPECIES TITLE REGION ===\n")
     print(new_region)
   })

@@ -107,7 +107,7 @@ rescale <- 100 / scale
 
 # Setzt TESSDATA_PREFIX einmalig aus einem Pfad (aus Config),
 # egal ob dieser auf .../Tesseract-OCR oder .../tessdata zeigt.
-set_tessdata_prefix_once <- function(tess_path) {
+set_tessdata_prefix_from_config <- function(tess_path) {
   if (nzchar(Sys.getenv("TESSDATA_PREFIX"))) {
     message("TESSDATA_PREFIX already set to: ", Sys.getenv("TESSDATA_PREFIX"))
     return(invisible(FALSE))
@@ -264,10 +264,17 @@ server <- shinyServer(function(input, output, session) {
     open_dir(template_dir)
   })
   
+  print(set_tessdata_prefix_from_config)
+  print(class(set_tessdata_prefix_from_config))
   
-  set_tessdata_prefix_once(config$tesseract_path)
-  # prüfen:
-  Sys.getenv("TESSDATA_PREFIX")
+  cat("DEBUG tesseract_path:\n")
+  print(config$tesseract_path)
+  print(class(config$tesseract_path))
+  
+  set_tessdata_prefix_from_config(config$tesseract_path)
+  
+  cat("DEBUG TESSDATA_PREFIX:\n")
+  print(Sys.getenv("TESSDATA_PREFIX"))
   
   # ganz oben im server:
   outDir <- reactiveVal(NULL)
@@ -402,17 +409,17 @@ server <- shinyServer(function(input, output, session) {
         pYear          = to_chr(input$pYear),
         tesserAct      = to_chr(input$tesserAct),
         nMapTypes      = to_chr(input$nMapTypes),
-        # 🔥 NEU 
+        # NEU 
         speciesRepresentation = to_chr(input$speciesRepresentation),
         dataInputDir   = to_chr(input$dataInputDir),
         dataOutputDir  = run_out,
         pFormat        = to_chr(input$pFormat),
         pColor         = to_chr(input$pColor),
-        # 🔥 NEU 
+        # NEU 
         specieTitleKeyword = to_chr(input$specieTitleKeyword),
         specieTitleKeywordBefore      = to_chr(input$specieTitleKeywordBefore),
         specieTitleKeywordThen        = to_chr(input$specieTitleKeywordThen),
-        # 🔥 LEGEND
+        # LEGEND
         legendKeywords       = to_chr(input$legendKeywords),
         
         # wichtig: Boolean → sauber als Text speichern
@@ -455,7 +462,29 @@ server <- shinyServer(function(input, output, session) {
   })
   
   
-  
+  observeEvent(input$tablist, {
+    
+    if (input$tablist == "tab4" &&
+        config$speciesRepresentation == "contour") {
+      
+      showModal(
+        modalDialog(
+          title = "Masking not required",
+          
+          p(
+            "Contour masks are already generated during contour detection."
+          ),
+          
+          p(
+            "No additional masking step is required. Continue with Georeferencing."
+          ),
+          
+          easyClose = TRUE,
+          footer = modalButton("OK")
+        )
+      )
+    }
+  })
   # Render the image in the plot with given dynamical 10%
   output$plot <- renderImage({
     
@@ -920,15 +949,31 @@ server <- shinyServer(function(input, output, session) {
   #})
   
   observeEvent(input$georeferencing, {
-    # call the function for masking centroids
-    manageProcessFlow(
-      processing = "georeferencing",
-      allertText1 = "georeferencing",
-      allertText2 = "georeferencing",
-      input = input,  # ✅ input muss übergeben werden
-      session = session,
-      current_out_dir = outDir()
-    )
+    
+    if (input$georef_mask_type == "point") {
+      
+      manageProcessFlow(
+        processing = "georeferencing",
+        allertText1 = "georeferencing",
+        allertText2 = "georeferencing",
+        input = input,
+        session = session,
+        current_out_dir = outDir()
+      )
+      
+    } else if (input$georef_mask_type == "contour") {
+      
+      manageProcessFlow(
+        processing = "georeferencing_contour",
+        allertText1 = "georeferencing",
+        allertText2 = "georeferencing",
+        input = input,
+        session = session,
+        current_out_dir = outDir()
+      )
+      
+    }
+    
   })
   
   
@@ -1044,19 +1089,33 @@ server <- shinyServer(function(input, output, session) {
   # 6. Polygonize #----------------------------------------------------------------------#
   ####################
   
-  # Start
   observeEvent(input$polygonize, {
-    # call the function for masking centroids
-    manageProcessFlow(
-      processing = "polygonize",
-      allertText1 = "polygonize",
-      allertText2 = "polygonize",
-      input = input,  # ✅ input muss übergeben werden
-      session = session,
-      current_out_dir = outDir()
-    )
     
-  }) 
+    if (input$polygonize_mask_type == "point") {
+      
+      manageProcessFlow(
+        processing = "polygonize",
+        allertText1 = "polygonize",
+        allertText2 = "polygonize",
+        input = input,
+        session = session,
+        current_out_dir = outDir()
+      )
+      
+    } else if (input$polygonize_mask_type == "contour") {
+      
+      manageProcessFlow(
+        processing = "polygonize_contour",
+        allertText1 = "polygonize",
+        allertText2 = "polygonize",
+        input = input,
+        session = session,
+        current_out_dir = outDir()
+      )
+      
+    }
+    
+  })
   
   
   observeEvent(input$listPolygonize, ignoreInit = TRUE, {
@@ -1239,6 +1298,10 @@ server <- shinyServer(function(input, output, session) {
           png_i <- pick_png_for_shp(shp_i)
           
           shape_data <- sf::st_read(shp_i, quiet = TRUE)
+          # Leaflet requires geographic coordinates (WGS84)
+          if (!is.na(sf::st_crs(shape_data))) {
+            shape_data <- sf::st_transform(shape_data, 4326)
+          }
           
           rgb_to_hex <- function(r, g, b) {
             grDevices::rgb(r/255, g/255, b/255)
@@ -1255,7 +1318,7 @@ server <- shinyServer(function(input, output, session) {
           info_bl <- if (!is.na(png_i)) {
             htmltools::div(
               tags$img(
-                rc = paste0("/", png_i),
+                src = paste0("/", png_i),
                 width = 200
               ),
               tags$a(
@@ -1270,20 +1333,38 @@ server <- shinyServer(function(input, output, session) {
           
           output[[paste0("listPL", i)]] <- leaflet::renderLeaflet({
             
-            leaflet::leaflet() %>%
+            map <- leaflet::leaflet() %>%
               leaflet::addProviderTiles(
                 leaflet::providers$OpenStreetMap
-              ) %>%
-              leaflet::addCircleMarkers(
-                data = shape_data,
-                color = ~rgb_to_hex(Red, Green, Blue),
-                weight = 1,
-                opacity = 0.9,
-                fillOpacity = 0.6,
-                radius = 5
-              ) %>%
-              leaflet::addControl(info_br, position = "bottomright") %>%
-              leaflet::addControl(info_bl, position = "bottomleft")
+              )
+            
+            if (input$polygonize_mask_type == "contour") {
+              
+              map <- map %>%
+                leaflet::addPolygons(
+                  data = shape_data,
+                  color = "red",
+                  weight = 2,
+                  opacity = 1,
+                  fillOpacity = 0.3
+                )
+              
+            } else {
+              
+              map <- map %>%
+                leaflet::addCircleMarkers(
+                  data = shape_data,
+                  color = ~rgb_to_hex(Red, Green, Blue),
+                  weight = 1,
+                  opacity = 0.9,
+                  fillOpacity = 0.6,
+                  radius = 5
+                )
+            }
+            
+            #map %>%
+              #leaflet::addControl(info_br, position = "bottomright") %>%
+              #leaflet::addControl(info_bl, position = "bottomleft")
             
           })
           output[[paste0("pngPL", i)]] <- renderUI({
@@ -1339,22 +1420,229 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
+
+
+  # ============================================================
+  # Species distribution search
+  # ============================================================
+  
+  # 1. Species auswählen
+  selectedSpeciesData <- eventReactive(
+    input$showSpeciesDistribution,
+    {
+      
+      req(input$speciesSpatialSearch)
+      req(input$map_type_Spatial)
+      
+      csv_file <- file.path(
+        outDir(),
+        as.character(input$map_type_Spatial),
+        "spatial_data_final.csv"
+      )
+      
+      validate(
+        need(
+          file.exists(csv_file),
+          "spatial_data_final.csv not found."
+        )
+      )
+      
+      df <- read.csv(
+        csv_file,
+        stringsAsFactors = FALSE
+      )
+      
+      search_text <- trimws(input$speciesSpatialSearch)
+      
+      result <- df[
+        grepl(
+          search_text,
+          df$species,
+          ignore.case = TRUE,
+          fixed = TRUE
+        ),
+      ]
+      
+      validate(
+        need(nrow(result) > 0, "Species not found.")
+      )
+      
+      result
+    }
+  )
+  
+  
+  # 2. Titel anzeigen
+  output$selectedSpeciesTitle <- renderUI({
+    
+    df <- selectedSpeciesData()
+    
+    h2(
+      df$species[1],
+      style = "
+      color:black;
+      text-align:center;
+      font-weight:bold;
+    "
+    )
+  })
+  
+  
+  # 3. Karte anzeigen
+  output$speciesDistributionMap <- leaflet::renderLeaflet({
+    
+    df <- selectedSpeciesData()
+    
+    shape_list <- lapply(
+      df$shape_file,
+      function(shp_file) {
+        
+        if (!file.exists(shp_file)) {
+          return(NULL)
+        }
+        
+        shape <- sf::st_read(
+          shp_file,
+          quiet = TRUE
+        )
+        
+        if (!is.na(sf::st_crs(shape))) {
+          shape <- sf::st_transform(shape, 4326)
+        }
+        
+        shape
+      }
+    )
+    
+    shape_list <- Filter(
+      Negate(is.null),
+      shape_list
+    )
+    
+    validate(
+      need(
+        length(shape_list) > 0,
+        "No valid shapefile found for this species."
+      )
+    )
+    
+    shape_data <- do.call(
+      rbind,
+      shape_list
+    )
+    
+    bbox <- sf::st_bbox(shape_data)
+    
+    leaflet::leaflet() %>%
+      leaflet::addProviderTiles(
+        leaflet::providers$OpenStreetMap
+      ) %>%
+      leaflet::addPolygons(
+        data = shape_data,
+        color = "red",
+        weight = 2,
+        opacity = 1,
+        fillOpacity = 0.3
+      ) %>%
+      leaflet::fitBounds(
+        lng1 = as.numeric(bbox["xmin"]),
+        lat1 = as.numeric(bbox["ymin"]),
+        lng2 = as.numeric(bbox["xmax"]),
+        lat2 = as.numeric(bbox["ymax"])
+      )
+  })
+  
+  output$downloadFinalSpeciesCSV <- downloadHandler(
+    
+    filename = function() {
+      paste0(
+        "spatial_data_final_maptype_",
+        input$map_type_Spatial,
+        ".csv"
+      )
+    },
+    
+    content = function(file) {
+      
+      csv_file <- file.path(
+        outDir(),
+        as.character(input$map_type_Spatial),
+        "spatial_data_final.csv"
+      )
+      
+      req(file.exists(csv_file))
+      
+      file.copy(
+        csv_file,
+        file,
+        overwrite = TRUE
+      )
+    }
+  )
+  
+  
+  output$finalSpeciesTable <- DT::renderDT({
+    
+    req(input$map_type_Spatial)
+    
+    csv_file <- file.path(
+      outDir(),
+      as.character(input$map_type_Spatial),
+      "spatial_data_final.csv"
+    )
+    
+    validate(
+      need(
+        file.exists(csv_file),
+        "Please run Spatial Data Computing first."
+      )
+    )
+    
+    df <- read.csv(
+      csv_file,
+      stringsAsFactors = FALSE
+    )
+    
+    DT::datatable(
+      df,
+      options = list(
+        pageLength = 5,
+        scrollX = TRUE
+      ),
+      rownames = FALSE
+    )
+  })
   
   ####################
   # 7. Save the outputs #----------------------------------------------------------------------#
   ####################
   
-  # Start
   observeEvent(input$startSpatialDataComputing, {
-    # call the function for filteringg
-   manageProcessFlow(
-      processing = "spatial_data_computing",
-      allertText1 = "spatial",
-      allertText2 = "spatial",
-      input = input,  # ✅ input muss übergeben werden
-      session = session,
-      current_out_dir = outDir()
-    )
+    
+    if (input$spatial_representation == "point") {
+      
+      manageProcessFlow(
+        processing = "spatial_data_computing",
+        allertText1 = "spatial",
+        allertText2 = "spatial",
+        input = input,
+        session = session,
+        current_out_dir = outDir()
+      )
+      
+    } else if (input$spatial_representation == "contour") {
+      
+      manageProcessFlow(
+        processing = "spatial_data_computing_contour",
+        allertText1 = "spatial",
+        allertText2 = "spatial",
+        input = input,
+        session = session,
+        current_out_dir = outDir()
+      )
+      
+    }
+    
   })
   
   observeEvent(input$spatialViewPF, {
