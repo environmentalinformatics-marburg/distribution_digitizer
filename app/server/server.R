@@ -141,7 +141,7 @@ set_tessdata_prefix_from_config <- function(tess_path) {
 
 source("server/species_distribution_server.R", local = TRUE)
 source("server/species_reading_server.R", local = TRUE)
-
+source("server/pipeline_server.R")
 
 server <- shinyServer(function(input, output, session) {
   #addResourcePath("root", "D:/distribution_digitizer/www")
@@ -205,7 +205,12 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   
-  
+  pipeline_server(
+    input = input,
+    output = output,
+    session = session,
+    workingDir = workingDir
+  )
   
   # Dateiauswahl mit Startordner
   shinyFileChoose(

@@ -10,6 +10,7 @@ if(!require(leaflet)){
 source("ui/helpers_ui.R")
 source("ui/species_distribution_ui.R", local = TRUE)
 source("ui/species_reading_ui.R", local = TRUE)
+source("ui/pipeline_ui.R")
 
 # Reading configuration files
 config_list<- read.csv2(paste0(workingDir,'/config/config.csv'), header = FALSE, sep = ';',stringsAsFactors = FALSE)
@@ -142,7 +143,7 @@ header <- dashboardHeader(
       menuItem("Georeferencing", tabName = "tab6" ),
       menuItem("Polygonize", tabName = "tab7" ),
       menuItem("Spatial View", tabName = "tab8" ),
-      menuItem("Download", tabName = "tab9" )
+      menuItem("Complete Pipeline", tabName = "tab9" )
     )
   )
 )
@@ -1398,7 +1399,9 @@ body <- dashboardBody(
           
         )
       )
-    ) # END tabItems
+    ) ,
+    pipeline_ui()
+    # END tabItems
   )
 ) # END BODY
 
