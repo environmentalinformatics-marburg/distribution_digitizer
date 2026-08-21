@@ -897,7 +897,7 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
 # ------------------------------------------------------------
 
 def main_template_matching(
-    working_dir,
+    workingDir,
     outDir,
     threshold,
     page_position,
@@ -919,10 +919,10 @@ def main_template_matching(
 
     try:
         # --- Normalize paths ---
-        working_dir = working_dir.rstrip("/\\")
+        workingDir = workingDir.rstrip("/\\")
         outDir = outDir.rstrip("/\\")
-        pages_dir = os.path.join(working_dir, "data", "input", "pages")
-        templates_root = os.path.join(working_dir, "data", "input", "templates")
+        pages_dir = os.path.join(workingDir, "data", "input", "pages")
+        templates_root = os.path.join(workingDir, "data", "input", "templates")
 
         # --- Prepare list of numeric map groups ---
         map_groups = [str(i) for i in range(1, int(nMapTypes) + 1)
@@ -1076,7 +1076,7 @@ def main_template_matching(
 
 
 
-#working_dir="D:/distribution_digitizer"
+#workingDir="D:/distribution_digitizer"
 #outDir="D:/test/output_2026-01-28_16-17-41/"
-##main_template_matching(working_dir, outDir,  0.18, 1, 1, "0043.tif", 2)
-#main_template_matching(working_dir, outDir,  0.18, 1, 2, "1-1", 2)
+##main_template_matching(workingDir, outDir,  0.18, 1, 1, "0043.tif", 2)
+#main_template_matching(workingDir, outDir,  0.18, 1, 2, "1-1", 2)

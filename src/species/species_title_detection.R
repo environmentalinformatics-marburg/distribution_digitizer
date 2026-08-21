@@ -418,6 +418,13 @@ readPageSpeciesDirectMulti <- function(
     nMapTypes
 ) {
   
+  cat("\nDEBUG outDir:\n")
+  print(outDir)
+  cat("class:", class(outDir), "\n")
+  cat("typeof:", typeof(outDir), "\n")
+  
+  cat("\n=======================================\n")
+  
   cat("\n=======================================\n")
   cat("DIRECT SPECIES TITLE PROCESSING\n")
   cat("Map types:", nMapTypes, "\n")

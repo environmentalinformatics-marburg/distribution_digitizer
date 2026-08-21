@@ -265,14 +265,13 @@ def align_images_directory(working_dir, outDir, nMapTypes=1):
             output_dir = os.path.join(outDir, type_id, "maps", "align")
 
             # ------------------------------------------------------------
-            # Validate output directory (must exist) AND clean it
+            # Create output directory if it does not exist
             # ------------------------------------------------------------
-            if not os.path.isdir(output_dir):
-                #print(f"❌ Output directory does not exist (configuration error): {output_dir}")
-                #print("❌ Alignment aborted for this map type.")
-                continue
+            os.makedirs(output_dir, exist_ok=True)
             
+            # ------------------------------------------------------------
             # Clean output directory to remove results from previous runs
+            # ------------------------------------------------------------
             old_files = glob.glob(os.path.join(output_dir, "*.tif"))
             
             if old_files:

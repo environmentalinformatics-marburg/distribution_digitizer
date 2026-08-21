@@ -298,3 +298,96 @@ def detect_species_contour(
         )
 
         return None
+      
+def mainSpeciesAreaDetection(
+    workingDir,
+    outDir,
+    colors,
+    tolerance=10,
+    border_margin=0,
+    nMapTypes=1,
+    debug=False
+):
+    """
+    Process species area detection for all map types.
+
+    For each map type:
+    - reads aligned maps from maps/align
+    - creates the required output directory
+    - processes all maps using the selected contour colors
+    """
+
+    total_processed = 0
+
+    # --------------------------------------------------------
+    # Process all map types
+    # --------------------------------------------------------
+    for i in range(1, int(nMapTypes) + 1):
+
+        map_type = str(i)
+
+        input_dir = os.path.join(
+            outDir,
+            map_type,
+            "maps",
+            "align"
+        )
+
+        output_dir = os.path.join(
+            outDir,
+            map_type,
+            "masking_black",
+            "pointFiltering"
+        )
+
+        # ----------------------------------------------------
+        # Check input
+        # ----------------------------------------------------
+        if not os.path.isdir(input_dir):
+            print(
+                f"⚠️ Input directory not found for "
+                f"map type {map_type}: {input_dir}"
+            )
+            continue
+
+        # ----------------------------------------------------
+        # Create output directory
+        # ----------------------------------------------------
+        os.makedirs(
+            output_dir,
+            exist_ok=True
+        )
+
+        if debug:
+            print("\n====================================")
+            print("SPECIES AREA DETECTION")
+            print("Map type:", map_type)
+            print("Input:", input_dir)
+            print("Output:", output_dir)
+            print("====================================")
+
+        # ----------------------------------------------------
+        # Process all maps of this map type
+        # ----------------------------------------------------
+        number_processed = process_species_area_maps(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            colors=colors,
+            tolerance=tolerance,
+            border_margin=border_margin,
+            debug=debug
+        )
+
+        total_processed += number_processed
+
+        print(
+            f"✅ Map type {map_type}: "
+            f"{number_processed} maps processed"
+        )
+
+    print(
+        f"\n✅ Total species area maps processed: "
+        f"{total_processed}"
+    )
+
+    return total_processed
