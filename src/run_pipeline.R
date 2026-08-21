@@ -136,7 +136,7 @@ run_complete_pipeline <- function(
       "map_matching.py"
     )
   )
-  
+ 
   main_template_matching(
     workingDir       = workingDir,
     outDir           = pipeline_out_dir,
@@ -146,7 +146,7 @@ run_complete_pipeline <- function(
     pageSel          = "ALL",
     nMapTypes        = as.integer(config$nMapTypes)
   )
-  
+
   cat("\n=======================================\n")
   cat("MAP MATCHING FINISHED\n")
   cat("Output:", pipeline_out_dir, "\n")
@@ -873,6 +873,6 @@ run_complete_pipeline <- function(
   # ----------------------------------------------------------
   
   return(pipeline_out_dir)
-}
+
 }
   
