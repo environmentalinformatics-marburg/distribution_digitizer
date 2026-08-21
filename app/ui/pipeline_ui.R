@@ -83,7 +83,15 @@ pipeline_ui <- function() {
           # ====================================================
           
           fluidRow(
-            
+            column(
+              4,
+              actionButton(
+                "savePipelineConfig",
+                "Save Pipeline Configuration",
+                icon = icon("save"),
+                class = "btn-primary"
+              )
+            ),
             column(
               3,
               
@@ -170,6 +178,8 @@ pipeline_ui <- function() {
           )
         )
       )
+    ),helpText(
+      "Edit the configuration if necessary, then save it before starting the complete pipeline."
     )
   )
 }

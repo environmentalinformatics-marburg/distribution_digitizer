@@ -57,9 +57,20 @@ timestamp <- format(
   "%Y-%m-%d_%H-%M-%S"
 )
 
+book_title <- config$title
+
+# Make book title safe for directory names
+book_title_safe <- gsub("[^A-Za-z0-9_-]", "_", book_title)
+book_title_safe <- gsub("_+", "_", book_title_safe)
+
 pipeline_out_dir <- file.path(
   dirname(config$dataOutputDir),
-  paste0("full_output_", timestamp)
+  paste0(
+    "full_output_",
+    book_title_safe,
+    "_",
+    format(Sys.time(), "%Y-%m-%d_%H-%M-%S")
+  )
 )
 
 dir.create(
@@ -155,6 +166,7 @@ align_images_directory(
 cat("\n=======================================\n")
 cat("ALIGN MAPS FINISHED\n")
 cat("=======================================\n")
+
 
 
 # ============================================================

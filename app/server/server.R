@@ -1689,6 +1689,36 @@ server <- shinyServer(function(input, output, session) {
       )
       
     }
+    # ==========================================================
+    # Save last successfully tested configuration
+    # ==========================================================
+    
+    config_file <- file.path(
+      workingDir,
+      "config",
+      "config.csv"
+    )
+    
+    backup_file <- file.path(
+      workingDir,
+      "config",
+      "config_backup.csv"
+    )
+    
+    if (file.exists(config_file)) {
+      
+      file.copy(
+        from = config_file,
+        to = backup_file,
+        overwrite = TRUE
+      )
+      
+      cat(
+        "\n✅ Configuration backup saved:\n",
+        backup_file,
+        "\n"
+      )
+    }
     
   })
   
