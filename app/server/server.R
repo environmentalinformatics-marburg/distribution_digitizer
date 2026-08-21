@@ -409,13 +409,19 @@ server <- shinyServer(function(input, output, session) {
         pYear          = to_chr(input$pYear),
         tesserAct      = to_chr(input$tesserAct),
         nMapTypes      = to_chr(input$nMapTypes),
-        # NEU 
+        
+        # SPECIES DISTRIBUTION 
         speciesRepresentation = to_chr(input$speciesRepresentation),
+        
+        # NEU SPECIES NAME LOCATION
+        speciesNameSource = to_chr(input$speciesNameSource),
+        
         dataInputDir   = to_chr(input$dataInputDir),
         dataOutputDir  = run_out,
         pFormat        = to_chr(input$pFormat),
         pColor         = to_chr(input$pColor),
-        # NEU 
+        
+        # NEU SPECIES TITLE
         specieTitleKeyword = to_chr(input$specieTitleKeyword),
         specieTitleKeywordBefore      = to_chr(input$specieTitleKeywordBefore),
         specieTitleKeywordThen        = to_chr(input$specieTitleKeywordThen),
@@ -439,23 +445,41 @@ server <- shinyServer(function(input, output, session) {
         updateTextInput(session, "dataOutputDir", value = outDir())
       })
       Sys.sleep(0.5)
+  
       # ---------- ERFOLGSMODAL ----------
-      showModal(modalDialog(
-        title = span("✅ Configuration saved successfully"),
-        tags$div(
-          style = "font-size:15px; line-height:1.5;",
-          "All configuration data were saved successfully.",
-          tags$br(),
-          tags$br(),
-          "If this is your first setup, please make sure that all ",
-          tags$b(".tif"), " pages were converted into ", tags$b(".png"),
-          " and copied into the ", tags$code("www/pages"), " directory.",
-          tags$br(),
-          "This ensures all pages will be accessible later in the app."
-        ),
-        easyClose = TRUE,
-        footer = modalButton("Close")
-      ))
+      showModal(
+        modalDialog(
+          title = span("✅ Configuration saved successfully"),
+          
+          tags$div(
+            style = "font-size:15px; line-height:1.5;",
+            
+            "All configuration data were saved successfully.",
+            
+            tags$br(),
+            tags$br(),
+            
+            tags$b("Test mode: "),
+            "To keep the interactive workflow fast, only the first ",
+            tags$b("10 pages"),
+            " of the book are converted from ",
+            tags$b(".tif"),
+            " to ",
+            tags$b(".png"),
+            " and prepared for use in the app.",
+            
+            tags$br(),
+            tags$br(),
+            
+            "The complete book will be processed later during the ",
+            tags$b("full processing pipeline"),
+            "."
+          ),
+          
+          easyClose = TRUE,
+          footer = modalButton("Close")
+        )
+      )
       
     })
     shinyjs::show("open_output")
@@ -610,7 +634,59 @@ server <- shinyServer(function(input, output, session) {
       
       return()  # ❌ stoppe hier – kein Matching!
     }
+    # ----------------------------------------------------------
+    # Save tested map matching settings to config.csv
+    # ----------------------------------------------------------
     
+    cfg_path <- file.path(
+      workingDir,
+      "config",
+      "config.csv"
+    )
+    
+    cfg <- read.table(
+      cfg_path,
+      sep = ";",
+      header = FALSE,
+      stringsAsFactors = FALSE,
+      fill = TRUE
+    )
+    
+    colnames(cfg) <- c("key", "value")
+    
+    settings <- c(
+      threshold_for_TM = as.character(input$threshold_for_TM),
+      sNumberPosition  = as.character(input$sNumberPosition),
+      matchingType     = as.character(input$matchingType)
+    )
+    
+    for (key in names(settings)) {
+      
+      if (key %in% cfg$key) {
+        
+        cfg$value[cfg$key == key] <- settings[[key]]
+        
+      } else {
+        
+        cfg <- rbind(
+          cfg,
+          data.frame(
+            key   = key,
+            value = settings[[key]],
+            stringsAsFactors = FALSE
+          )
+        )
+      }
+    }
+    
+    write.table(
+      cfg,
+      cfg_path,
+      sep = ";",
+      row.names = FALSE,
+      col.names = FALSE,
+      quote = FALSE
+    )
     # Wenn alles OK → Standardfarbe + Hinweis entfernen
     shinyjs::runjs("$('#range_matching').css('border-color', '')")
     output$range_warning <- renderText("")
@@ -880,57 +956,14 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
-  ####################
-  # 3.2 Crop map legend species#----------------------------------------------------------------------#
-  ####################
-  
-  # Start read  legend species
-  observeEvent(input$mapReadRpecies, {
-    # call the function for read scpecies
-    manageProcessFlow(
-      processing = "mapReadRpecies",
-      allertText1 = "cropping map species",
-      allertText2 = "pointFiltering",
-      input = input,  # ✅ input muss übergeben werden
-      session = session,
-      current_out_dir = outDir()
-    )
-  })
-  
-  # List map legend species
-  observeEvent(input$listCropped, {
-    if(input$siteNumberMapsMatching != ''){
-      #print(input$siteNumberMapsMatching)
-      output$listCropped = renderUI({
-        prepareImageView("/output/cropped_png/", input$siteNumberMapsMatching)
-      })
-    }
-    else{
-      output$listCropped = renderUI({
-        prepareImageView("/output/cropped_png/", '.png')
-      })
-    }
-  })
+
   
   
   ####################
-  # 3.3 Crop species name of the page content #----------------------------------------------------------------------#
+  # 3.3 Crop species name of the page content copy to species_reading_server.R#----------------------------------------------------------------------#
   ####################
   
-  # Start Crop page species
-  observeEvent(input$pageReadRpecies, {
-    # call the function for read scpecies
-    manageProcessFlow(
-      processing = "pageReadRpecies",
-      allertText1 = "read page species",
-      allertText2 = "output",
-      input = input,  # ✅ input muss übergeben werden
-      session = session,
-      current_out_dir = outDir()
-    )
-  })
-  
-  
+
 
   
   ####################
@@ -1471,7 +1504,7 @@ server <- shinyServer(function(input, output, session) {
     }
   )
   
-  
+
   # 2. Titel anzeigen
   output$selectedSpeciesTitle <- renderUI({
     
@@ -1581,27 +1614,36 @@ server <- shinyServer(function(input, output, session) {
   )
   
   
+  finalSpeciesData <- eventReactive(
+    input$showFinalSpeciesData,
+    {
+      
+      req(input$map_type_Spatial)
+      
+      csv_file <- file.path(
+        outDir(),
+        as.character(input$map_type_Spatial),
+        "spatial_data_final.csv"
+      )
+      
+      validate(
+        need(
+          file.exists(csv_file),
+          "Please run Spatial Data Computing first."
+        )
+      )
+      
+      read.csv(
+        csv_file,
+        stringsAsFactors = FALSE
+      )
+    }
+  )
+  
+  
   output$finalSpeciesTable <- DT::renderDT({
     
-    req(input$map_type_Spatial)
-    
-    csv_file <- file.path(
-      outDir(),
-      as.character(input$map_type_Spatial),
-      "spatial_data_final.csv"
-    )
-    
-    validate(
-      need(
-        file.exists(csv_file),
-        "Please run Spatial Data Computing first."
-      )
-    )
-    
-    df <- read.csv(
-      csv_file,
-      stringsAsFactors = FALSE
-    )
+    df <- finalSpeciesData()
     
     DT::datatable(
       df,

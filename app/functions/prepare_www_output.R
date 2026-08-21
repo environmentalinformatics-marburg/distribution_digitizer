@@ -66,6 +66,17 @@ prepare_www_output <- function(workingDir, www_output, nMapTypes = 1) {
     #output_pages <- file.path(workingDir, "www", "pages")
     output_pages <- file.path(workingDir, "app", "www", "pages")
     
+    # Clean old test pages
+    if (dir.exists(output_pages)) {
+      unlink(output_pages, recursive = TRUE)
+    }
+    
+    dir.create(
+      output_pages,
+      recursive = TRUE,
+      showWarnings = FALSE
+    )
+    
     if (!dir.exists(output_pages)) {
       dir.create(output_pages, recursive = TRUE, showWarnings = FALSE)
     }
@@ -76,6 +87,13 @@ prepare_www_output <- function(workingDir, www_output, nMapTypes = 1) {
     }
     
     tif_files <- list.files(input_pages, pattern = "\\.(tif|tiff)$", ignore.case = TRUE, full.names = TRUE)
+    
+    # Randomly select max. 10 pages for the Shiny test workflow
+    tif_files <- sample(
+      tif_files,
+      size = min(10, length(tif_files)),
+      replace = FALSE
+    )
     
     if (length(tif_files) == 0) {
       cat("ℹ️ No TIF files found in:", input_pages, "\n")

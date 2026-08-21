@@ -259,19 +259,21 @@ species_distribution_server <- function(
       
     })
   })
+  
+  observeEvent(input$speciesRepresentation, {
+    
+    cat("\n### speciesRepresentation CHANGED ###\n")
+    cat("Value:", input$speciesRepresentation, "\n")
+    
+  })
+  
+  
   # ============================================================
-  # Process all maps - Species Area Detection
+  # Process all contour maps
   # ============================================================
-  # Uses the colors and parameters tested in the preview
-  # and creates final masking images for all maps of the
-  # currently selected map type.
-  #
-  # Output:
-  # masking_black/pointFiltering/
-  #
-  # Images:
-  # - black background
-  # - detected species areas in red
+  # Shiny only triggers the processing.
+  # The actual contour-processing logic is implemented in
+  # manageprocessingFlow.R.
   # ============================================================
   
   observeEvent(input$processAllContours, {
@@ -282,7 +284,7 @@ species_distribution_server <- function(
     map_type <- as.character(input$map_type_Contour)
     
     # ----------------------------------------------------------
-    # Get selected contour colors
+    # Get colors selected interactively in Shiny
     # ----------------------------------------------------------
     colors <- contour_colors[[map_type]]
     
@@ -295,125 +297,76 @@ species_distribution_server <- function(
       
       return()
     }
+    # ----------------------------------------------------------
+    # Save tested contour settings to config.csv
+    # ----------------------------------------------------------
     
-    # ----------------------------------------------------------
-    # Input directory
-    # Original aligned maps
-    # ----------------------------------------------------------
-    input_dir <- file.path(
-      current_out_dir,
-      map_type,
-      "maps",
-      "align"
+    colors_string <- paste(
+      apply(
+        colors,
+        1,
+        function(x) paste(x, collapse = ",")
+      ),
+      collapse = "|"
     )
     
-    if (!dir.exists(input_dir)) {
+    cfg_path <- file.path(
+      workingDir,
+      "config",
+      "config.csv"
+    )
+    
+    cfg <- read.table(
+      cfg_path,
+      sep = ";",
+      header = FALSE,
+      stringsAsFactors = FALSE,
+      fill = TRUE
+    )
+    
+    colnames(cfg) <- c("key", "value")
+    
+    settings <- c(
+      contourColorTolerance = as.character(input$contourColorTolerance),
+      contourBorderMargin   = as.character(input$contourBorderMargin),
+      contourColors         = colors_string
+    )
+    
+    for (key in names(settings)) {
       
-      showNotification(
-        "Map directory not found.",
-        type = "error"
-      )
-      
-      return()
+      if (key %in% cfg$key) {
+        cfg$value[cfg$key == key] <- settings[[key]]
+      } else {
+        cfg <- rbind(
+          cfg,
+          data.frame(
+            key = key,
+            value = settings[[key]],
+            stringsAsFactors = FALSE
+          )
+        )
+      }
     }
     
-    # ----------------------------------------------------------
-    # Output directory
-    # Same directory used by the existing masking workflow
-    # ----------------------------------------------------------
-    output_dir <- file.path(
-      current_out_dir,
-      map_type,
-      "masking_black",
-      "pointFiltering"
+    write.table(
+      cfg,
+      cfg_path,
+      sep = ";",
+      row.names = FALSE,
+      col.names = FALSE,
+      quote = FALSE
     )
-    
-    dir.create(
-      output_dir,
-      recursive = TRUE,
-      showWarnings = FALSE
-    )
-    
     # ----------------------------------------------------------
-    # Convert R colors to Python-friendly RGB list
+    # Start processing through central workflow
     # ----------------------------------------------------------
-    colors_python <- lapply(
-      seq_len(nrow(colors)),
-      function(i) {
-        as.integer(c(
-          colors$red[i],
-          colors$green[i],
-          colors$blue[i]
-        ))
-      }
-    )
-    
-    # ----------------------------------------------------------
-    # Debug information
-    # ----------------------------------------------------------
-    cat("\n=== PROCESS ALL SPECIES AREA MAPS ===\n")
-    cat("Map type:", map_type, "\n")
-    cat("Input:", input_dir, "\n")
-    cat("Output:", output_dir, "\n")
-    
-    cat(
-      "Tolerance:",
-      input$contourColorTolerance,
-      "\n"
-    )
-    
-    cat(
-      "Border margin:",
-      input$contourBorderMargin,
-      "\n"
-    )
-    
-    cat("Colors:\n")
-    print(colors)
-    
-    # ----------------------------------------------------------
-    # Call Python batch processing
-    # ----------------------------------------------------------
-    number_processed <- process_species_area_maps(
-      input_dir = input_dir,
-      output_dir = output_dir,
-      colors = colors_python,
-      tolerance = as.integer(input$contourColorTolerance),
-      border_margin = as.integer(input$contourBorderMargin),
-      debug = TRUE
-    )
-    
-    # ----------------------------------------------------------
-    # Create PNG versions for Shiny result display
-    # ----------------------------------------------------------
-    computeNumberResult(
-      base_output_dir = current_out_dir,
-      working_dir     = workingDir,
-      nMapTypes       = map_type,
-      subfolder       = file.path(
-        "masking_black",
-        "pointFiltering"
-      ),
-      png_subdir      = "output/contourMatching_png"
-    )
-    cat(
-      "Processed maps:",
-      number_processed,
-      "\n"
-    )
-    
-    cat("=======================================\n")
-    
-    # ----------------------------------------------------------
-    # User notification
-    # ----------------------------------------------------------
-    showNotification(
-      paste(
-        number_processed,
-        "maps processed."
-      ),
-      type = "message",
-      duration = 5
+    manageProcessFlow(
+      processing      = "contourMatching",
+      allertText1     = "contour matching",
+      allertText2     = "",
+      input           = input,
+      session         = session,
+      current_out_dir = current_out_dir,
+      contour_colors  = colors
     )
   })
   
@@ -461,10 +414,11 @@ species_distribution_server <- function(
   # Load maps for contour / area detection
   # ============================================================
   observeEvent(input$map_type_Contour, {
-    cat("### map_type_Contour CHANGED ###\n")
-    cat("Value:", input$map_type_Contour, "\n")
     
-    req(input$map_type_Contour)
+    cat("\n### map_type_Contour CHANGED ###\n")
+    cat("Value:", input$map_type_Contour, "\n")
+    cat("current_out_dir:", current_out_dir, "\n")
+    
     req(input$map_type_Contour)
     req(current_out_dir)
     

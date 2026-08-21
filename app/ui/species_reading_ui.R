@@ -153,7 +153,7 @@ species_reading_ui <- function(
           wellPanel(
             
             # ----------------------------------------------------
-            # Select example page for training
+            # Introduction
             # ----------------------------------------------------
             h4(
               "Create training examples for species title detection",
@@ -168,149 +168,281 @@ species_reading_ui <- function(
               style = "color:black"
             ),
             
-            selectInput(
-              "species_training_page",
-              label = "Select a page for training:",
-              choices = NULL
-            ),
             
-            br(),
-            radioButtons(
-              "species_selection_type",
-              label = "Select region for:",
-              choices = c(
-                "Species title" = "title",
-                "Associated map" = "map"
+            # ====================================================
+            # TRAINING AREA - TWO COLUMNS
+            # ====================================================
+            fluidRow(
+              
+              # ==================================================
+              # LEFT:
+              # Page selection and page preview
+              # ==================================================
+              column(
+                7,
+                
+                selectInput(
+                  "species_training_page",
+                  label = "Select a page for training:",
+                  choices = NULL
+                ),
+                
+                br(),
+                
+                uiOutput(
+                  "species_training_page_preview"
+                )
               ),
-              selected = "title",
-              inline = TRUE
+              
+              
+              # ==================================================
+              # RIGHT:
+              # Selection controls and temporary training data
+              # ==================================================
+              column(
+                5,
+                
+                radioButtons(
+                  "species_selection_type",
+                  label = "Select region for:",
+                  choices = c(
+                    "Species title" = "title",
+                    "Associated map" = "map"
+                  ),
+                  selected = "title",
+                  inline = TRUE
+                ),
+                
+                # ------------------------------------------------
+                # Add selected title region
+                # ------------------------------------------------
+                conditionalPanel(
+                  condition = "input.species_selection_type == 'title'",
+                  
+                  actionButton(
+                    "addSpeciesTrainingRegion",
+                    "Add title selection",
+                    style = "
+                        color:#FFFFFF;
+                        background:#f39c12;
+                        border-color:#e67e22;
+                      "
+                  )
+                ),
+                
+                tags$span(" "),
+                
+                
+                
+                # ------------------------------------------------
+                # Temporary selected map information
+                # ------------------------------------------------
+                uiOutput(
+                  "species_map_selection_info"
+                ),
+                
+                # ------------------------------------------------
+                # All currently collected training regions
+                # ------------------------------------------------
+                uiOutput(
+                  "species_training_regions"
+                ),
+                # ------------------------------------------------
+                # Clear regions of current page
+                # ------------------------------------------------
+                actionButton(
+                  "clearSpeciesTrainingRegions",
+                  "Clear all regions"
+                ),
+                
+                br(),
+                br(),
+              )
             ),
             
-            # ----------------------------------------------------
-            # Display selected page
-            # ----------------------------------------------------
-            uiOutput("species_training_page_preview"),
-            tags$script(HTML("
+            
+            # ====================================================
+            # JAVASCRIPT:
+            # Interactive rectangle selection
+            # ====================================================
+            tags$script(
+              HTML("
                 (function() {
                 
                   var drawing = false;
                   var startX = 0;
                   var startY = 0;
                 
+                
                   // ----------------------------------------------------------
                   // Start rectangle
                   // ----------------------------------------------------------
-                  $(document).on('mousedown', '#species_training_image', function(e) {
+                  $(document).on(
+                    'mousedown',
+                    '#species_training_image',
+                    function(e) {
                 
-                    e.preventDefault();
+                      e.preventDefault();
                 
-                    var rect = this.getBoundingClientRect();
+                      var rect =
+                        this.getBoundingClientRect();
                 
-                    startX = e.clientX - rect.left;
-                    startY = e.clientY - rect.top;
+                      startX =
+                        e.clientX - rect.left;
                 
-                    drawing = true;
+                      startY =
+                        e.clientY - rect.top;
                 
-                    var selectionType =
-                      Shiny.shinyapp.$inputValues.species_selection_type;
-                    
-                    var borderColor =
-                      selectionType === 'map' ? 'blue' : 'red';
-                    
-                    $('#species_selection_rectangle').css({
-                      display: 'block',
-                      left: startX + 'px',
-                      top: startY + 'px',
-                      width: '0px',
-                      height: '0px',
-                      border: '3px solid ' + borderColor
-                    });
-                  });
+                      drawing = true;
+                
+                      var selectionType =
+                        Shiny.shinyapp.$inputValues.species_selection_type;
+                
+                      var borderColor =
+                        selectionType === 'map'
+                          ? 'blue'
+                          : 'red';
+                
+                      $('#species_selection_rectangle').css({
+                        display: 'block',
+                        left: startX + 'px',
+                        top: startY + 'px',
+                        width: '0px',
+                        height: '0px',
+                        border: '3px solid ' + borderColor
+                      });
+                    }
+                  );
                 
                 
                   // ----------------------------------------------------------
                   // Draw rectangle while mouse moves
                   // ----------------------------------------------------------
-                  $(document).on('mousemove', '#species_training_image', function(e) {
+                  $(document).on(
+                    'mousemove',
+                    '#species_training_image',
+                    function(e) {
                 
-                    if (!drawing) return;
+                      if (!drawing) return;
                 
-                    var rect = this.getBoundingClientRect();
+                      var rect =
+                        this.getBoundingClientRect();
                 
-                    var currentX = e.clientX - rect.left;
-                    var currentY = e.clientY - rect.top;
+                      var currentX =
+                        e.clientX - rect.left;
                 
-                    var x = Math.min(startX, currentX);
-                    var y = Math.min(startY, currentY);
+                      var currentY =
+                        e.clientY - rect.top;
                 
-                    var width  = Math.abs(currentX - startX);
-                    var height = Math.abs(currentY - startY);
+                      var x =
+                        Math.min(startX, currentX);
                 
-                    $('#species_selection_rectangle').css({
-                      left: x + 'px',
-                      top: y + 'px',
-                      width: width + 'px',
-                      height: height + 'px'
-                    });
-                  });
+                      var y =
+                        Math.min(startY, currentY);
+                
+                      var width =
+                        Math.abs(currentX - startX);
+                
+                      var height =
+                        Math.abs(currentY - startY);
+                
+                      $('#species_selection_rectangle').css({
+                        left: x + 'px',
+                        top: y + 'px',
+                        width: width + 'px',
+                        height: height + 'px'
+                      });
+                    }
+                  );
                 
                 
                   // ----------------------------------------------------------
                   // Finish rectangle
                   // ----------------------------------------------------------
-                  $(document).on('mouseup', '#species_training_image', function(e) {
+                  $(document).on(
+                    'mouseup',
+                    '#species_training_image',
+                    function(e) {
                 
-                    if (!drawing) return;
+                      if (!drawing) return;
                 
-                    drawing = false;
+                      drawing = false;
                 
-                    var rect = this.getBoundingClientRect();
+                      var rect =
+                        this.getBoundingClientRect();
                 
-                    var endX = e.clientX - rect.left;
-                    var endY = e.clientY - rect.top;
+                      var endX =
+                        e.clientX - rect.left;
                 
-                    var x = Math.min(startX, endX);
-                    var y = Math.min(startY, endY);
+                      var endY =
+                        e.clientY - rect.top;
                 
-                    var width  = Math.abs(endX - startX);
-                    var height = Math.abs(endY - startY);
+                      var x =
+                        Math.min(startX, endX);
                 
-                    if (width < 10 || height < 5) {
-                      $('#species_selection_rectangle').hide();
-                      return;
+                      var y =
+                        Math.min(startY, endY);
+                
+                      var width =
+                        Math.abs(endX - startX);
+                
+                      var height =
+                        Math.abs(endY - startY);
+                
+                      if (
+                        width < 10 ||
+                        height < 5
+                      ) {
+                        $('#species_selection_rectangle').hide();
+                        return;
+                      }
+                
+                      var selectionType =
+                        Shiny.shinyapp.$inputValues.species_selection_type;
+                
+                      var selectionData = {
+                        x: x,
+                        y: y,
+                        width: width,
+                        height: height,
+                        image_width: rect.width,
+                        image_height: rect.height,
+                        nonce: Math.random()
+                      };
+                
+                
+                      // ------------------------------------------------------
+                      // Associated map selection
+                      // ------------------------------------------------------
+                      if (
+                        selectionType === 'map'
+                      ) {
+                
+                        Shiny.setInputValue(
+                          'species_training_map_region',
+                          selectionData,
+                          {
+                            priority: 'event'
+                          }
+                        );
+                
+                      } else {
+                
+                        // ----------------------------------------------------
+                        // Species title selection
+                        // ----------------------------------------------------
+                        Shiny.setInputValue(
+                          'species_training_region',
+                          selectionData,
+                          {
+                            priority: 'event'
+                          }
+                        );
+                      }
                     }
+                  );
                 
-                   var selectionType =
-                      Shiny.shinyapp.$inputValues.species_selection_type;
-                    
-                    var selectionData = {
-                      x: x,
-                      y: y,
-                      width: width,
-                      height: height,
-                      image_width: rect.width,
-                      image_height: rect.height,
-                      nonce: Math.random()
-                    };
-                    
-                    if (selectionType === 'map') {
-                    
-                      Shiny.setInputValue(
-                        'species_training_map_region',
-                        selectionData,
-                        {priority: 'event'}
-                      );
-                    
-                    } else {
-                    
-                      Shiny.setInputValue(
-                        'species_training_region',
-                        selectionData,
-                        {priority: 'event'}
-                      );
-                    }
                 
-                  });
                   // ----------------------------------------------------------
                   // Remove confirmed training region
                   // ----------------------------------------------------------
@@ -318,69 +450,76 @@ species_reading_ui <- function(
                     'click',
                     '[id^=\"removeSpeciesRegion_\"]',
                     function() {
-                  
-                      var regionId = this.id.replace(
-                        'removeSpeciesRegion_',
-                        ''
-                      );
-                  
+                
+                      var regionId =
+                        this.id.replace(
+                          'removeSpeciesRegion_',
+                          ''
+                        );
+                
                       Shiny.setInputValue(
                         'remove_species_training_region',
                         {
-                          region_id: parseInt(regionId),
-                          nonce: Math.random()
+                          region_id:
+                            parseInt(regionId),
+                          nonce:
+                            Math.random()
                         },
-                        {priority: 'event'}
+                        {
+                          priority: 'event'
+                        }
                       );
                     }
                   );
+                
                 })();
-                ")),
+              ")
+            ),
+            
+            
+            # ====================================================
+            # SAVE / PROCESS
+            # These actions operate on the collected training data
+            # ====================================================
             br(),
             
+            tags$hr(),
+            
             fluidRow(
-              column(
-                3,
-                conditionalPanel(
-                  condition = "input.species_selection_type == 'title'",
-                  
-                  actionButton(
-                    "addSpeciesTrainingRegion",
-                    "Add title selection"
-                  )
-                )
-              ),
               
               column(
                 3,
-                actionButton(
-                  "clearSpeciesTrainingRegions",
-                  "Clear all regions"
-                )
-              ),
-              
-              column(
-                3,
+                
                 actionButton(
                   "saveSpeciesTraining",
                   "Save training examples",
-                  style = "color:#FFFFFF;background:#337ab7"
+                  style = "
+                    color:#FFFFFF;
+                    background:#337ab7;
+                  "
                 )
               ),
               
               column(
                 3,
+                
                 actionButton(
                   "processSpeciesTitles",
                   "Process species titles",
-                  style = "color:#FFFFFF;background:#5cb85c"
+                  style = "
+                    color:#FFFFFF;
+                    background:#5cb85c;
+                  "
                 )
               )
             ),
             
+            
+            # ====================================================
+            # RESULT
+            # ====================================================
             br(),
-            uiOutput("species_training_regions"),
-            uiOutput("species_map_selection_info"),
+            
             h4(
               "Species titles automatically detected and assigned to maps",
               style = "color:black"
@@ -402,17 +541,9 @@ species_reading_ui <- function(
             br(),
             br(),
             
-            uiOutput("pageSpeciesData_result")
-            # ----------------------------------------------------
-            # NEXT:
-            #
-            # Select example page
-            # Display page
-            # Draw/select regions
-            # Clear selected regions
-            # Preview OCR
-            # Process species names
-            # ----------------------------------------------------
+            uiOutput(
+              "pageSpeciesData_result"
+            )
           )
         )
       )

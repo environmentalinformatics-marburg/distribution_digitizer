@@ -70,7 +70,7 @@ checkTesseractWindows <- function() {
 # No explicit return value; results are written to output directories
 # and communicated via Shiny UI
 # ------------------------------------------------------------
-manageProcessFlow <- function(processing, allertText1, allertText2, input, session, current_out_dir) {
+manageProcessFlow <- function(processing, allertText1, allertText2, input, session, current_out_dir, contour_colors) {
 
   print(paste("DEBUG nMapTypes =", input$nMapTypes))
   print(paste("DEBUG current_out_dir =", current_out_dir))
@@ -106,24 +106,75 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
   # ------------------------------------------------------------
   if(processing == "mapMatching"){
     tryCatch({
-      # processing template matching
-      #workingDir = "D:/distribution_digitizer"
-      #current_out_dir="D:/test/output_2025-09-26_13-16-11/"
-      fname=paste0(workingDir, "/", "src/matching/map_matching.py")
+      
+      fname <- paste0(
+        workingDir,
+        "/",
+        "src/matching/map_matching.py"
+      )
+      
       print(workingDir)
       print("The processing template matching python script:")
       print(fname)
+      
       source_python(fname)
+      
       print("Threshold:")
       print(input$threshold_for_TM)
-      pattern <- "^(ALL|[0-9]+[0-9]+)$"
-      #if (grep(pattern,input$range_matching)){
-      main_template_matching(workingDir, current_out_dir, input$threshold_for_TM, input$sNumberPosition, input$matchingType, as.character(input$range_matching), nMapTypes = as.integer(input$nMapTypes) )
-      #}else{
-      #  stop("🚨 The input range is not correct, please write like 1-5 or ALL")
-      #}
-      #main_template_matching(workingDir, current_out_dir, 0.18, 1, 1, "1-2")
       
+      
+      # ------------------------------------------------------------
+      # Page selection
+      # In Shiny, ALL is limited to the first 10 pages for testing.
+      # Full-book processing is performed by the pipeline script.
+      # ------------------------------------------------------------
+      
+      page_selection <- as.character(input$range_matching)
+      
+      if (toupper(trimws(page_selection)) == "ALL") {
+        page_selection <- "1-10"
+        cat("\nTEST MODE: ALL limited to first 10 pages.\n")
+      } else if (grepl("^[0-9]+-[0-9]+$", page_selection)) {
+        
+        range_parts <- as.integer(
+          strsplit(page_selection, "-")[[1]]
+        )
+        
+        start_page <- range_parts[1]
+        end_page   <- range_parts[2]
+        
+        # Maximum 10 pages
+        if ((end_page - start_page + 1) > 10) {
+          end_page <- start_page + 9
+          
+          page_selection <- paste0(
+            start_page,
+            "-",
+            end_page
+          )
+        }
+      }
+      
+      cat("Pages used for test:", page_selection, "\n")
+      
+      # ------------------------------------------------------------
+      # Template matching
+      # ------------------------------------------------------------
+      
+      main_template_matching(
+        workingDir,
+        current_out_dir,
+        input$threshold_for_TM,
+        input$sNumberPosition,
+        input$matchingType,
+        page_selection,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      
+      
+      # ------------------------------------------------------------
+      # Prepare results for Shiny
+      # ------------------------------------------------------------
       
       message <- computeNumberResult(
         base_output_dir = current_out_dir,
@@ -132,7 +183,9 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         subfolder = "maps/matching",
         png_subdir = "output/matching_png"
       )
+      
     }, error = function(e) {
+      
       cat("An error occurred during mapMatching processing:\n")
       print(e)
     })
@@ -273,6 +326,97 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
+
+  # ------------------------------------------------------------
+  # Step: Species Area Detection (Contour Matching)
+  # ------------------------------------------------------------
+  if (processing == "contourMatching") {
+    tryCatch({
+      
+      # ----------------------------------------------------------
+      # Load Python contour processing
+      # ----------------------------------------------------------
+      fname <- file.path(
+        workingDir,
+        "src",
+        "matching",
+        "species_area_detection.py"
+      )
+      
+      print("Processing species area detection Python script:")
+      print(fname)
+      
+      source_python(fname)
+      
+      # ----------------------------------------------------------
+      # Check selected colors
+      # ----------------------------------------------------------
+      if (is.null(contour_colors) || nrow(contour_colors) == 0) {
+        stop("No contour colors available.")
+      }
+      
+      # ----------------------------------------------------------
+      # Convert R RGB data.frame to Python-friendly list
+      # ----------------------------------------------------------
+      colors_python <- lapply(
+        seq_len(nrow(contour_colors)),
+        function(i) {
+          as.integer(c(
+            contour_colors$red[i],
+            contour_colors$green[i],
+            contour_colors$blue[i]
+          ))
+        }
+      )
+      
+      # ----------------------------------------------------------
+      # Debug information
+      # ----------------------------------------------------------
+      cat("\n=== PROCESS ALL SPECIES AREA MAPS ===\n")
+      cat("Output:", current_out_dir, "\n")
+      cat("Map types:", input$nMapTypes, "\n")
+      cat("Tolerance:", input$contourColorTolerance, "\n")
+      cat("Border margin:", input$contourBorderMargin, "\n")
+      cat("Colors:\n")
+      print(contour_colors)
+      
+      # ----------------------------------------------------------
+      # Process all map types and all aligned contour maps
+      # ----------------------------------------------------------
+      number_processed <- mainSpeciesAreaDetection(
+        workingDir,
+        current_out_dir,
+        colors_python,
+        tolerance     = as.integer(input$contourColorTolerance),
+        border_margin = as.integer(input$contourBorderMargin),
+        nMapTypes     = as.integer(input$nMapTypes),
+        debug         = TRUE
+      )
+      
+      # ----------------------------------------------------------
+      # Create PNG versions for Shiny result display
+      # ----------------------------------------------------------
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir     = workingDir,
+        nMapTypes       = as.integer(input$nMapTypes),
+        subfolder       = file.path(
+          "masking_black",
+          "pointFiltering"
+        ),
+        png_subdir      = "output/contourMatching_png"
+      )
+      
+      cat("Total processed maps:", number_processed, "\n")
+      cat("=======================================\n")
+      
+    }, error = function(e) {
+      
+      cat("An error occurred during contourMatching processing:\n")
+      print(e)
+      
+    })
+  }
   # ------------------------------------------------------------
   # Step: Masking (Image Cleaning)
   # ------------------------------------------------------------
@@ -405,11 +549,11 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
   # - Species annotations on maps (maps/readSpecies)
   # - Updated coordinate datasets with species information
   # ------------------------------------------------------------
-  if(processing == "mapReadRpecies"){
+  if(processing == "mapReadSpecies"){ # alter Workflow: Species aus Legende
     tryCatch({
       
       # --- 1. Read species ---
-      fname <- paste0(workingDir, "/", "src/read_species/map_read_species.R")
+      fname <- paste0(workingDir, "/", "src/species/species_map_detection.R")
       print("Reading species names from the map bottom R script:")
       print(fname)
       source(fname)
@@ -437,7 +581,7 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       )
       
     }, error = function(e) {
-      cat("An error occurred during mapReadRpecies processing:\n")
+      cat("An error occurred during species_map_processing:\n")
       print(e)
     })
   }
@@ -457,7 +601,8 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
   # - pageSpeciesData.csv (species + titles)
   # - Enriched species information for integration
   # ------------------------------------------------------------
-  if (processing == "pageReadRpecies") {
+  if (processing == "pageReadRpecies") { # alter Workflow: vollständige Titel zu den
+    # bereits aus der Legende erkannten Species
     
     tryCatch({
       
@@ -473,7 +618,12 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         )
       }
       
-      fname <- paste0(workingDir, "/src/read_species/page_read_species.R")
+      fname <- file.path(
+        workingDir,
+        "src",
+        "species",
+        "species_title_detection.R"
+      )
       print(paste0(
         "Reading page species data and saving the results to a 'pageSpeciesData.csv' file in the ",
         current_out_dir, " directory"
@@ -507,8 +657,8 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
         workingDir,
         current_out_dir,
         ifelse(length(config$specieTitleKeyword) > 0, config$specieTitleKeyword, "None"),
-        as.integer(config$specieTitleKeywordBefore),   # 🔥 FIX
-        as.integer(conrfig$specieTitleKeywordThen),     # 🔥 FIX
+        as.integer(config$specieTitleKeywordBefore),   # FIX
+        as.integer(config$specieTitleKeywordThen),     # FIX
         as.integer(config$middle),                     # optional, aber gut
         config$legendKeywords,
         nMapTypes = as.integer(input$nMapTypes)
@@ -527,12 +677,139 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       )
       
     }, error = function(e) {
-      cat("An error occurred during pageReadRpecies processing:\n")
+      cat("An error occurred during species_title_processing processing:\n")
       print(e)
     })
   }
   
 
+  # ============================================================
+  # Step: Direct species-title processing
+  # ============================================================
+  # Starts automatic species-title detection after the
+  # user-confirmed training examples have been saved.
+  #
+  # The detailed page and map-type processing is implemented
+  # in species_title_processing.R.
+  # ============================================================
+  
+  if (processing == "pageReadSpeciesDirect") { # neuer Workflow ohne Legende:
+    # Titel anhand Trainingsdaten erkennen
+    
+    cat("\n=======================================\n")
+    cat("START SPECIES TITLE PROCESSING\n")
+    cat("=======================================\n")
+    
+    # ----------------------------------------------------------
+    # Check current output directory
+    # ----------------------------------------------------------
+    
+    if (
+      is.null(current_out_dir) ||
+      !nzchar(current_out_dir)
+    ) {
+      
+      showNotification(
+        "No output directory available.",
+        type = "error"
+      )
+      
+      return(invisible(FALSE))
+    }
+    
+    cat(
+      "Output directory:",
+      current_out_dir,
+      "\n"
+    )
+    
+    
+    # ----------------------------------------------------------
+    # Check species-title training data
+    # ----------------------------------------------------------
+    
+    training_file <- file.path(
+      workingDir,
+      "training",
+      "species_title_training.csv"
+    )
+    
+    if (!file.exists(training_file)) {
+      
+      showNotification(
+        "Please save training examples first.",
+        type = "warning"
+      )
+      
+      return(invisible(FALSE))
+    }
+    
+    cat(
+      "Training file:",
+      training_file,
+      "\n"
+    )
+    
+    
+    # ----------------------------------------------------------
+    # Load species-title processing functions
+    # ----------------------------------------------------------
+    
+    species_script <- file.path(
+      workingDir,
+      "src",
+      "species",
+      "species_title_detection.R"
+    )
+    
+    if (!file.exists(species_script)) {
+      
+      showNotification(
+        "Species processing script not found.",
+        type = "error"
+      )
+      
+      return(invisible(FALSE))
+    }
+    
+    source(species_script)
+    
+    
+    # ----------------------------------------------------------
+    # Start processing
+    # ----------------------------------------------------------
+    
+    tryCatch({
+      
+      readPageSpeciesDirectMulti(
+        workingDir = workingDir,
+        outDir = current_out_dir,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      
+      cat("\n=======================================\n")
+      cat("SPECIES TITLE PROCESSING FINISHED\n")
+      cat("=======================================\n")
+      
+      showNotification(
+        "Species titles processed successfully.",
+        type = "message",
+        duration = 5
+      )
+      
+    }, error = function(e) {
+      
+      cat("\nERROR DURING SPECIES TITLE PROCESSING:\n")
+      print(e)
+      
+      showNotification(
+        "Species title processing failed.",
+        type = "error",
+        duration = 8
+      )
+    })
+  }
+  
   # ------------------------------------------------------------
   # Step: Circle Detection (Alternative Point Detection)
   # ------------------------------------------------------------
@@ -631,6 +908,71 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }
   
+  if (processing == "georeferencing_contour") {
+    tryCatch({
+      
+      # --------------------------------------------------
+      # 1. Georeferencing contour masks
+      # Contour masks are already stored in
+      # masking_black/pointFiltering, therefore the
+      # existing georeferencing function can be reused.
+      # --------------------------------------------------
+      fname <- paste0(
+        workingDir,
+        "/src/georeferencing/mask_georeferencing.py"
+      )
+      
+      print("Process georeferencing contour masks:")
+      print(fname)
+      
+      source_python(fname)
+      
+      mainmaskgeoreferencingMasks_PF(
+        workingDir,
+        current_out_dir,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      
+      
+      # --------------------------------------------------
+      # 2. Rectifying contours
+      # Separate function because no point extraction
+      # is required for contour masks.
+      # --------------------------------------------------
+      fname <- paste0(
+        workingDir,
+        "/src/polygonize/rectifying.py"
+      )
+      
+      print("Process rectifying contour masks:")
+      print(fname)
+      
+      source_python(fname)
+      
+      mainRectifying_Contour(
+        workingDir,
+        current_out_dir,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      
+      
+      # --------------------------------------------------
+      # 3. Count results and create PNG previews
+      # --------------------------------------------------
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "rectifying/pointFiltering",
+        png_subdir = "output/georeferencing_png"
+      )
+      
+    }, error = function(e) {
+      cat("An error occurred during contour georeferencing:\n")
+      print(e)
+    })
+  }
+  
   # ------------------------------------------------------------
   # Step: Polygonization
   # ------------------------------------------------------------
@@ -671,6 +1013,38 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     })
   }   
   
+  if (processing == "polygonize_contour") {
+    tryCatch({
+      
+      fname <- paste0(
+        workingDir,
+        "/src/polygonize/polygonize.py"
+      )
+      
+      print("Process contour polygonizing python script:")
+      print(fname)
+      
+      source_python(fname)
+      
+      mainPolygonize_Contour(
+        workingDir,
+        current_out_dir,
+        nMapTypes = as.integer(input$nMapTypes)
+      )
+      
+      message <- computeNumberResult(
+        base_output_dir = current_out_dir,
+        working_dir = workingDir,
+        nMapTypes = as.integer(input$nMapTypes),
+        subfolder = "polygonize/pointFiltering",
+        png_subdir = "output/polygonize"
+      )
+      
+    }, error = function(e) {
+      cat("An error occurred during contour polygonizing:\n")
+      print(e)
+    })
+  }
   # ------------------------------------------------------------
   # Step: Spatial Data Integration
   # ------------------------------------------------------------
@@ -718,6 +1092,23 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
     )
   }
   
+  if (processing == "spatial_data_computing_contour") {
+    
+    fname <- paste0(
+      workingDir,
+      "/src/spatial_view/merge_spatial_final_data.R"
+    )
+    
+    print("Process final contour spatial data:")
+    print(fname)
+    
+    source(fname)
+    
+    merge_all_contours(
+      outDir = current_out_dir,
+      nMapTypes = as.integer(input$nMapTypes)
+    )
+  }
   # ------------------------------------------------------------
   # Step: Data Visualization (CSV Viewer)
   # ------------------------------------------------------------

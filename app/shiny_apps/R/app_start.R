@@ -14,7 +14,12 @@ use_condaenv(
 )
 setwd("D:/distribution_digitizer")
 options(shiny.port = 8888, shiny.host = "127.0.0.1")
-shiny::runApp("app", launch.browser = TRUE, display.mode = "normal", test.mode = FALSE)
+#shiny::runApp("app", launch.browser = TRUE, display.mode = "normal", test.mode = FALSE)
+shiny::runApp(
+  "app",
+  launch.browser = TRUE,
+  display.mode = "auto"
+)
 
 # # -------------------------
 # # Helper: Get base directory dynamically

@@ -146,8 +146,10 @@ header <- dashboardHeader(
     )
   )
 )
+image1 = (paste0(workingDir,'/app/www/images/species_points_example.tif'))
+image2 = (paste0(workingDir,'/app/www/images/species_contours_example.tif'))
 
-# Füge JavaScript-Datei in den Kopfbereich der Seite ein
+
 
 # In deinem ui.R, am Ende von tags$head:
 head_content <- tags$head(
@@ -189,246 +191,610 @@ body <- dashboardBody(
     # =============================
     # Tab 0 General Configuration
     # =============================
+    # =============================
+    # Tab 0 General Configuration
+    # =============================
+    
     tabItem(
       tabName = "tab0",
+      
       wellPanel(
         
-        includeHTML(file.path("www", "start_instructions.html")),
+        includeHTML(
+          file.path("www", "start_instructions.html")
+        ),
         
         fluidRow(
-          h4("✅ General Configuration Settings"),
-          # Left column
-          column(6,
-                 fluidRow(
-                   column(10, 
-                          # Wrapper um das textInput, damit wir das Style anwenden können
-                          tags$div(style = "position:relative;",
-                                   textInput("title", "Book Title", config$title)
-                          ),
-                          # zusätzliche Info-Box für "title", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "title_infoBox", class="infobox_tab_0" ,
-                              info$title_infoBox), # Optionaler Button, öffnet den Pfad im Explorer
-
-                   )
-                 ),
-
-                 fluidRow(
-                   column(10, 
-                          # Wrapper um das textInput, damit wir das Style anwenden können
-                          tags$div(style = "position:relative;",
-                                   textInput("author", "Author", config$author)
-                          ),
-                          # zusätzliche Info-Box für "author", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "author_infoBox",  class="infobox_tab_0",
-                              info$author_infoBox)
-                   )
-                 ),
+          
+          # ==========================================================
+          # HEADER
+          # ==========================================================
+          
+          column(
+            12,
+            
+            h4("✅ General Configuration Settings"),
+            
+            p(
+              "Define the book, input data and settings used for processing.",
+              style = "color:#555;"
+            ),
+            
+            tags$hr()
+          ),
+          
+          
+          # ==========================================================
+          # LEFT COLUMN
+          # Book and processing settings
+          # ==========================================================
+          
+          column(
+            6,
+            
+            h4(
+              strong("Book & Processing"),
+              style = "color:black;"
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Book title
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
                 
-                 fluidRow(
-                   column(10, 
-                          # Wrapper um das textInput, damit wir das Style anwenden können
-                          tags$div(style = "position:relative;",
-                                   textInput("pYear", "Publication Year", config$pYear)
-                          ),
-                          # zusätzliche Info-Box für "pYear", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "pYear_infoBox", class="infobox_tab_0",
-                              info$pYear_infoBox)
-                   )
-                 ),
-                 fluidRow(
-                   column(10, 
-                          # Wrapper um das textInput, damit wir das Style anwenden können
-                          tags$div(style = "position:relative;",
-                                   textInput("tesserAct", "Tesseract Path", config$tesserAct)
-                          ),
-                          # zusätzliche Info-Box für "tesserAct", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "tesserAct_infoBox", class="infobox_tab_0",
-                              info$tesserAct_infoBox)
-                   )
-                 ),
-                 fluidRow(
-                   column(10,
-                          tags$div(style = "position:relative;",
-                                   numericInput(
-                                     inputId = "nMapTypes",
-                                     label = "Number of map types",
-                                     value = as.integer(config$nMapTypes),   # 👈 Wert aus der Config
-                                     min = 1,
-                                     max = 3,
-                                     step = 1
-                                   )
-                          ),
-                          div(id = "nMapTypes_infoBox", class = "infobox_tab_0",
-                              info$nMapTypes_infoBox)
-                   )
-                 ),
-                # ============================================================
-                # Species distribution representation
-                # ============================================================
+                tags$div(
+                  style = "position:relative;",
+                  
+                  textInput(
+                    "title",
+                    "Book Title",
+                    config$title
+                  )
+                ),
                 
-                fluidRow(
-                  column(
-                    10,
+                div(
+                  id = "title_infoBox",
+                  class = "infobox_tab_0",
+                  info$title_infoBox
+                )
+              )
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Author
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  style = "position:relative;",
+                  
+                  textInput(
+                    "author",
+                    "Author",
+                    config$author
+                  )
+                ),
+                
+                div(
+                  id = "author_infoBox",
+                  class = "infobox_tab_0",
+                  info$author_infoBox
+                )
+              )
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Publication year
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  style = "position:relative;",
+                  
+                  textInput(
+                    "pYear",
+                    "Publication Year",
+                    config$pYear
+                  )
+                ),
+                
+                div(
+                  id = "pYear_infoBox",
+                  class = "infobox_tab_0",
+                  info$pYear_infoBox
+                )
+              )
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Tesseract
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  style = "position:relative;",
+                  
+                  textInput(
+                    "tesserAct",
+                    "Tesseract Path",
+                    config$tesserAct
+                  )
+                ),
+                
+                div(
+                  id = "tesserAct_infoBox",
+                  class = "infobox_tab_0",
+                  info$tesserAct_infoBox
+                )
+              )
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Number of map types
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  style = "position:relative;",
+                  
+                  numericInput(
+                    inputId = "nMapTypes",
+                    label = "Number of map types",
+                    value = as.integer(config$nMapTypes),
+                    min = 1,
+                    max = 3,
+                    step = 1
+                  )
+                ),
+                
+                div(
+                  id = "nMapTypes_infoBox",
+                  class = "infobox_tab_0",
+                  info$nMapTypes_infoBox
+                )
+              )
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Species distribution representation
+            # --------------------------------------------------------
+            
+            # --------------------------------------------------------
+            # Species distribution representation
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  style = "position:relative;",
+                  
+                  tags$label(
+                    "How is the species distribution represented on the maps?"
+                  ),
+                  
+
+                  # Example images
+                  fluidRow(
+                    radioButtons(
+                      inputId = "speciesRepresentation",
+                      label = NULL,
+                      choices = c(
+                        "Points / symbols" = "point",
+                        "Contours / areas" = "contour"
+                      ),
+                      selected = if (!is.null(config$speciesRepresentation)) {
+                        config$speciesRepresentation
+                      } else {
+                        "point"
+                      },
+                      inline = TRUE
+                    ),
                     
-                    tags$div(
-                      style = "position:relative;",
-                      
-                      radioButtons(
-                        inputId = "speciesRepresentation",
-                        label = "How is the species distribution represented on the maps?",
-                        choices = c(
-                          "Points / symbols" = "point",
-                          "Contours / areas" = "contour"
+                    column(
+                      6,
+                      tags$div(
+                        style = "text-align:center;",
+                        
+                        tags$img(
+                          src = "images/species_points_example.png",
+                          style = "
+                width:150px;
+                max-height:110px;
+                object-fit:contain;
+                border:1px solid #ddd;
+                border-radius:4px;
+                padding:3px;
+              "
                         ),
-                        selected = if (!is.null(config$speciesRepresentation)) {
-                          config$speciesRepresentation
-                        } else {
-                          "point"
-                        },
-                        inline = TRUE
+                        
+                        tags$div(
+                          "Example: Points / symbols",
+                          style = "font-size:12px; color:#666; margin-top:4px;"
+                        )
                       )
                     ),
                     
-                    div(
-                      id = "speciesRepresentation_infoBox",
-                      class = "infobox_tab_0",
-                      "Select how species distributions are represented in the source maps."
+                    column(
+                      6,
+                      tags$div(
+                        style = "text-align:center;",
+                        
+                        tags$img(
+                          src = "images/species_contours_example.png",
+                          style = "
+                width:150px;
+                max-height:110px;
+                object-fit:contain;
+                border:1px solid #ddd;
+                border-radius:4px;
+                padding:3px;
+              "
+                        ),
+                        
+                        tags$div(
+                          "Example: Contours / areas",
+                          style = "font-size:12px; color:#666; margin-top:4px;"
+                        )
+                      )
                     )
                   )
                 ),
-                 # ============================================================
-                 # Species Detection Keywords (NEW)
-                 # ============================================================
-                 
-                 fluidRow(
-                   column(10,
-                          tags$div(style = "position:relative;",
-                                   textInput(
-                                     "specieTitleKeyword",
-                                     "Title keyword to detect species title on page (e.g. genus name)",
-                                     value = config$speciesTitleKeywords
-                                   )
-                          ),
-                          div(id = "specieTitleKeyword_infoBox", class = "infobox_tab_0",
-                              "Define keyword used to detect the specie title.")
-                   )
-                 ),
-                 
-                 fluidRow(
-                   column(10,
-                          tags$div(style = "position:relative;",
-                                   textInput(
-                                     "specieTitleKeywordBefore",
-                                     "Title Keyword before species name - number of rows before!",
-                                     value = config$keywordBefore
-                                   )
-                          ),
-                          div(id = "keywordBefore_infoBox", class = "infobox_tab_0",
-                              "Title Keyword appears before the species title. Please write the number of rows before!")
-                   )
-                 ),
-                 
-                 fluidRow(
-                   column(10,
-                          tags$div(style = "position:relative;",
-                                   textInput(
-                                     "specieTitleKeywordThen",
-                                     "Title Keyword is after species title - number of rows then!",
-                                     value = config$keywordThen
-                                   )
-                          ),
-                          div(id = "keywordThen_infoBox", class = "infobox_tab_0",
-                              "Text that appears after the species title, Please write the number of rows then!")
-                   )
-                 ),
-                 
-                 fluidRow(
-                   column(10,
-                          tags$div(style = "position:relative;",
-                                   checkboxInput(
-                                     "middle",
-                                     "Title is centered on the page or no?",
-                                     value = isTRUE(as.logical(config$middle))
-                                   )
-                          ),
-                          div(id = "middle_infoBox", class = "infobox_tab_0",
-                              "Activate if species titles are typically located in the middle of the page.")
-                   )
-                 ),fluidRow(
-                   column(10,
-                          tags$div(style = "position:relative;",
-                                   textInput(
-                                     "legendKeywords",
-                                     "Legend keywords (comma separated)",
-                                     value = config$legendKeywords
-                                   )
-                          ),
-                          div(id = "legendKeywords_infoBox", class = "infobox_tab_0",
-                              "Legend keywords used to detect map legend entries (e.g. 'distribution of, type locality of').")
-                   )
-                 ),
+                
+                div(
+                  id = "speciesRepresentation_infoBox",
+                  class = "infobox_tab_0",
+                  info$speciesRepresentation_infoBox
+                )
+              )
+            )
           ),
           
-          # Right column
-          column(6,
-                 
-                 configFolderInput(
-                   id = "dataInputDir",
-                   label = "Input Directory",
-                   value = config$dataInputDir,
-                   infoText = info$dataInputDir_infoBox
-                 ),
-                 
-                 configFolderInput(
-                   id = "dataOutputDir",
-                   label = "Output Directory",
-                   value = config$dataOutputDir,
-                   infoText = info$dataOutputDir_infoBox,
-                   color = "#007bff"
-                 ),
-                 
-                 
-                 
-                 fluidRow(
-                   column(10, tags$div(id = "d_pFormat", style = "position:relative;",
-                                       selectInput("pFormat", "Image Format", 
-                                                   choices = c("tif" = 1, "png" = 2, "jpg" = 3),
-                                                   selected = config$pFormat)
-                                       ),
-                         # zusätzliche Info-Box für "pColor", die erscheint, wenn man über das Eingabefeld fährt
-                         div(id = "pFormat_infoBox", class="infobox_tab_0",
-                             info$pFormat_infoBox)
-                   )
-                 ),
-                 
-                 
-                 
-                 fluidRow(
-                   column(10, tags$div(id = "d_pColor", style = "position:relative;",
-                                       selectInput("pColor", "Page Color", 
-                                                   choices = c("black white" = 1, "color" = 2),selected = config$pColor)
-                                  ),
-                          # zusätzliche Info-Box für "pColor", die erscheint, wenn man über das Eingabefeld fährt
-                          div(id = "pColor_infoBox", class="infobox_tab_0", 
-                              info$pColor_infoBox)
-                          
-                    )
-                   ),
-                   
+          
+          # ==========================================================
+          # RIGHT COLUMN
+          # Input/output and image settings
+          # ==========================================================
+          
+          column(
+            6,
+            
+            h4(
+              strong("Input & Image Settings"),
+              style = "color:black;"
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Input directory
+            # --------------------------------------------------------
+            
+            configFolderInput(
+              id = "dataInputDir",
+              label = "Input Directory",
+              value = config$dataInputDir,
+              infoText = info$dataInputDir_infoBox
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Output directory
+            # --------------------------------------------------------
+            
+            configFolderInput(
+              id = "dataOutputDir",
+              label = "Output Directory",
+              value = config$dataOutputDir,
+              infoText = info$dataOutputDir_infoBox,
+              color = "#007bff"
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Image format
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
                 
+                tags$div(
+                  id = "d_pFormat",
+                  style = "position:relative;",
+                  
+                  selectInput(
+                    "pFormat",
+                    "Image Format",
+                    choices = c(
+                      "tif" = 1,
+                      "png" = 2,
+                      "jpg" = 3
+                    ),
+                    selected = config$pFormat
+                  )
+                ),
+                
+                div(
+                  id = "pFormat_infoBox",
+                  class = "infobox_tab_0",
+                  info$pFormat_infoBox
+                )
+              )
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Page color
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  id = "d_pColor",
+                  style = "position:relative;",
+                  
+                  selectInput(
+                    "pColor",
+                    "Page Color",
+                    choices = c(
+                      "black white" = 1,
+                      "color" = 2
+                    ),
+                    selected = config$pColor
+                  )
+                ),
+                
+                div(
+                  id = "pColor_infoBox",
+                  class = "infobox_tab_0",
+                  info$pColor_infoBox
+                )
+              )
+            ),
+            
+            
+            # ========================================================
+            # SPECIES IDENTIFICATION SETTINGS
+            # ========================================================
+            
+            tags$hr(),
+            
+            h4(
+              strong("Species Identification Settings"),
+              style = "color:black;"
+            ),
+            
+            p(
+              paste(
+                "These settings describe how species titles",
+                "and species information are organized in this book."
+              ),
+              style = "color:#555; margin-bottom:15px;"
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Species title keyword
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  style = "position:relative;",
+                  
+                  textInput(
+                    "specieTitleKeyword",
+                    "Keyword used near species titles",
+                    value = config$speciesTitleKeywords
+                  )
+                ),
+                
+                div(
+                  id = "specieTitleKeyword_infoBox",
+                  class = "infobox_tab_0",
+                  info$specieTitleKeyword_infoBox
+                )
+              )
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Number of lines before keyword
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  style = "position:relative;",
+                  
+                  textInput(
+                    "specieTitleKeywordBefore",
+                    "Number of lines before the keyword",
+                    value = config$keywordBefore
+                  )
+                ),
+                
+                div(
+                  id = "keywordBefore_infoBox",
+                  class = "infobox_tab_0",
+                  info$keywordBefore_infoBox
+                )
+              )
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Number of lines after keyword
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  style = "position:relative;",
+                  
+                  textInput(
+                    "specieTitleKeywordThen",
+                    "Number of lines after the keyword",
+                    value = config$keywordThen
+                  )
+                ),
+                
+                div(
+                  id = "keywordThen_infoBox",
+                  class = "infobox_tab_0",
+                  info$keywordThen_infoBox
+                )
+              )
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Species title position
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  style = "position:relative;",
+                  
+                  checkboxInput(
+                    "middle",
+                    "Species titles are usually centered on the page",
+                    value = isTRUE(
+                      as.logical(config$middle)
+                    )
+                  )
+                ),
+                
+                div(
+                  id = "middle_infoBox",
+                  class = "infobox_tab_0",
+                  info$middle_infoBox
+                )
+              )
+            ),
+            
+            
+            # ========================================================
+            # MAP LEGEND IDENTIFICATION
+            # ========================================================
+            
+            tags$hr(),
+            
+            h5(
+              strong("Map Legend Identification"),
+              style = "color:black;"
+            ),
+            
+            p(
+              paste(
+                "Use characteristic words or phrases from the",
+                "map legends to help identify species information."
+              ),
+              style = "color:#555; margin-bottom:10px;"
+            ),
+            
+            
+            # --------------------------------------------------------
+            # Legend keywords
+            # --------------------------------------------------------
+            
+            fluidRow(
+              column(
+                10,
+                
+                tags$div(
+                  style = "position:relative;",
+                  
+                  textInput(
+                    "legendKeywords",
+                    "Keywords used in map legends",
+                    value = config$legendKeywords,
+                    placeholder = "e.g. distribution of, type locality of"
+                  )
+                ),
+                
+                div(
+                  id = "legendKeywords_infoBox",
+                  class = "infobox_tab_0",
+                  info$legendKeywords_infoBox
+                )
+              )
+            )
           )
-        ),actionButton("saveConfig", "Save Sonfiguration", style = "with:100pc;color:#FFFFFF;background:#007bff;position: absolute;
-  left: 43%;"),
-     
-        #actionButton("open_output", "Open Output Folder in Explorer", style = "color:#FFFFFF;background:#28a745"),
+        ),
+        
+        
+        # ==========================================================
+        # SAVE CONFIGURATION
+        # ==========================================================
+        
+        tags$hr(),
+        
+        tags$div(
+          style = "text-align:center;",
+          
+          actionButton(
+            "saveConfig",
+            "Save Configuration",
+            style = paste(
+              "color:#FFFFFF;",
+              "background:#007bff;"
+            )
+          )
+        ),
+        
+        
+        # ==========================================================
+        # OUTPUT FOLDER
+        # ==========================================================
+        
         shinyjs::hidden(
-          h3("Inspect Result Folder"),
-          actionButton("open_output", "Open Output Directory in Explorer",
-                       style = "color:#FFFFFF;background:#28a745;position: absolute;
-  left: 43%;")
+          tags$div(
+            style = "text-align:center; margin-top:20px;",
+            
+            h3("Inspect Result Folder"),
+            
+            actionButton(
+              "open_output",
+              "Open Output Directory in Explorer",
+              style = "color:#FFFFFF;background:#28a745;"
+            )
+          )
         )
       )
-
     ),
     
     # Tab 1 Create Templates #---------------------------------------------------------------------
@@ -971,6 +1337,7 @@ body <- dashboardBody(
             )
           ),
           # ---------------- FINAL SPECIES DATA ----------------
+
           wellPanel(
             
             h4(
@@ -978,11 +1345,27 @@ body <- dashboardBody(
               style = "color:black"
             ),
             
-            DT::DTOutput("finalSpeciesTable"),
-            downloadButton(
-              "downloadFinalSpeciesCSV",
-              "Download CSV"
+            p(
+              "Load and display the final species distribution data.",
+              style = "color:black"
             ),
+            
+            actionButton(
+              "showFinalSpeciesData",
+              "Show final data",
+              style = "
+                color:#FFFFFF;
+                background:#337ab7;
+                border-color:#2e6da4;
+              "
+            ),
+            
+            br(),
+            br(),
+            
+            DT::DTOutput("finalSpeciesTable"),
+            
+
             tags$hr(),
             
             textInput(
@@ -994,9 +1377,14 @@ body <- dashboardBody(
             actionButton(
               "showSpeciesDistribution",
               "Show species distribution"
+            ),
+                    
+            downloadButton(
+            "downloadFinalSpeciesCSV",
+            "Download CSV"
             )
-          ),
           
+          ),
           # ---------------- SPECIES MAP ----------------
           wellPanel(
             
