@@ -8,9 +8,12 @@ if(!require(leaflet)){
 
 
 source("ui/helpers_ui.R")
+source("ui/book_structure_training_ui.R")
+source("ui/map_matching_ui.R")
 source("ui/species_distribution_ui.R", local = TRUE)
 source("ui/species_reading_ui.R", local = TRUE)
 source("ui/pipeline_ui.R")
+
 
 # Reading configuration files
 config_list<- read.csv2(paste0(workingDir,'/config/config.csv'), header = FALSE, sep = ';',stringsAsFactors = FALSE)
@@ -223,7 +226,7 @@ body <- dashboardBody(
             
             tags$hr()
           ),
-          
+        
           
           # ==========================================================
           # LEFT COLUMN
@@ -799,214 +802,16 @@ body <- dashboardBody(
     ),
     
     # Tab 1 Create Templates #---------------------------------------------------------------------
-    tabItem(
-      tabName = "tab1",
-      fluidRow(
-        column(11, 
-               wellPanel(
-                 h3(strong(shinyfields1$head, style = "color:black")),
-                 p(shinyfields1$inf4, style = "color:black"),
-                 # Choose the file 
-                 fileInput("image",  label = h5(shinyfields1$lab1), buttonLabel = "Browse...",
-                           placeholder = "No file selected"),
-                 #shinyFilesButton("pick_file", "Datei wählen", "Bitte Datei auswählen", multiple = TRUE),
-                 verbatimTextOutput("file_out")
-               ),
-               
-               wellPanel(
-                 h4(strong(shinyfields1$save_symbol, style = "color:black")),
-                 # Add number to the file name of the created template file
-                 fluidRow(column(8, numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-                                 
-                                 p(strong(paste0(shinyfields1$inf2, workingDir, "/data/templates/symbols"), style = "color:black")),
-                                 p(shinyfields1$inf3, style = "color:black"),                
-                                 # Save the template map image with the given index
-                                 downloadButton('saveSymbol', 'Save map symbol/Legende', style="color:#FFFFFF;background:#999999")))
-               )
-        ), # col 4
-        column(
-          width = 8,
-          div(
-            class = "plot-flex-row",  # Flexbox-Container
-            div(
-              id = "leftPlotPanel",
-              plotOutput(
-                "plot",
-                click = "plot_click",
-                hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
-                brush = brushOpts(id = "plot_brush")
-              )
-            ),
-            div(
-              id = "rightPlotPanel",
-              plotOutput("plot1"),
-              conditionalPanel(
-                condition = "output.showCropHint",
-                # --- Neuer Hinweis zur Anzahl der Templates ---
-                tags$p(
-                  "⚠️ Important:",tags$br(),
-                  "Please select only map pages that are already well-scanned and correctly aligned — this will significantly improve the accuracy of the template matching process!",
-                  tags$br(),
-                ),
-                tags$p(
-                  style = "color:#333; font-weight:bold; margin-top:10px;",
-                  "👉 When cropping the map area, make sure to select the region carefully so that the entire map border is included —",
-                  "but extend the selection only a few pixels beyond the frame.",
-                  "No page text or captions should appear inside the cropped template image."
-                ),
-                tags$p(
-                  style = "color:#333; font-weight:bold; margin-top:10px;",
-                  "👉 For best results, create at least two template maps.",
-                ),
-                
-                # --- Bildanzeige ---
-                tags$div(
-                  style = "text-align:center; margin:10px 0;",
-                  tags$img(
-                    src = "assets/templates_struct_1.JPG",   # <- Pfad relativ zu www/
-                    alt = "Template folder structure example",
-                    style = "max-width:100%; border:1px solid #ccc; border-radius:8px;"
-                )),
-                tags$p(
-                  "👉 If your book contains different types or layouts of maps, you should create separate template groups under the templates directory.",
-                  tags$br(), 
-                  "Each group (e.g. t_1, t_2, t_3) should have the same internal structure as a single-type template set."
-                ),
-                # --- Bildanzeige ---
-                tags$div(
-                  style = "text-align:center; margin:10px 0;",
-                  tags$img(
-                    src = "assets/templates_struct_2.JPG",   # <- Pfad relativ zu www/
-                    alt = "Template folder structure example",
-                    style = "max-width:100%; border:1px solid #ccc; border-radius:8px;"
-                )),
-
-                wellPanel(
-                  h4(strong(shinyfields1$save_template, style = "color:black")),
-                  # Add number to the file name of the created template file
-                  fluidRow(column(8, #numericInput("imgIndexTemplate", label = h5(shinyfields1$lab2),value = 1),
-                                  # Save the template map image with the given index
-                                  downloadButton('saveTemplate', 'Save map template', style="color:#FFFFFF;background:#999999"))),
-                )
-              )
-            )
-          ),
-          
-        )
-        
-        
-        
-        
-      ) # END fluid Row
-    ),  # END tabItem 1
+    # END tabItem 1
+    book_structure_training_ui(
+      shinyfields1 = shinyfields1,
+      workingDir = workingDir
+    ),
     
-    
-    # =============================
-    # Tab 2 Maps Matching
-    # =============================
-    tabItem(
-      fluidRow(column(8,wellPanel(
-        textInput("range_matching", label=HTML(shinyfields2$inf6), value = '1-1'),
-        textOutput("range_warning"),
-        selectInput("matchingType", label = HTML(shinyfields2$matchingType), c("Template matching" = 1, "Contour matching" = 2), 1),
-        selectInput("sNumberPosition", "Page Number Position", c("top" = 1, "bottom" = 2), selected = 1),))),
-      tabName = "tab2",
-      # actionButton("listCropped",  label = "List cropped maps"),
-      fluidRow(
-        fluidRow(
-          
-          # ================= LEFT: MATCHING =================
-          column(
-            6,
-            
-            wellPanel(
-              h3(strong(shinyfields2$head, style = "color:black")),
-              p(shinyfields2$inf1, style = "color:black"),
-              
-              numericInput(
-                "threshold_for_TM",
-                label = shinyfields2$threshold,
-                value = 0.18, min = 0, max = 1, step = 0.05
-              ),
-              
-              actionButton(
-                "templateMatching",
-                label = shinyfields2$start1,
-                style = "color:#FFFFFF;background:#28a745"
-              ),
-              
-              p(shinyfields2$inf2, style = "color:black")
-            ),
-            
-            shinyjs::hidden(
-              div(
-                id = "matching_results_block",
-                
-                wellPanel(
-                  h4("Matching results"),
-                  
-                  selectInput(
-                    "map_type_matching",
-                    label = "Select map type:",
-                    choices = mapTypes,
-                    selected = mapTypes[1]
-                  ),
-                  textInput(
-                    "range_list_matching",
-                    label = HTML(shinyfields2$inf7),
-                    value = "1-2"
-                  ),
-                  actionButton("listMatchingButton", "List maps"),
-                  uiOutput("listMaps")
-                )
-              )
-            )
-          ),
-          
-          # ================= RIGHT: ALIGN =================
-          column(
-            6,
-            
-            wellPanel(
-              h3(strong(shinyfields2$head_sub, style = "color:black")),
-              p(shinyfields2$inf3, style = "color:black"),
-              
-              actionButton(
-                "alignMaps",
-                label = shinyfields2$start2,
-                style = "color:#FFFFFF;background:#007bff"
-              )
-            ),
-            
-            shinyjs::hidden(
-              div(
-                id = "align_results_block",
-                
-                wellPanel(
-                  h4("Aligned results"),
-                  
-                  selectInput(
-                    "map_type_align",
-                    label = "Select map type:",
-                    choices = mapTypes,
-                    selected = mapTypes[1]
-                  ),
-                  textInput(
-                    "range_list_align",
-                    label = HTML(shinyfields2$inf7),
-                    value = "1-2"
-                  ),
-                  actionButton("listAlignButton", "List aligned maps"),
-                  uiOutput("listAlign")
-                )
-              )
-            )
-            
-          )
-        )
-        
-      ) # END fluid Row
-    ),  # END tabItem 2
+    map_matching_ui(
+      shinyfields2 = shinyfields2,
+      mapTypes = mapTypes
+    ),
     
     # ----------------------------------------------------------------------
     # Tab 3 – Species Distribution

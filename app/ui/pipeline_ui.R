@@ -35,7 +35,7 @@ pipeline_ui <- function() {
           
           p(
             paste(
-              "Review the current configuration and start the complete",
+              "Review the configuration below before starting the complete processing pipeline.",
               "Distribution Digitizer processing pipeline."
             ),
             style = "color:black"
@@ -61,11 +61,7 @@ pipeline_ui <- function() {
             style = "color:black"
           ),
           
-          p(
-            paste(
-              "The table shows the configuration that will be used",
-              "for the complete pipeline."
-            ),
+          p("Review and edit the configuration values if necessary.",
             style = "color:black"
           ),
           
@@ -82,42 +78,45 @@ pipeline_ui <- function() {
           # CONFIG ACTIONS
           # ====================================================
           
-          fluidRow(
-            column(
-              4,
-              actionButton(
-                "savePipelineConfig",
-                "Save Pipeline Configuration",
-                icon = icon("save"),
-                class = "btn-primary"
-              )
-            ),
-            column(
-              3,
-              
-              actionButton(
-                "resetPipelineConfig",
-                "Reset configuration",
-                style = "
-                  color:#FFFFFF;
-                  background:#999999;
-                "
-              )
-            )
+          h4(
+            "Save Changes",
+            style = "color:black"
+          ),
+          p(
+            "If you edited any values above, save the changes before starting the pipeline.",
+            style = "color:black"
           ),
           
+          actionButton(
+            "savePipelineConfig",
+            "SAVE ",
+            icon = icon("save"),
+            style = "
+              color:#FFFFFF;
+              background:#337ab7;
+              font-weight:bold;
+            "
+          ),
           tags$hr(),
-          
           
           # ====================================================
           # PIPELINE START
           # ====================================================
-          
           h4(
             "Run Complete Pipeline",
             style = "color:black"
           ),
-          
+          actionButton(
+            "startCompletePipeline",
+            "START ",
+            icon = icon("play"),
+            style = "
+              color:#FFFFFF;
+              background:#5cb85c;
+              font-weight:bold;
+            "
+          ),
+
           p(
             paste(
               "Start all processing steps using the configuration",
@@ -125,21 +124,6 @@ pipeline_ui <- function() {
             ),
             style = "color:black"
           ),
-          
-          actionButton(
-            "startCompletePipeline",
-            "Start complete pipeline",
-            style = "
-              color:#FFFFFF;
-              background:#5cb85c;
-              font-weight:bold;
-            "
-          ),
-          
-          br(),
-          br(),
-          
-          
           # ====================================================
           # PIPELINE STATUS
           # ====================================================
@@ -175,6 +159,23 @@ pipeline_ui <- function() {
           
           uiOutput(
             "pipelineResult"
+          ),
+          br(),
+          uiOutput("pipelineMapSelector"),
+          uiOutput(
+            "pipelineResultActions"
+          ),
+          
+          br(),
+          
+          DT::DTOutput(
+            "pipelineResultTable"
+          ),
+          br(),
+          
+          leaflet::leafletOutput(
+            "pipelineResultMap",
+            height = 500
           )
         )
       )
