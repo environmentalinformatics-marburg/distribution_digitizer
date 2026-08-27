@@ -142,9 +142,29 @@ set_tessdata_prefix_from_config <- function(tess_path) {
 source("server/species_distribution_server.R", local = TRUE)
 source("server/species_reading_server.R", local = TRUE)
 source("server/pipeline_server.R")
+source("server/book_structure_training_server.R")
+
 
 server <- shinyServer(function(input, output, session) {
   #addResourcePath("root", "D:/distribution_digitizer/www")
+  # ==========================================================
+  # CURRENT APPLICATION SETTINGS
+  # ==========================================================
+  
+  currentSpeciesRepresentation <- reactive({
+    
+    if (!is.null(input$speciesRepresentation) &&
+        nzchar(input$speciesRepresentation)) {
+      
+      # Current selection made by the user
+      input$speciesRepresentation
+      
+    } else {
+      
+      # Saved value from config.csv
+      config$speciesRepresentation
+    }
+  })
   
   # ============================================================
   # Initialize Species Distribution Detection
@@ -514,115 +534,19 @@ server <- shinyServer(function(input, output, session) {
       )
     }
   })
-  # Render the image in the plot with given dynamical 10%
-  output$plot <- renderImage({
-    
-    #only if input$image is given
-    req(input$image)
-    temp <- image_read(input$image$datapath)
-    file <- image_convert(temp, "png")
-    temp_scale <- image_scale(file, paste0(scale,"%"))
-    fname = paste0(workingDir, "/", tempImage)
-    workingDir = workingDir
-    image_write(temp_scale, path = fname, format = "png", )
-    req(file)
-    list(src = fname, alt="alternative text")
-    
-    shinyalert::shinyalert(title = "Success", text = "Configuration successfully saved!", type = "success")
-  }, deleteFile = FALSE)
   
+  ####################
+  # 1. Create Templates #----------------------------------------------------------------------#
+  ####################
   
-  #plot1
-  output$plot1 <- renderPlot({
-    req(input$image)
-    req(input$plot_brush)
-    plot_png(input$plot_brush)
-  })
-  
-  # Show hint only when cropped preview (plot1) is visible
-  output$showCropHint <- reactive({
-    # show only if brush exists and image loaded
-    !is.null(input$plot_brush) && !is.null(input$image)
-  })
-  outputOptions(output, "showCropHint", suspendWhenHidden = FALSE)
-  
-  # Function to save the cropped tepmlate map image
-  output$saveTemplate <- downloadHandler(
-    
-    # ✔ Nur der Dateiname, ohne Pfad!
-    filename = function() {
-      paste0("map_", input$imgIndexTemplate, ".tif")
-    },
-    
-    content = function(file) {
-      
-      # ---- Crop Koordinaten ----
-      x1 <- input$plot_brush$xmin
-      x2 <- input$plot_brush$xmax
-      y2 <- input$plot_brush$ymin
-      y1 <- input$plot_brush$ymax
-      
-      tempI <- image_read(input$image$datapath)
-      
-      width  <- (x2*rescale - x1*rescale)
-      height <- (y1*rescale - y2*rescale)
-      
-      geometrie <- paste0(width, "x", height, "+", x1*rescale, "+", y2*rescale)
-      
-      tempI <- image_crop(tempI, geometrie)
-      
-      # ---- Speicherort definieren ----
-      save_dir <- file.path(workingDir, "output", "templates", "maps")
-      
-      if (!dir.exists(save_dir)) {
-        dir.create(save_dir, recursive = TRUE)
-      }
-      
-      # finaler Dateipfad
-      save_path <- file.path(save_dir, paste0("map_", input$imgIndexTemplate, ".tif"))
-      
-      # ---- Speichern ----
-      image_write(tempI, save_path, format = "tif")
-      
-      # ---- zurück an den Download-Handler ----
-      file.copy(save_path, file)
-      
-      # ---- Index hochzählen ----
-      updateNumericInput(session, "imgIndexTemplate", value = input$imgIndexTemplate + 1)
-    }
+  book_structure_training_server(
+    input = input,
+    output = output,
+    session = session,
+    workingDir = workingDir,
+    tempImage = tempImage,
+    speciesRepresentation = currentSpeciesRepresentation
   )
-  
-  
-
-  
-  # Function to save the cropped template symbol image
-  output$saveSymbol <- downloadHandler(
-    filename = function() {
-      paste(workingDir, '/data/templates/maps/symbols', '_',input$imgIndexSymbol,'.tif', sep='')
-    },
-    content = function(file) {
-      
-      x1 = input$plot_brush$xmin
-      x2 = input$plot_brush$xmax
-      y2 = input$plot_brush$ymin
-      y1 = input$plot_brush$ymax
-      
-      tempI <- image_read(input$image$datapath)
-      widht=(x2*rescale-x1*rescale)
-      height=(y1*rescale-y2*rescale)
-      
-      geometrie <- paste0(widht, "x", height, "+",x1*rescale,"+", y2*rescale)
-      #"100x150+0+0")
-      tempI <- image_crop(tempI, geometrie)
-      image_write(tempI, file, format = "tif")
-      #writePNG(tempImage, target = file)
-      # unlink(paste0(workingDir,"/", tempImage))
-      i = input$imgIndexSymbol +1
-      updateNumericInput(session, "imgIndexSymbol", value = i)
-      
-    }) 
-  
-
   
   ####################
   # 2. Maps matching #----------------------------------------------------------------------#
@@ -789,7 +713,169 @@ server <- shinyServer(function(input, output, session) {
     })
   })
   
+  observeEvent(input$showMatchingRecords, {
+    
+    req(input$map_type_matching)
+    
+    map_type <- input$map_type_matching
+    
+    records_file <- file.path(
+      outDir(),
+      map_type,
+      "records.csv"
+    )
+    
+    print(
+      paste(
+        "Records file:",
+        records_file
+      )
+    )
+    
+    if (!file.exists(records_file)) {
+      
+      showNotification(
+        paste(
+          "No records.csv found for map type",
+          map_type
+        ),
+        type = "warning"
+      )
+      
+      return()
+    }
+    
+    shinyjs::show("matching_records_block")
+  })
+  
+  
+  output$matchingRecords <- DT::renderDT({
+    
+    req(input$map_type_matching)
+    
+    records_file <- file.path(
+      outDir(),
+      input$map_type_matching,
+      "records.csv"
+    )
+    
+    req(file.exists(records_file))
+    
+    records <- read.csv(
+      records_file,
+      stringsAsFactors = FALSE
+    )
+    
+    DT::datatable(
+      records,
+      selection = "single",
+      rownames = FALSE,
+      options = list(
+        pageLength = 10
+      )
+    )
+  })
 
+  selected_matching_record <- reactiveVal(NULL)
+  
+  observeEvent(input$matchingRecords_rows_selected, {
+    
+    row <- input$matchingRecords_rows_selected
+    req(length(row) == 1)
+    
+    records_file <- file.path(
+      outDir(),
+      input$map_type_matching,
+      "records.csv"
+    )
+    
+    records <- read.csv(
+      records_file,
+      stringsAsFactors = FALSE
+    )
+    
+    selected <- records[row, ]
+    
+    # -------------------------------------------------------
+    # ORIGINAL PAGE
+    # -------------------------------------------------------
+    
+    page_file <- gsub("\\\\", "/", selected$file_name)
+    page_file <- basename(page_file)
+    
+    page_png <- paste0(
+      tools::file_path_sans_ext(page_file),
+      ".png"
+    )
+    
+    page_url <- paste0(
+      "pages/",
+      page_png
+    )
+    
+    
+    # -------------------------------------------------------
+    # MATCHED MAP
+    # -------------------------------------------------------
+    
+    map_file <- gsub("\\\\", "/", selected$map_name)
+    map_file <- basename(map_file)
+    
+    map_png <- paste0(
+      tools::file_path_sans_ext(map_file),
+      ".png"
+    )
+    
+    map_url <- paste0(
+      "output/",
+      input$map_type_matching,
+      "/matching_png/",
+      map_png
+    )
+    
+    
+    # -------------------------------------------------------
+    # SHOW PAGE + MAP
+    # -------------------------------------------------------
+    
+    output$selected_matching_result_ui <- renderUI({
+      
+      fluidRow(
+        
+        column(
+          6,
+          h4("Original page"),
+          
+          tags$img(
+            src = page_url,
+            style = "
+            width:100%;
+            height:auto;
+            border:1px solid #ccc;
+          "
+          )
+        ),
+        
+        column(
+          6,
+          h4("Detected map"),
+          
+          tags$img(
+            src = map_url,
+            style = "
+            width:100%;
+            height:auto;
+            border:1px solid #ccc;
+          "
+          )
+        )
+      )
+    })
+    
+    shinyjs::show("selected_matching_result")
+    
+  })
+  
   
   ####################
   # 2. Points Matching  #----------------------------------------------------------------------#
@@ -1815,9 +1901,6 @@ server <- shinyServer(function(input, output, session) {
       }
 
       
-      
-      
-      
       if(nrow(marker_data) == 0) return()
       
       # Koordinaten numerisch
@@ -1989,9 +2072,6 @@ server <- shinyServer(function(input, output, session) {
   })
   
   
-
-  
-  
   # save the last working directory
   onStop(function() {
     cat(workingDir)
@@ -2001,68 +2081,7 @@ server <- shinyServer(function(input, output, session) {
     # write.table(x, file = paste0(workingDir,"/lastwd.txt") ,sep = ",", col.names = NA)
   })
   
-  # -----------------------------------------# 1. Step - Create templates #---------------------------------------------------------------------#
-  #Function to show the ccrop process in the app 
-  plot_png <- function(plot_brush) {
-    require('png')
-    fname <- tempImage
-    if (!file.exists(fname)) return()
-    
-    img <- as.raster(png::readPNG(fname))
-    res <- dim(img)[2:1]
-    
-    if (is.null(plot_brush) ||
-        any(is.na(c(plot_brush$xmin, plot_brush$xmax, plot_brush$ymin, plot_brush$ymax)))) {
-      plot(1, 1, type = "n", xlim = c(1, res[1]), ylim = c(1, res[2]),
-           xlab = "", ylab = "", asp = 1, axes = FALSE)
-      text(mean(res[1]), mean(res[2]), "Draw a crop area in the left image", col = "gray40")
-      return()
-    }
-    
-    x1 <- round(plot_brush$xmin)
-    x2 <- round(plot_brush$xmax)
-    y1 <- round(plot_brush$ymax)
-    y2 <- round(plot_brush$ymin)
-    
-    x1 <- max(1, min(x1, res[1]))
-    x2 <- max(1, min(x2, res[1]))
-    y1 <- max(1, min(y1, res[2]))
-    y2 <- max(1, min(y2, res[2]))
-    
-    if (x2 - x1 < 2 || y1 - y2 < 2) {
-      plot(1, 1, type = "n", xlim = c(1, res[1]), ylim = c(1, res[2]),
-           xlab = "", ylab = "", asp = 1, axes = FALSE)
-      text(mean(res[1]), mean(res[2]), "Selection too small", col = "gray40")
-      return()
-    }
-    
-    plot(1, 1, xlim = c(1, x2 - x1), ylim = c(1, y1 - y2),
-         asp = 1, type = "n", xaxs = "i", yaxs = "i",
-         xaxt = "n", yaxt = "n", xlab = "", ylab = "", bty = "n")
-    
-    grid::grid.raster(img[y2:y1, x1:x2, ])
-  }
-  
-  
-  
-  # Render the image in the plot with given dynamical 10%
-  output$plot <- renderImage({
-    
-    req(input$image)
-    
-    # Lade und skaliere das Bild
-    img <- image_read(input$image$datapath)
-    img <- image_convert(img, "png")
-    img <- image_scale(img, paste0(scale, "%"))
-    
-    # Speichere IMMER in app/temp.png
-    temp_path <- file.path(getwd(), tempImage)
-    image_write(img, path = temp_path, format = "png")
-    
-    list(src = temp_path, alt = "uploaded image")
-    
-  }, deleteFile = FALSE)
-    #only if input$image is given
+ 
     
   
   
@@ -2165,7 +2184,7 @@ server <- shinyServer(function(input, output, session) {
         
         # Extract page number from filename
         # Example: 0039_map_1_... → take chars 8–11
-        # 🔥 Seitenzahl (erste 4 Ziffern) extrahieren
+        # Seitenzahl (erste 4 Ziffern) extrahieren
         # 0043_map_1_xxx → 0043
         # --- Extract correct 4-digit page number (e.g., 0039) ---
         page_number <- regmatches(files[i], regexpr("[0-9]{4}", files[i]))

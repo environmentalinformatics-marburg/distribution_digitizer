@@ -37,25 +37,48 @@ pipeline_server <- function(
   
   pipeline_config <- reactiveVal(NULL)
   
-  
+  selected_pipeline_map <- reactive({
+    
+    config_data <- pipeline_config()
+    
+    n_maps <- as.integer(
+      config_data$Value[
+        config_data$Parameter == "nMapTypes"
+      ]
+    )
+    
+    if (n_maps <= 1) {
+      return(1L)
+    }
+    
+    req(input$pipelineMapType)
+    
+    as.integer(input$pipelineMapType)
+  })
   # ==========================================================
   # Read original config.csv
   # ==========================================================
   
   read_pipeline_config <- function() {
     
-    config_file <- file.path(
+    backup_file <- file.path(
       workingDir,
       "config",
       "config_backup.csv"
     )
     
-    if (!file.exists(config_file)) {
+    pipeline_file <- file.path(
+      workingDir,
+      "config",
+      "config_pipeline.csv"
+    )
+    
+    if (!file.exists(backup_file)) {
       
       showNotification(
         paste(
-          "Configuration file not found:",
-          config_file
+          "Configuration backup file not found:",
+          backup_file
         ),
         type = "error"
       )
@@ -63,12 +86,22 @@ pipeline_server <- function(
       return(NULL)
     }
     
+    # --------------------------------------------------------
+    # Create fresh pipeline configuration from backup
+    # --------------------------------------------------------
     
-    # config.csv has no header:
-    # parameter;value
+    file.copy(
+      from = backup_file,
+      to = pipeline_file,
+      overwrite = TRUE
+    )
+    
+    # --------------------------------------------------------
+    # Read the fresh pipeline configuration for the UI
+    # --------------------------------------------------------
     
     config_data <- read.csv(
-      config_file,
+      pipeline_file,
       sep = ";",
       header = FALSE,
       stringsAsFactors = FALSE,
@@ -144,38 +177,38 @@ pipeline_server <- function(
       
       info <- input$pipelineConfigTable_cell_edit
       
+      cat("\n===== CELL EDIT =====\n")
+      print(info)
+      
       config_data <- pipeline_config()
       
       row <- info$row
       col <- info$col
       value <- info$value
       
-      
-      # --------------------------------------------------------
-      # Only the Value column may be edited
-      #
-      # DT uses zero-based column numbers here:
-      # 0 = Parameter
-      # 1 = Value
-      # --------------------------------------------------------
+      cat("row:", row, "\n")
+      cat("col:", col, "\n")
+      cat("value:", value, "\n")
       
       if (col != 1) {
+        cat("EDIT IGNORED because col != 1\n")
         return()
       }
       
-      
       config_data$Value[row] <- value
-      
       pipeline_config(config_data)
       
       cat(
-        "Temporary pipeline config changed:",
+        "UPDATED:",
         config_data$Parameter[row],
         "=",
         config_data$Value[row],
         "\n"
       )
+      
+      cat("=====================\n")
     }
+  
   )
   # ==========================================================
   # Save pipeline configuration
@@ -184,6 +217,10 @@ pipeline_server <- function(
   observeEvent(
     input$savePipelineConfig,
     {
+      
+      # --------------------------------------------------------
+      # Use exactly the configuration currently shown in the UI
+      # --------------------------------------------------------
       
       config_data <- pipeline_config()
       req(config_data)
@@ -194,10 +231,7 @@ pipeline_server <- function(
         "config_pipeline.csv"
       )
       
-      # --------------------------------------------------------
-      # Save current edited configuration
-      # --------------------------------------------------------
-      
+      # Save exactly the configuration used for this run
       write.table(
         config_data,
         pipeline_config_file,
@@ -207,17 +241,22 @@ pipeline_server <- function(
         quote = FALSE
       )
       
+      # Create config object directly from current UI values
+      config <- as.list(
+        setNames(
+          config_data$Value,
+          config_data$Parameter
+        )
+      )
+      
       cat(
-        "\nPipeline configuration saved:\n",
+        "Configuration used for pipeline:",
         pipeline_config_file,
         "\n"
       )
       
-      showNotification(
-        "Pipeline configuration saved successfully.",
-        type = "message",
-        duration = 5
-      )
+      cat("Title:", config$title, "\n")
+      cat("Output:", config$dataOutputDir, "\n")
     }
   )
   
@@ -277,19 +316,13 @@ pipeline_server <- function(
   
   
   # ==========================================================
-  # Pipeline result
-  #
-  # Actual pipeline execution will be added next.
-  # ==========================================================
-  
-  # ==========================================================
   # Pipeline execution
   # ==========================================================
   
   pipeline_result <- reactiveVal(NULL)
   pipeline_error  <- reactiveVal(NULL)
   pipeline_running <- reactiveVal(FALSE)
-  
+  show_pipeline_results <- reactiveVal(FALSE)
   
   observeEvent(
     input$startCompletePipeline,
@@ -297,60 +330,21 @@ pipeline_server <- function(
       
       req(pipeline_config())
 
-      
       # --------------------------------------------------------
-      # Select configuration for pipeline run
+      # Always use pipeline configuration for processing
       # --------------------------------------------------------
       
-      backup_file <- file.path(
-        workingDir,
-        "config",
-        "config_backup.csv"
-      )
-      
-      pipeline_file <- file.path(
+      pipeline_config_file <- file.path(
         workingDir,
         "config",
         "config_pipeline.csv"
       )
-      
-      # Default: use tested backup configuration
-      pipeline_config_file <- backup_file
-      
-      # If a pipeline configuration exists, compare both files
-      if (file.exists(pipeline_file)) {
-        
-        backup_config <- readLines(
-          backup_file,
-          warn = FALSE
-        )
-        
-        pipeline_config <- readLines(
-          pipeline_file,
-          warn = FALSE
-        )
-        
-        if (!identical(backup_config, pipeline_config)) {
-          pipeline_config_file <- pipeline_file
-        }
-      }
       
       cat(
         "Configuration used for pipeline:",
         pipeline_config_file,
         "\n"
       )
-      
-      if (!file.exists(pipeline_config_file)) {
-        
-        showNotification(
-          "Please save the pipeline configuration before starting.",
-          type = "error",
-          duration = 8
-        )
-        
-        return()
-      }
       
       config_data <- read.csv(
         pipeline_config_file,
@@ -435,7 +429,7 @@ pipeline_server <- function(
       tryCatch(
         {
           tif_files <- list.files(
-            inputDir,
+            file.path(inputDir,"pages"),
             pattern = "\\.(tif|tiff)$",
             ignore.case = TRUE
           )
@@ -530,7 +524,151 @@ pipeline_server <- function(
     }
   )
   
+  output$pipelineResultActions <- renderUI({
+    
+    req(pipeline_result())
+    
+    actionButton(
+      "showPipelineResults",
+      "View Results",
+      icon = icon("table"),
+      style = "
+      color:#FFFFFF;
+      background:#337ab7;
+      font-weight:bold;
+    "
+    )
+  })
+  observeEvent(
+    input$showPipelineResults,
+    {
+      show_pipeline_results(TRUE)
+    }
+  )
   
+  output$pipelineMapSelector <- renderUI({
+    
+    req(pipeline_result())
+    req(pipeline_config())
+    
+    config_data <- pipeline_config()
+    
+    n_maps <- as.integer(
+      config_data$Value[
+        config_data$Parameter == "nMapTypes"
+      ]
+    )
+
+    selectInput(
+      "pipelineMapType",
+      "Select map type:",
+      choices = seq_len(n_maps),
+      selected = 1
+    )
+  })
+  
+  pipeline_result_data <- reactive({
+    
+    req(pipeline_result())
+    
+    map_index <- selected_pipeline_map()
+    
+    csv_file <- file.path(
+      pipeline_result(),
+      as.character(map_index),
+      "spatial_data_final.csv"
+    )
+    
+    validate(
+      need(
+        file.exists(csv_file),
+        "Final spatial data file not found."
+      )
+    )
+    
+    read.csv(
+      csv_file,
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
+  })
+  
+  
+  output$pipelineResultTable <- DT::renderDT({
+    
+    req(show_pipeline_results())
+    
+    DT::datatable(
+      pipeline_result_data(),
+      rownames = FALSE,
+      filter = "top",
+      selection = "single",
+      options = list(
+        pageLength = 20,
+        scrollX = TRUE
+      )
+    )
+  })
+  output$pipelineResultMap <- leaflet::renderLeaflet({
+    
+    req(show_pipeline_results())
+    
+    selected_row <- input$pipelineResultTable_rows_selected
+    
+    req(length(selected_row) == 1)
+    
+    df <- pipeline_result_data()
+    
+    selected <- df[
+      selected_row,
+      ,
+      drop = FALSE
+    ]
+    
+    shp_file <- selected$shape_file
+    
+    validate(
+      need(
+        !is.na(shp_file) &&
+          nzchar(shp_file) &&
+          file.exists(shp_file),
+        "Shapefile not found for the selected result."
+      )
+    )
+    
+    shape_data <- sf::st_read(
+      shp_file,
+      quiet = TRUE
+    )
+    
+    # Leaflet requires geographic coordinates
+    if (!is.na(sf::st_crs(shape_data))) {
+      shape_data <- sf::st_transform(
+        shape_data,
+        4326
+      )
+    }
+    
+    bbox <- sf::st_bbox(shape_data)
+    
+    leaflet::leaflet() %>%
+      leaflet::addProviderTiles(
+        leaflet::providers$OpenStreetMap
+      ) %>%
+      leaflet::addPolygons(
+        data = shape_data,
+        color = "red",
+        weight = 2,
+        opacity = 1,
+        fillOpacity = 0.3
+      ) %>%
+      leaflet::fitBounds(
+        lng1 = as.numeric(bbox["xmin"]),
+        lat1 = as.numeric(bbox["ymin"]),
+        lng2 = as.numeric(bbox["xmax"]),
+        lat2 = as.numeric(bbox["ymax"])
+      )
+  })
   # ==========================================================
   # Pipeline result / status
   # ==========================================================
