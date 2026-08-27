@@ -52,6 +52,7 @@ from pytesseract import Output
 import shutil
 import re
 import sys
+import pandas as pd
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # ------------------------------------------------------------
@@ -69,6 +70,9 @@ os.environ["TESSDATA_PREFIX"] = r"C:\Program Files\Tesseract-OCR\tessdata"
 
 
 start_time = time.time()
+# Last successfully detected printed page number
+previous_printed_page_number = None
+previous_scan_number = None
 
 # Define fields for the records CSV files
 fields = ['page_number', 'previous_page_path', 'next_page_path', 'file_name',  'x', 'y', 'w', 'h', 'size', 'threshold', 'time']
@@ -77,6 +81,85 @@ fields = ['page_number', 'previous_page_path', 'next_page_path', 'file_name',  '
 fields_page_record = ['page_number','previous_page_path', 'next_page_path', 'file_name',  'map_name', 'x', 'y', 'w', 'h', 'size', 'threshold', 'time', 'map_group']   
 
 
+
+def find_page_number_conventional(image, page_position):
+    """
+    Conventional page-number detection.
+
+    Searches either the upper or lower 10% of the page,
+    depending on page_position.
+
+    Args:
+        image (str): Path to the page image.
+        page_position (int): 1 = top, 2 = bottom.
+
+    Returns:
+        int: Detected page number, or 0 if none was found.
+    """
+
+    result = 0
+
+    img = np.array(PIL.Image.open(image))
+    imgc = img.copy()
+
+    h, w, c = imgc.shape
+    h_temp = int(h / 10)
+
+    page_position = int(page_position)
+
+    # --------------------------------------------------------
+    # Page number at top
+    # --------------------------------------------------------
+
+    if page_position == 1:
+
+        croped_image = imgc[0:h_temp, 0:w]
+
+        croped_image = cv2.bilateralFilter(
+            croped_image,
+            9,
+            75,
+            75
+        )
+
+        d = pytesseract.image_to_data(
+            croped_image,
+            output_type=Output.DICT
+        )
+
+        for element in d["text"]:
+
+            if element.isdigit() and 0 < int(element) < 100:
+                result = int(element)
+                break
+
+    # --------------------------------------------------------
+    # Page number at bottom
+    # --------------------------------------------------------
+
+    elif page_position == 2:
+
+        croped_image = imgc[h-h_temp:h, 0:w]
+
+        croped_image = cv2.bilateralFilter(
+            croped_image,
+            9,
+            75,
+            75
+        )
+
+        d = pytesseract.image_to_data(
+            croped_image,
+            output_type=Output.DICT
+        )
+
+        for element in reversed(d["text"]):
+
+            if element.isdigit() and 0 < int(element) < 100:
+                result = int(element)
+                break
+
+    return result
 # ------------------------------------------------------------
 # Extract page number from scanned page
 # ------------------------------------------------------------
@@ -90,53 +173,576 @@ fields_page_record = ['page_number','previous_page_path', 'next_page_path', 'fil
 # This step is essential for naming outputs and maintaining
 # correct page references in downstream processing.
 # ------------------------------------------------------------
-def find_page_number(image, page_position):
-  """
-  Extracts the page number from a specific region of an image based on the provided page position.
+def find_page_number(
+    image_path,
+    page_position,
+    page_number_training_data=None
+):
 
-  Args:
-  - image (PIL.Image.Image or str): The image or path to the image.
-  - page_position (int): The position of the page number. 1 for the top, 2 for the bottom.
+    global previous_printed_page_number
+    global previous_scan_number
 
-  Returns:
-  - int value or 0: The extracted page number or 0 if not found.
-  """
-  # ...
-  #image = "D:/distribution_digitizer_11_01_2024//data/input/pages/0059.tif" 
-  #page_position = 1
-  result = 0
-  img = np.array(PIL.Image.open(image))
-  imgc = img.copy()
+    # ========================================================
+    # 1. TRAINING-BASED DETECTION
+    # ========================================================
+
+    if (
+        page_number_training_data is not None
+        and not page_number_training_data.empty
+    ):
+
+        page_number = find_page_number_from_training_data(
+            image_path,
+            page_number_training_data
+        )
+
+        if page_number is not None:
+
+            filename = os.path.basename(image_path)
+            match = re.search(r"(\d+)", filename)
+
+            # A complete page number was detected.
+            # Remember it for the next consecutive scan.
+            if match and len(str(page_number)) >= 2:
+
+                previous_printed_page_number = int(page_number)
+                previous_scan_number = int(match.group(1))
+
+                print(
+                    f"Previous state updated: "
+                    f"scan={previous_scan_number}, "
+                    f"printed page={previous_printed_page_number}"
+                )
+
+            print(
+                f"✅ Page number from training data: "
+                f"{page_number}"
+            )
+
+            return page_number
+
+        print(
+            "⚠️ Training-based detection failed. "
+            "Trying conventional detection."
+        )
+
+    # ========================================================
+    # 2. CONVENTIONAL DETECTION
+    # ========================================================
+
+    page_number = find_page_number_conventional(
+        image_path,
+        page_position
+    )
+
+    if page_number not in (None, 0):
+
+        page_number = infer_page_number_from_previous(
+            image_path,
+            page_number
+        )
+
+        print(
+            f"✅ Page number from conventional detection: "
+            f"{page_number}"
+        )
+
+        return page_number
+
+    # ========================================================
+    # 3. NOTHING FOUND
+    # ========================================================
+
+    print("⚠️ No page number detected.")
+
+    return None
   
-  h, w, c = imgc.shape 
-  h_temp= int(h/10)
-  #page_position = 1
-  # Determine the cropping dimensions based on page position
-  page_position = int(page_position)
-  if page_position == 1:    
-    croped_image = imgc[0:h_temp, 0:w]
-    # !Important  
-    croped_image = cv2.bilateralFilter(croped_image, 9, 75, 75)
-    d = pytesseract.image_to_data(croped_image, output_type=Output.DICT)
-    for element in d['text']:
-      if element.isdigit() and 0 < int(element) < 100:
-        result = int(element)
-        break
-  elif page_position == 2:
-    croped_image = imgc[h-h_temp:h, 0:w]
-      # !Important  
-    croped_image = cv2.bilateralFilter(croped_image, 9, 75, 75)
-    d = pytesseract.image_to_data(croped_image, output_type=Output.DICT)
-    for element in reversed(d['text']):
-      if element.isdigit() and 0 < int(element) < 100:
-        result = int(element)
-        break
+def find_page_number_from_training_data(
+    image_path,
+    training,
+    margin_x=0.003,
+    margin_y=0.003
+):
+    """
+    Detect the printed page number using trained page-number positions.
 
-  #print(result)    
-  # Return 0 if no suitable number is found
-  return result
+    The training CSV contains relative coordinates of manually selected
+    page-number regions:
+
+        x_relative
+        y_relative
+        width_relative
+        height_relative
+        confirmed_text
+
+    Several spatial position groups may occur in a book, for example
+    page numbers at the bottom-left and bottom-right.
+
+    The function:
+      1. reads the training data,
+      2. creates spatial groups from the trained positions,
+      3. builds one OCR search region for each group,
+      4. performs OCR only inside these trained regions,
+      5. returns the best detected numeric page number.
+    """
+
+    import os
+    import re
+    import cv2
+    import pandas as pd
+    import pytesseract
+
+   
+    # Load current page
+    image = cv2.imread(image_path)
+    global previous_printed_page_number
+    global previous_scan_number
+    if image is None:
+        print(f"Could not read page: {image_path}")
+        return None
+
+    # Work with the already loaded training data
+    training = training.copy()
+    
+    required_columns = [
+        "x_relative",
+        "y_relative",
+        "width_relative",
+        "height_relative"
+    ]
+
+    for column in required_columns:
+        if column not in training.columns:
+            print(
+                f"Missing column in page-number training data: "
+                f"{column}"
+            )
+            return None
+
+    # Remove incomplete rows
+    training = training.dropna(
+        subset=required_columns
+    )
+
+    if len(training) == 0:
+        print("No valid page-number training regions found.")
+        return None
 
 
+    # ---------------------------------------------------------
+    # 2. Remove training rows without a confirmed page number
+    # ---------------------------------------------------------
+
+    if "confirmed_text" in training.columns:
+
+        training["confirmed_text"] = (
+            training["confirmed_text"]
+            .astype(str)
+            .str.strip()
+        )
+
+        training = training[
+            training["confirmed_text"].str.fullmatch(r"\d+")
+        ]
+
+    if len(training) == 0:
+        print("No confirmed numeric page-number examples found.")
+        return None
+
+
+    # ---------------------------------------------------------
+    # 3. Create spatial position groups
+    #
+    # Regions belong to the same group when their centres are
+    # close to each other.
+    #
+    # Example for the current book:
+    #
+    #     group 1 -> bottom-left
+    #     group 2 -> bottom-right
+    #
+    # No left/right position is hard-coded.
+    # ---------------------------------------------------------
+
+    training = training.copy()
+
+    training["center_x"] = (
+        training["x_relative"] +
+        training["width_relative"] / 2
+    )
+
+    training["center_y"] = (
+        training["y_relative"] +
+        training["height_relative"] / 2
+    )
+
+    groups = []
+
+    # Relative distance threshold.
+    # 0.15 is large enough to combine slightly varying
+    # selections but keeps left/right positions separate.
+    cluster_distance = 0.15
+
+    for _, row in training.iterrows():
+
+        assigned = False
+
+        for group in groups:
+
+            dx = abs(
+                row["center_x"] -
+                group["center_x"]
+            )
+
+            dy = abs(
+                row["center_y"] -
+                group["center_y"]
+            )
+
+            if (
+                dx <= cluster_distance and
+                dy <= cluster_distance
+            ):
+
+                group["rows"].append(row)
+
+                # Recalculate current group centre
+                group["center_x"] = sum(
+                    r["center_x"]
+                    for r in group["rows"]
+                ) / len(group["rows"])
+
+                group["center_y"] = sum(
+                    r["center_y"]
+                    for r in group["rows"]
+                ) / len(group["rows"])
+
+                assigned = True
+                break
+
+        if not assigned:
+
+            groups.append({
+                "center_x": row["center_x"],
+                "center_y": row["center_y"],
+                "rows": [row]
+            })
+
+
+    print(
+        f"Page-number training: "
+        f"{len(groups)} position group(s) found."
+    )
+
+
+    # ---------------------------------------------------------
+    # 4. Original image dimensions
+    # ---------------------------------------------------------
+
+    image_height, image_width = image.shape[:2]
+
+    candidates = []
+
+
+    # ---------------------------------------------------------
+    # 5. OCR each trained position group
+    # ---------------------------------------------------------
+
+    for group_index, group in enumerate(groups, start=1):
+
+        rows = group["rows"]
+
+        # -----------------------------------------------------
+        # Bounding region covering all training examples
+        # in this spatial group
+        # -----------------------------------------------------
+
+        # -----------------------------------------------------
+        # Average trained position and size
+        # -----------------------------------------------------
+        
+        center_x = sum(
+            r["center_x"]
+            for r in rows
+        ) / len(rows)
+        
+        center_y = sum(
+            r["center_y"]
+            for r in rows
+        ) / len(rows)
+        
+        mean_width = sum(
+            r["width_relative"]
+            for r in rows
+        ) / len(rows)
+        
+        mean_height = sum(
+            r["height_relative"]
+            for r in rows
+        ) / len(rows)
+        
+        
+        # -----------------------------------------------------
+        # Build OCR region around trained position
+        # -----------------------------------------------------
+        
+        x_min = center_x - mean_width / 2
+        x_max = center_x + mean_width / 2
+        
+        y_min = center_y - mean_height / 2
+        y_max = center_y + mean_height / 2
+
+        # -----------------------------------------------------
+        # Add small safety margin
+        # -----------------------------------------------------
+
+        x_min = max(
+            0.0,
+            x_min - margin_x
+        )
+
+        y_min = max(
+            0.0,
+            y_min - margin_y
+        )
+
+        x_max = min(
+            1.0,
+            x_max + margin_x
+        )
+
+        y_max = min(
+            1.0,
+            y_max + margin_y
+        )
+
+
+        # -----------------------------------------------------
+        # Convert relative coordinates to image pixels
+        # -----------------------------------------------------
+
+        x1 = int(
+            round(x_min * image_width)
+        )
+
+        y1 = int(
+            round(y_min * image_height)
+        )
+
+        x2 = int(
+            round(x_max * image_width)
+        )
+
+        y2 = int(
+            round(y_max * image_height)
+        )
+
+
+        crop = image[
+            y1:y2,
+            x1:x2
+        ]
+
+        if crop.size == 0:
+            continue
+
+
+        # -----------------------------------------------------
+        # Prepare crop for OCR
+        # -----------------------------------------------------
+
+        if len(crop.shape) == 3:
+
+            gray = cv2.cvtColor(
+                crop,
+                cv2.COLOR_BGR2GRAY
+            )
+
+        else:
+            gray = crop
+
+
+        # Page numbers are usually small.
+        # Enlargement improves OCR considerably.
+        gray = cv2.resize(
+            gray,
+            None,
+            fx=3,
+            fy=3,
+            interpolation=cv2.INTER_CUBIC
+        )
+
+        # -----------------------------------------------------
+        # First OCR: digits only
+        # -----------------------------------------------------
+        
+        text = pytesseract.image_to_string(
+            gray,
+            config="--psm 7 -c tessedit_char_whitelist=0123456789"
+        ).strip()
+        
+        
+        # -----------------------------------------------------
+        # Second OCR if first OCR seems incomplete
+        # -----------------------------------------------------
+        
+        
+        if len(text) < 2:
+        
+            text_free = pytesseract.image_to_string(
+                gray,
+                config="--psm 7"
+            ).strip()
+        
+            print(
+                f"Page-number alternative OCR: "
+                f"'{text}' -> '{text_free}'"
+            )
+        
+            if text_free and not text_free.isdigit():
+        
+                text_free = correct_page_number_chars(
+                    text_free,
+                    text
+                )
+        
+            if text_free.isdigit() and len(text_free) >= 2:
+                text = text_free
+
+
+
+        
+        # Correct known OCR character errors
+        if text and not text.isdigit():
+            text = correct_page_number_chars(text)
+        # Keep raw OCR for diagnostics
+        print(
+            f"Page-number group {group_index}: "
+            f"OCR='{text}' "
+            f"region=({x_min:.3f}, {y_min:.3f}) - "
+            f"({x_max:.3f}, {y_max:.3f})"
+        )
+
+        # First try learned OCR corrections
+        corrected = correct_page_number_from_training(
+            text,
+            training
+        )
+        
+        if corrected is not None:
+        
+            candidates.append({
+                "number": int(corrected),
+                "raw_text": text,
+                "group": group_index,
+                "length": len(corrected)
+            })
+        
+            continue
+        # -----------------------------------------------------
+        # Extract numeric candidate
+        # -----------------------------------------------------
+
+        numbers = re.findall(
+            r"\d+",
+            text
+        )
+
+        for number in numbers:
+
+            try:
+
+                candidates.append({
+                    "number": int(number),
+                    "raw_text": text,
+                    "group": group_index,
+                    "length": len(number)
+                })
+
+            except ValueError:
+                pass
+
+
+    # ---------------------------------------------------------
+    # 6. No page number found
+    # ---------------------------------------------------------
+
+    if len(candidates) == 0:
+
+        print(
+            "No page number detected in trained regions."
+        )
+
+        return None
+
+
+    # ---------------------------------------------------------
+    # 7. Select best candidate
+    #
+    # For now prefer the candidate containing the most digits.
+    # Usually only one of the trained positions contains a
+    # page number on a particular page.
+    # ---------------------------------------------------------
+
+    candidates.sort(
+        key=lambda c: c["length"],
+        reverse=True
+    )
+
+    best = candidates[0]
+
+    print(
+        f"Detected page number: {best['number']} "
+        f"(group {best['group']}, "
+        f"OCR='{best['raw_text']}')"
+    )
+
+    return best["number"]
+
+
+from difflib import SequenceMatcher
+
+
+def correct_page_number_from_training(ocr_text, training):
+
+    ocr_text = str(ocr_text).strip()
+
+    best_match = None
+    best_score = 0
+
+    for _, row in training.iterrows():
+
+        trained_ocr = str(row["ocr_text"]).strip()
+        confirmed = str(row["confirmed_text"]).strip()
+
+        # Only valid confirmed page numbers
+        if not confirmed.isdigit():
+            continue
+
+        score = SequenceMatcher(
+            None,
+            ocr_text,
+            trained_ocr
+        ).ratio()
+
+        if score > best_score:
+            best_score = score
+            best_match = confirmed
+
+    # Only accept reasonably similar OCR results
+    if best_match is not None and best_score >= 0.7:
+
+        print(
+            f"Training correction: "
+            f"'{ocr_text}' -> '{best_match}' "
+            f"(similarity={best_score:.2f})"
+        )
+
+        return best_match
+
+    return None
+  
+  
 # ------------------------------------------------------------
 # Remove duplicate template matches using IoU filtering
 # ------------------------------------------------------------
@@ -193,6 +799,86 @@ def filter_overlapping_matches(loc, res, w, h, iou_thresh=0.6):
 
     return kept
 
+
+def infer_page_number_from_previous(
+    image_path,
+    detected_number
+):
+    """
+    Infer an incomplete page number from the previous printed
+    page number, but only for directly consecutive scan files.
+
+    Example:
+        previous scan: 0074.tif -> printed page 70
+        current scan:  0075.tif -> OCR detects only 7
+
+        expected page = 71
+        7 matches the beginning of 71
+
+        result = 7199
+    """
+
+    global previous_printed_page_number
+    global previous_scan_number
+
+    # Current scan number from filename
+    filename = os.path.basename(image_path)
+    match = re.search(r"(\d+)", filename)
+
+    if not match:
+        return detected_number
+
+    current_scan_number = int(match.group(1))
+
+    # --------------------------------------------------------
+    # No previous information yet
+    # --------------------------------------------------------
+
+    if (
+        previous_printed_page_number is None
+        or previous_scan_number is None
+    ):
+        return detected_number
+
+    # --------------------------------------------------------
+    # Scans must be directly consecutive
+    # --------------------------------------------------------
+
+    if current_scan_number != previous_scan_number + 1:
+        return detected_number
+
+    # --------------------------------------------------------
+    # We only infer from an incomplete single digit
+    # --------------------------------------------------------
+
+    if detected_number is None:
+        return detected_number
+
+    detected_text = str(detected_number)
+
+    if len(detected_text) != 1:
+        return detected_number
+
+    # Expected printed page
+    expected = previous_printed_page_number + 1
+    expected_text = str(expected)
+
+    # Does detected digit fit the expected page?
+    if expected_text.startswith(detected_text):
+
+        inferred = int(f"{expected}99")
+
+        print(
+            f"⚠️ Incomplete page number '{detected_number}' "
+            f"inferred from previous page "
+            f"{previous_printed_page_number} -> {inferred}"
+        )
+
+        return inferred
+
+    return detected_number
+  
+  
 # ------------------------------------------------------------
 # Template-based map extraction
 # ------------------------------------------------------------
@@ -223,7 +909,8 @@ def filter_overlapping_matches(loc, res, w, h, iou_thresh=0.6):
 # ------------------------------------------------------------
 def match_template(previous_page_path, next_page_path, current_page_path,
                    template_map_files, output_dir, output_page_records,
-                   records, threshold, page_position, map_group="1"):
+                   records, threshold, page_position, page_number_training_data,
+                   map_group="1"):
     """
     Detects and extracts map regions from a page image using template matching
     with normalized cross-correlation, supporting multiple templates.
@@ -283,12 +970,18 @@ def match_template(previous_page_path, next_page_path, current_page_path,
     """
 
     try:
-        print("🗺️ Page:", current_page_path)
+        print("Page:", current_page_path)
         start_time = time.time()
+        # Last successfully detected printed page number
+
         img = np.array(Image.open(current_page_path))
         imgc = img.copy()
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        page_number = find_page_number(current_page_path, page_position)
+        page_number = find_page_number(
+            current_page_path,
+            page_position,
+            page_number_training_data
+        )
 
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(output_page_records, exist_ok=True)
@@ -300,7 +993,7 @@ def match_template(previous_page_path, next_page_path, current_page_path,
         # Loop over ALL templates
         # ------------------------------------------------------------
         for template_map_file, tmp in template_map_files:
-            print("📌 Template:", template_map_file)
+            print("Template:", template_map_file)
 
            # tmp = np.array(Image.open(template_map_file))
             h, w, c = tmp.shape
@@ -335,7 +1028,7 @@ def match_template(previous_page_path, next_page_path, current_page_path,
                     break  # ← erster gültiger Treffer reicht
             
             if chosen is None:
-                #print("⚠️ No suitable candidate found after Y-filtering")
+                #print("No suitable candidate found after Y-filtering")
                 continue
             
             x, y, score = chosen
@@ -393,27 +1086,31 @@ def match_template(previous_page_path, next_page_path, current_page_path,
                 writer.writerow(fields_page_record)
                 writer.writerow(record_row)
 
-            #print(f"💾 Saved map at y={y}")
+            #print(f"Saved map at y={y}")
             count += 1
-            #print(f"🧪 DEBUG SUMMARY for page {os.path.basename(current_page_path)}")
+            #print(f"DEBUG SUMMARY for page {os.path.basename(current_page_path)}")
             #print(f"    saved_y_markers = {saved_y_markers}")
     except Exception as e:
-        print("❌ Error in match_template:", e)
+        print("Error in match_template:", e)
 
 
 
 def match_template_border(previous_page_path, next_page_path, current_page_path,
                           template_map_files, output_dir, output_page_records,
-                          records, threshold, page_position, map_group="1"):
+                          records, threshold, page_position, page_number_training_data, map_group="1"):
 
     try:
-        print("🗺️ Page (BORDER MULTI):", current_page_path)
+        print(" Page (BORDER MULTI):", current_page_path)
         start_time_local = time.time()
 
         img_color = np.array(Image.open(current_page_path))
         img_gray = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
 
-        page_number = find_page_number(current_page_path, page_position)
+        page_number = find_page_number(
+            current_page_path,
+            page_position,
+            page_number_training_data
+        )
 
         count = 0
         processed_areas = []
@@ -433,7 +1130,7 @@ def match_template_border(previous_page_path, next_page_path, current_page_path,
             cv2.CHAIN_APPROX_SIMPLE
         )
 
-        print(f"🧪 DEBUG: {len(contours)} contours found")
+        print(f"DEBUG: {len(contours)} contours found")
 
         # ------------------------------------------------------------
         # Overlap check
@@ -472,7 +1169,7 @@ def match_template_border(previous_page_path, next_page_path, current_page_path,
                 continue
 
             # ------------------------------------------------------------
-            # 🔥 BORDER VALIDATION (KERN)
+            #  BORDER VALIDATION (KERN)
             # ------------------------------------------------------------
             roi_edges = edges[y:y+h, x:x+w]
 
@@ -506,13 +1203,13 @@ def match_template_border(previous_page_path, next_page_path, current_page_path,
             width_ratio = w2 / float(w)
             height_ratio = h2 / float(h)
             
-            # 🔥 dein Filter
+            # dein Filter
             if width_ratio < 0.7 or height_ratio < 0.7:
                 continue
             # nur fast-rechteckige Konturen erlauben
             if len(approx) < 4 or len(approx) > 6:
                 continue
-            # 🔥 DAS ist dein entscheidender Filter
+            # DAS ist dein entscheidender Filter
             if border_ratio < 0.6:
                 continue
 
@@ -574,10 +1271,10 @@ def match_template_border(previous_page_path, next_page_path, current_page_path,
             count += 1
 
         if count == 0:
-            print("⚠️ No maps found on this page.")
+            print("No maps found on this page.")
 
     except Exception as e:
-        print("❌ Error in match_template_border:", e)
+        print("rror in match_template_border:", e)
 # ------------------------------------------------------------
 # Contour-based map detection (alternative approach)
 # ------------------------------------------------------------
@@ -602,7 +1299,8 @@ def match_template_border(previous_page_path, next_page_path, current_page_path,
 # ------------------------------------------------------------
 def match_template_contours(previous_page_path, next_page_path, current_page_path,
                             template_map_files, output_dir, output_page_records,
-                            records, threshold, page_position, map_group="1"):
+                            records, threshold, page_position, page_number_training_data, 
+                            map_group="1"):
     """
     Detects and extracts map regions from a page image using contour-based detection,
     supporting multiple reference templates.
@@ -657,14 +1355,18 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
     """
 
     try:
-        print("🗺️ Page:", current_page_path)
+        print(" Page:", current_page_path)
 
         start_time_local = time.time()
 
         img_color = np.array(Image.open(current_page_path))
         img_gray = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
 
-        page_number = find_page_number(current_page_path, page_position)
+        page_number = find_page_number(
+            current_page_path,
+            page_position,
+            page_number_training_data
+        )
 
         count = 0
         processed_areas = []
@@ -864,6 +1566,78 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
     except Exception as e:
         print("❌ Error in match_template_contours:", e)
 
+
+def correct_page_number_chars(ocr_text, numeric_text):
+    """
+    Correct non-digit OCR characters while keeping digits
+    already detected by the numeric OCR.
+
+    Examples:
+        numeric OCR = "4", free OCR = "Al" -> "41"
+        numeric OCR = "7", free OCR = "7I" -> "71"
+    """
+
+    global page_number_ocr_corrections
+
+    free_text = str(ocr_text).strip()
+    numeric_text = str(numeric_text).strip()
+
+    result = ""
+    numeric_index = 0
+
+    for char in free_text:
+
+        # -------------------------------------------------
+        # Digit found by free OCR -> keep it
+        # -------------------------------------------------
+        if char.isdigit():
+            result += char
+
+            if (
+                numeric_index < len(numeric_text)
+                and numeric_text[numeric_index] == char
+            ):
+                numeric_index += 1
+
+            continue
+
+        # -------------------------------------------------
+        # If numeric OCR still has a detected digit,
+        # prefer that digit
+        # -------------------------------------------------
+        if numeric_index < len(numeric_text):
+            result += numeric_text[numeric_index]
+            numeric_index += 1
+            continue
+
+        # -------------------------------------------------
+        # Otherwise try known character correction
+        # -------------------------------------------------
+        corrected_char = None
+
+        if page_number_ocr_corrections is not None:
+
+            match = page_number_ocr_corrections[
+                page_number_ocr_corrections["ocr_char"] == char
+            ]
+
+            if not match.empty:
+                corrected_char = str(
+                    match.iloc[0]["correct_char"]
+                )
+
+        if corrected_char is not None:
+            result += corrected_char
+
+    print(
+        f"Page-number combined OCR: "
+        f"numeric='{numeric_text}', "
+        f"free='{free_text}' -> '{result}'"
+    )
+
+    return result
+  
+  
 # ------------------------------------------------------------
 # Main workflow controller for template matching
 # ------------------------------------------------------------
@@ -923,7 +1697,87 @@ def main_template_matching(
         outDir = outDir.rstrip("/\\")
         pages_dir = os.path.join(workingDir, "data", "input", "pages")
         templates_root = os.path.join(workingDir, "data", "input", "templates")
-
+        # ------------------------------------------------------------
+        # Load page-number training data
+        # ------------------------------------------------------------
+        
+        page_number_training_file = os.path.join(
+            workingDir,
+            "training",
+            "page_number_training_data.csv"
+        )
+        
+        print("DEBUG training file:", page_number_training_file)
+        print("DEBUG exists:", os.path.exists(page_number_training_file))
+        
+        # ------------------------------------------------------------
+        # Load page-number OCR corrections
+        # ------------------------------------------------------------
+        
+        page_number_corrections_file = os.path.join(
+            workingDir,
+            "training",
+            "page_number_ocr_corrections.csv"
+        )
+        
+        print(
+            "DEBUG page-number corrections file:",
+            page_number_corrections_file
+        )
+        print(
+            "DEBUG exists:",
+            os.path.exists(page_number_corrections_file)
+        )
+        
+        global page_number_ocr_corrections
+        
+        if os.path.exists(page_number_corrections_file):
+        
+            page_number_ocr_corrections = pd.read_csv(
+                page_number_corrections_file,
+                dtype=str,
+                keep_default_na=False
+            )
+        
+            print(
+                f"✅ Page-number OCR corrections loaded: "
+                f"{len(page_number_ocr_corrections)} correction(s)"
+            )
+        
+        else:
+        
+            page_number_ocr_corrections = None
+        
+            print(
+                "⚠️ No page-number OCR corrections found."
+            )
+        
+        
+        
+        
+        
+        
+        
+        
+        if os.path.exists(page_number_training_file):
+        
+            page_number_training_data = pd.read_csv(
+                page_number_training_file
+            )
+        
+            print(
+                f"✅ Page-number training data loaded: "
+                f"{len(page_number_training_data)} examples"
+            )
+        
+        else:
+        
+            page_number_training_data = None
+        
+            print(
+                "⚠️ No page-number training data found. "
+                "Using conventional page-number detection."
+    )
         # --- Prepare list of numeric map groups ---
         map_groups = [str(i) for i in range(1, int(nMapTypes) + 1)
                       if os.path.isdir(os.path.join(templates_root, str(i)))]
@@ -1028,6 +1882,7 @@ def main_template_matching(
             os.makedirs(os.path.join(base, "pagerecords"), exist_ok=True)
 
        # --- Process matching per page to avoid repeated image loading ---
+       
         for i, current_page_path in enumerate(pages):
             print(f"\n🗎 Processing page {os.path.basename(current_page_path)}")
 
@@ -1059,6 +1914,7 @@ def main_template_matching(
                     "records": records,
                     "threshold": threshold,
                     "page_position": page_position,
+                    "page_number_training_data": page_number_training_data,
                     "map_group": group
                      }
 
