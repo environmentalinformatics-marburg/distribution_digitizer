@@ -65,13 +65,20 @@ species_distribution_server <- function(
     # ----------------------------------------------------------
     # Original map
     # ----------------------------------------------------------
+    tif_name <- paste0(
+      tools::file_path_sans_ext(input$contour_example_map),
+      ".tif"
+    )
+    
     image_path <- file.path(
       current_out_dir,
       map_type,
       "maps",
       "align",
-      input$contour_example_map
+      tif_name
     )
+    
+    cat("Contour detection input:", image_path, "\n")
     
     req(file.exists(image_path))
     
@@ -247,19 +254,109 @@ species_distribution_server <- function(
   # List processed contour / area maps
   # ============================================================
   
-  observeEvent(input$listContours, {
-    
-    output$listContoursOutput <- renderUI({
-      
-      prepareImageView(
-        dirName   = "contourMatching_png",
-        map_type  = input$map_type_Contours,
-        range_str = input$range_list_Contours
-      )
-      
-    })
+  # Species results browser, following the Map Matching / Align explorer.
+  contour_results_revision <- reactiveVal(0L)
+  contour_results_page <- reactiveVal(1L)
+  contour_results_selected <- reactiveVal(NULL)
+  contour_results_cache <- new.env(parent = emptyenv())
+  contour_results_files <- reactive({
+    contour_results_revision()
+    root <- file.path(workingDir, "app", "www", "output")
+    type <- input$map_type_Contours
+    if (is.null(root) || !nzchar(root) || is.null(type) ||
+        !grepl("^[0-9]+$", type)) return(character())
+    sort(list.files(file.path(root, type, "contourMatching_png"),
+      pattern = "\\.png$", full.names = TRUE, ignore.case = TRUE))
   })
-  
+  contour_results_filtered <- reactive({
+    files <- contour_results_files()
+    query <- trimws(if (is.null(input$contour_results_search)) "" else input$contour_results_search)
+    if (nzchar(query)) files <- files[grepl(tolower(query), tolower(basename(files)), fixed = TRUE)]
+    files
+  })
+  observeEvent(list(input$map_type_Contours, contour_results_revision()), {
+    contour_results_selected(NULL)
+    rm(list = ls(contour_results_cache), envir = contour_results_cache)
+  }, ignoreNULL = FALSE)
+  observeEvent(contour_results_filtered(), { contour_results_page(1L) }, ignoreNULL = FALSE)
+  observeEvent(input$contour_results_refresh, { contour_results_revision(contour_results_revision() + 1L) })
+  contour_results_page_count <- reactive(max(1L, ceiling(length(contour_results_filtered()) / 12L)))
+  observeEvent(input$contour_results_previous, { contour_results_page(max(1L, contour_results_page() - 1L)) })
+  observeEvent(input$contour_results_next, { contour_results_page(min(contour_results_page_count(), contour_results_page() + 1L)) })
+  contour_results_thumbnail <- function(path) {
+    info <- file.info(path)
+    key <- paste(path, info$size, as.numeric(info$mtime), sep = "|")
+    if (exists(key, envir = contour_results_cache, inherits = FALSE)) return(get(key, envir = contour_results_cache))
+    uri <- tryCatch({
+      img <- magick::image_resize(magick::image_read(path)[1], "320x220>")
+      base64enc::dataURI(data = magick::image_write(img, format = "png"), mime = "image/png")
+    }, error = function(e) NULL)
+    assign(key, uri, envir = contour_results_cache)
+    uri
+  }
+  output$contour_results_gallery <- renderUI({
+    files <- contour_results_filtered()
+    if (!length(files)) return(p(
+      if (length(contour_results_files())) "No maps match your search." else
+        "No detected areas available. Process the maps or choose another map type.",
+      class = "dd-align-empty"))
+    page <- min(contour_results_page(), contour_results_page_count())
+    visible <- seq.int((page - 1L) * 12L + 1L, min(page * 12L, length(files)))
+    all_files <- contour_results_files()
+    div(class = "dd-align-grid", lapply(visible, function(i) {
+      path <- files[i]
+      uri <- contour_results_thumbnail(path)
+      tags$button(type = "button",
+        class = paste("dd-align-card", if (identical(path, contour_results_selected())) "is-selected" else ""),
+        onclick = sprintf("Shiny.setInputValue('contour_results_pick', %d, {priority: 'event'});", match(path, all_files)),
+        if (is.null(uri)) div(class = "dd-align-empty", "Preview unavailable") else
+          tags$img(src = uri, alt = basename(path)),
+        tags$span(basename(path))
+      )
+    }))
+  })
+  output$contour_results_page_info <- renderText({
+    sprintf("Page %d of %d - %d maps", min(contour_results_page(), contour_results_page_count()),
+      contour_results_page_count(), length(contour_results_filtered()))
+  })
+  observeEvent(input$contour_results_pick, {
+    index <- suppressWarnings(as.integer(input$contour_results_pick))
+    files <- contour_results_files()
+    if (length(index) == 1L && !is.na(index) && index >= 1L && index <= length(files))
+      contour_results_selected(files[index])
+  })
+  contour_results_selection <- reactive({
+    path <- contour_results_selected()
+    req(length(path) == 1L, path %in% contour_results_files(), file.exists(path))
+    path
+  })
+  output$contour_results_has_selection <- renderText({
+    path <- contour_results_selected()
+    if (length(path) == 1L && path %in% contour_results_files() && file.exists(path)) "true" else "false"
+  })
+  outputOptions(output, "contour_results_has_selection", suspendWhenHidden = FALSE)
+  output$contour_results_selected_name <- renderText(basename(contour_results_selection()))
+  contour_results_preview <- function(path) {
+    validate(need(file.exists(path), "The aligned map preview is unavailable."))
+    img <- tryCatch(magick::image_read(path)[1], error = function(e) NULL)
+    validate(need(!is.null(img), "Preview unavailable. You can still download the result PNG."))
+    preview <- tempfile(fileext = ".png")
+    magick::image_write(magick::image_resize(img, "1600x1600>"), preview, format = "png")
+    list(src = preview, contentType = "image/png", alt = basename(path), width = "100%")
+  }
+  output$contour_results_selected_preview <- renderImage({ contour_results_preview(contour_results_selection()) }, deleteFile = TRUE)
+  output$contour_results_original_preview <- renderImage({
+    path <- contour_results_selection()
+    contour_results_preview(file.path(dirname(dirname(path)), "align_png",
+      sub("_species_contour(?=\\.png$)", "", basename(path), perl = TRUE)))
+  }, deleteFile = TRUE)
+  output$download_contour_result <- downloadHandler(
+    filename = function() basename(contour_results_selection()), contentType = "image/png",
+    content = function(file) {
+      if (!file.copy(contour_results_selection(), file, overwrite = TRUE)) stop("Could not copy contour result.")
+    }
+  )
+
   observeEvent(input$speciesRepresentation, {
     
     cat("\n### speciesRepresentation CHANGED ###\n")
@@ -368,6 +465,8 @@ species_distribution_server <- function(
       current_out_dir = current_out_dir,
       contour_colors  = colors
     )
+    updateSelectInput(session, "map_type_Contours", selected = map_type)
+    contour_results_revision(contour_results_revision() + 1L)
   })
   
   # ============================================================
@@ -413,51 +512,67 @@ species_distribution_server <- function(
   # ============================================================
   # Load maps for contour / area detection
   # ============================================================
-  observeEvent(input$map_type_Contour, {
-    
-    cat("\n### map_type_Contour CHANGED ###\n")
-    cat("Value:", input$map_type_Contour, "\n")
-    cat("current_out_dir:", current_out_dir, "\n")
-    
-    req(input$map_type_Contour)
-    req(current_out_dir)
-    
-    map_dir <- file.path(
-      current_out_dir,
-      as.character(input$map_type_Contour),
-      "maps",
-      "align"
-    )
-    
-    cat("Contour example map directory:", map_dir, "\n")
-    
-    if (!dir.exists(map_dir)) {
+  # ============================================================
+  # Load example maps for contour / area detection
+  # ============================================================
+  
+  observeEvent(
+    list(input$map_type_Contour, input$speciesRepresentation),
+    {
+      
+      req(input$map_type_Contour)
+      
+      # Only needed for contour representation
+      if (!identical(input$speciesRepresentation, "contour")) {
+        return()
+      }
+      
+      map_type <- as.character(input$map_type_Contour)
+      
+      map_dir <- file.path(
+        workingDir,
+        "app",
+        "www",
+        "output",
+        map_type,
+        "matching_png"
+      )
+      
+      cat("\n=== LOAD CONTOUR EXAMPLE MAPS ===\n")
+      cat("Map type:", map_type, "\n")
+      cat("Directory:", map_dir, "\n")
+      cat("Directory exists:", dir.exists(map_dir), "\n")
+      
+      if (!dir.exists(map_dir)) {
+        
+        updateSelectInput(
+          session,
+          "contour_example_map",
+          choices = character(0)
+        )
+        
+        return()
+      }
+      
+      map_files <- list.files(
+        map_dir,
+        pattern = "\\.png$",
+        ignore.case = TRUE,
+        full.names = FALSE
+      )
+      
+      cat("Example maps found:", length(map_files), "\n")
+      cat("================================\n")
       
       updateSelectInput(
         session,
         "contour_example_map",
-        choices = character(0)
+        choices = map_files,
+        selected = if (length(map_files) > 0) map_files[1] else NULL
       )
-      
-      return()
-    }
-    
-    map_files <- list.files(
-      map_dir,
-      pattern = "\\.(tif|tiff)$",
-      ignore.case = TRUE,
-      full.names = FALSE
-    )
-    
-    cat("Contour maps found:", length(map_files), "\n")
-    
-    updateSelectInput(
-      session,
-      "contour_example_map",
-      choices = map_files,
-      selected = if (length(map_files) > 0) map_files[1] else NULL
-    )
-  })
+    },
+    ignoreInit = FALSE
+  )
   
   # ============================================================
   # Display selected example map
@@ -694,12 +809,17 @@ species_distribution_server <- function(
     # ----------------------------------------------------------
     # Original TIF
     # ----------------------------------------------------------
+    tif_name <- paste0(
+      tools::file_path_sans_ext(input$contour_example_map),
+      ".tif"
+    )
+    
     tif_path <- file.path(
       current_out_dir,
       as.character(input$map_type_Contour),
       "maps",
       "align",
-      input$contour_example_map
+      tif_name
     )
     
     if (!file.exists(tif_path)) {

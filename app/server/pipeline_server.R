@@ -14,7 +14,9 @@ pipeline_server <- function(
     input,
     output,
     session,
-    workingDir
+    workingDir,
+    info,
+    shinyfields2
 ) {
   
   # ==========================================================
@@ -60,64 +62,240 @@ pipeline_server <- function(
   # ==========================================================
   
   read_pipeline_config <- function() {
-    
-    backup_file <- file.path(
-      workingDir,
-      "config",
-      "config_backup.csv"
-    )
-    
-    pipeline_file <- file.path(
-      workingDir,
-      "config",
-      "config_pipeline.csv"
-    )
-    
-    if (!file.exists(backup_file)) {
-      
+    config_file <- file.path(workingDir, "config", "config.csv")
+
+    if (!file.exists(config_file)) {
       showNotification(
-        paste(
-          "Configuration backup file not found:",
-          backup_file
-        ),
+        paste("Configuration file not found:", config_file),
         type = "error"
       )
-      
       return(NULL)
     }
-    
-    # --------------------------------------------------------
-    # Create fresh pipeline configuration from backup
-    # --------------------------------------------------------
-    
-    file.copy(
-      from = backup_file,
-      to = pipeline_file,
-      overwrite = TRUE
-    )
-    
-    # --------------------------------------------------------
-    # Read the fresh pipeline configuration for the UI
-    # --------------------------------------------------------
-    
+
+    # Load the starting values without overwriting the saved pipeline configuration.
+    # Save changes writes config_pipeline.csv; Start pipeline reads that file.
     config_data <- read.csv(
-      pipeline_file,
+      config_file,
       sep = ";",
       header = FALSE,
       stringsAsFactors = FALSE,
-      col.names = c(
-        "Parameter",
-        "Value"
-      ),
+      col.names = c("Parameter", "Value"),
       check.names = FALSE
     )
-    
+    # Keep the detection settings together immediately after page color.
+    detection_keys <- c("threshold_for_TM", "sNumberPosition", "matchingType")
+    detection_rows <- match(detection_keys, config_data$Parameter)
+    detection_rows <- detection_rows[!is.na(detection_rows)]
+    if ("pColor" %in% config_data$Parameter) {
+      remaining <- setdiff(seq_len(nrow(config_data)), detection_rows)
+      position <- match("pColor", config_data$Parameter[remaining])
+      config_data <- config_data[append(remaining, detection_rows, after = position), , drop = FALSE]
+      rownames(config_data) <- NULL
+    }
     config_data
   }
   
  
+  # ==========================================================
+  # Download shapefiles
+  # ==========================================================
   
-  
+  output$downloadShapefiles <- downloadHandler(
+    
+    # --------------------------------------------------------
+    # Name of downloaded ZIP file
+    # --------------------------------------------------------
+    
+    filename = function() {
+      "shapefiles.zip"
+    },
+    
+    
+    # --------------------------------------------------------
+    # Create ZIP archive
+    # --------------------------------------------------------
+    
+    content = function(file) {
+      
+      # ------------------------------------------------------
+      # Determine pipeline result directory
+      # ------------------------------------------------------
+      
+      result_dir <- pipeline_result()
+      
+      
+      # After an app reload pipeline_result() may be NULL.
+      # In this case use the newest existing pipeline output.
+      if (is.null(result_dir) || !nzchar(result_dir)) {
+        
+        config_data <- pipeline_config()
+        req(config_data)
+        
+        output_base <- config_data$Value[
+          config_data$Parameter == "dataOutputDir"
+        ]
+        
+        parent_dir <- dirname(output_base)
+        output_prefix <- basename(output_base)
+        
+        existing_outputs <- list.dirs(
+          parent_dir,
+          recursive = FALSE,
+          full.names = TRUE
+        )
+        
+        existing_outputs <- existing_outputs[
+          startsWith(
+            basename(existing_outputs),
+            output_prefix
+          )
+        ]
+        
+        if (length(existing_outputs) == 0) {
+          stop("No previous pipeline output directory found.")
+        }
+        
+        dir_info <- file.info(existing_outputs)
+        
+        result_dir <- existing_outputs[
+          which.max(dir_info$mtime)
+        ]
+      }
+      
+      
+      cat("\n========== SHAPEFILE DOWNLOAD ==========\n")
+      cat("Pipeline result directory:", result_dir, "\n")
+      
+      
+      # ------------------------------------------------------
+      # Find map directories: 1, 2, 3, ...
+      # ------------------------------------------------------
+      
+      map_dirs <- list.dirs(
+        result_dir,
+        recursive = FALSE,
+        full.names = TRUE
+      )
+      
+      map_dirs <- map_dirs[
+        grepl("[/\\\\][0-9]+$", map_dirs)
+      ]
+      
+      if (length(map_dirs) == 0) {
+        stop("No map directories found.")
+      }
+      
+      
+      # ------------------------------------------------------
+      # Collect files from polygonize/pointFiltering
+      # ------------------------------------------------------
+      
+      files_to_export <- character(0)
+      
+      for (map_dir in map_dirs) {
+        
+        polygonize_dir <- file.path(
+          map_dir,
+          "polygonize",
+          "pointFiltering"
+        )
+        
+        if (!dir.exists(polygonize_dir)) {
+          next
+        }
+        
+        current_files <- list.files(
+          polygonize_dir,
+          full.names = TRUE
+        )
+        
+        files_to_export <- c(
+          files_to_export,
+          current_files
+        )
+      }
+      
+      
+      if (length(files_to_export) == 0) {
+        stop("No shapefile files found.")
+      }
+      
+      
+      cat("Files found:", length(files_to_export), "\n")
+      
+      
+      # ------------------------------------------------------
+      # Create temporary directory
+      # ------------------------------------------------------
+      
+      temp_export_dir <- tempfile(
+        pattern = "shapefile_export_"
+      )
+      
+      dir.create(
+        temp_export_dir,
+        recursive = TRUE
+      )
+      
+      
+      # ------------------------------------------------------
+      # Copy files into temporary directory
+      # ------------------------------------------------------
+      
+      copied <- file.copy(
+        from = files_to_export,
+        to = temp_export_dir,
+        overwrite = TRUE
+      )
+      
+      if (!all(copied)) {
+        stop("Some shapefile files could not be copied.")
+      }
+      
+      
+      # ------------------------------------------------------
+      # Create ZIP
+      # ------------------------------------------------------
+      
+      old_wd <- getwd()
+      
+      on.exit(
+        setwd(old_wd),
+        add = TRUE
+      )
+      
+      setwd(temp_export_dir)
+      
+      utils::zip(
+        zipfile = file,
+        files = list.files(temp_export_dir)
+      )
+      
+      
+      cat("Files exported:", length(files_to_export), "\n")
+      cat("ZIP created:", file, "\n")
+      cat("========================================\n\n")
+    },
+    
+    contentType = "application/zip"
+  )
+  output$shapeExportDirInput <- renderUI({
+    
+    req(pipeline_config())
+    
+    config_data <- pipeline_config()
+    
+    output_base <- config_data$Value[
+      config_data$Parameter == "dataOutputDir"
+    ]
+    
+    textInput(
+      "shapeExportDir",
+      "Export directory:",
+      value = dirname(output_base),
+      width = "100%"
+    )
+  })
   # ==========================================================
   # Load configuration when server module starts
   # ==========================================================
@@ -139,10 +317,68 @@ pipeline_server <- function(
   # Display editable configuration table
   # ==========================================================
   
+  pipeline_choices <- list(
+    speciesRepresentation = c("Points / symbols" = "point", "Contours / areas" = "contour"),
+    speciesNameSource = c("Species referenced in a map legend" = "legend", "Species identified directly from the title" = "regions"),
+    pFormat = c("TIFF" = "1", "PNG" = "2", "JPEG" = "3"),
+    pColor = c("Black and white" = "1", "Color" = "2"),
+    middle = c("Yes" = "TRUE", "No" = "FALSE"),
+    sNumberPosition = c("Top" = "1", "Bottom" = "2"),
+    matchingType = c("Template matching" = "1", "Contour matching" = "2"),
+    nMapTypes = c("1" = "1", "2" = "2", "3" = "3")
+  )
+  pipeline_edit_parameter <- reactiveVal(NULL)
+  observeEvent(input$pipeline_choice_request, {
+    key <- as.character(input$pipeline_choice_request)
+    req(length(key) == 1L, key %in% names(pipeline_choices))
+    data <- pipeline_config()
+    row <- match(key, data$Parameter)
+    req(!is.na(row))
+    pipeline_edit_parameter(key)
+    showModal(modalDialog(
+      title = paste("Edit", key),
+      selectInput("pipeline_choice_value", "Value", choices = c("Please select" = "", pipeline_choices[[key]]),
+        selected = as.character(data$Value[row])),
+      footer = tagList(modalButton("Cancel"), actionButton("applyPipelineChoice", "Apply", class = "btn-primary")),
+      easyClose = TRUE
+    ))
+  })
+  observeEvent(input$applyPipelineChoice, {
+    key <- pipeline_edit_parameter()
+    req(key %in% names(pipeline_choices), input$pipeline_choice_value %in% unname(pipeline_choices[[key]]))
+    data <- pipeline_config()
+    row <- match(key, data$Parameter)
+    req(!is.na(row))
+    data$Value[row] <- input$pipeline_choice_value
+    pipeline_config(data)
+    removeModal()
+  })
+
   output$pipelineConfigTable <- DT::renderDT({
     
     req(pipeline_config())
-    
+    # Reuse the descriptions already loaded for General Config.
+    help_keys <- paste0(pipeline_config()$Parameter, "_infoBox")
+    aliases <- c(workingDir = "workingDir_info",
+      specieTitleKeywordBefore = "keywordBefore_infoBox",
+      specieTitleKeywordThen = "keywordThen_infoBox")
+    for (key in names(aliases)) help_keys[pipeline_config()$Parameter == key] <- aliases[[key]]
+    field_help <- setNames(lapply(help_keys, function(key) {
+      text <- info[[key]]
+      if (is.null(text) || !length(text) || is.na(text[1])) "" else as.character(text[1])
+    }), pipeline_config()$Parameter)
+
+    # Help only: reuse the Map Detection text and existing option labels.
+    field_help$threshold_for_TM <- as.character(shinyfields2$inf1[1])
+    field_help$sNumberPosition <- paste0(
+      "Position of the printed page number on the scanned page. ",
+      paste(paste(unname(pipeline_choices$sNumberPosition), names(pipeline_choices$sNumberPosition), sep = " = "), collapse = "; "), "."
+    )
+    field_help$matchingType <- paste0(
+      as.character(shinyfields2$matchingType[1]), ": ",
+      paste(paste(unname(pipeline_choices$matchingType), names(pipeline_choices$matchingType), sep = " = "), collapse = "; "), "."
+    )
+
     DT::datatable(
       pipeline_config(),
       
@@ -157,9 +393,28 @@ pipeline_server <- function(
       ),
       
       rownames = FALSE,
-      
+      callback = DT::JS(paste0(
+        "var choices = ", jsonlite::toJSON(names(pipeline_choices)), ";",
+        "var fieldHelp = ", jsonlite::toJSON(field_help, auto_unbox = TRUE), ";",
+        "function addEditHints() { table.rows({page:'current'}).every(function() {",
+        "var cells = $(this.node()).children('td'); var key = this.data()[0];",
+        "var description = fieldHelp[key] || '';",
+        "cells.eq(0).attr('title', description || 'Parameter name - cannot be edited.');",
+        "var hint = choices.indexOf(key) >= 0 ? 'Double-click this value to choose an option. Then click Save changes.' : 'Double-click this value to edit the text. Then click Save changes.';",
+        "cells.eq(1).attr('title', description ? description + String.fromCharCode(10,10) + hint : hint).css('cursor', choices.indexOf(key) >= 0 ? 'pointer' : 'text');",
+        "}); }",
+        "table.on('draw.dt', addEditHints); addEditHints();",
+        "table.table().node().addEventListener('dblclick', function(e) {",
+        "var cell = $(e.target).closest('td'); if (!cell.length) return;",
+        "var idx = table.cell(cell).index(); if (!idx || idx.column !== 1) return;",
+        "var key = table.row(idx.row).data()[0]; if (choices.indexOf(key) < 0) return;",
+        "e.preventDefault(); e.stopImmediatePropagation();",
+        "Shiny.setInputValue('pipeline_choice_request', key, {priority:'event'});",
+        "}, true);"
+      )),
       options = list(
         pageLength = 25,
+        order = list(),
         scrollX = TRUE,
         dom = "tip"
       )
@@ -195,6 +450,12 @@ pipeline_server <- function(
         return()
       }
       
+      req(length(row) == 1L, !is.na(row), row >= 1L, row <= nrow(config_data))
+      key <- config_data$Parameter[row]
+      if (key %in% names(pipeline_choices) && !value %in% unname(pipeline_choices[[key]])) {
+        showNotification("Please choose one of the available options.", type = "warning")
+        return()
+      }
       config_data$Value[row] <- value
       pipeline_config(config_data)
       
@@ -669,6 +930,203 @@ pipeline_server <- function(
         lat2 = as.numeric(bbox["ymax"])
       )
   })
+  
+  # ==========================================================
+  # Export shapefiles
+  # ==========================================================
+  
+  observeEvent(
+    input$exportShapefiles,
+    {
+      
+      cat("\n### EXPORT BUTTON CLICKED ###\n")
+      
+      export_dir <- trimws(input$shapeExportDir)
+      
+      cat("Export directory:", export_dir, "\n")
+      cat("pipeline_result():", pipeline_result(), "\n")
+      # --------------------------------------------------------
+      # Export directory entered by the user
+      # --------------------------------------------------------
+      
+      export_dir <- trimws(input$shapeExportDir)
+      
+      if (!nzchar(export_dir)) {
+        
+        showNotification(
+          "Please enter an export directory.",
+          type = "error"
+        )
+        
+        return()
+      }
+      
+      
+      # --------------------------------------------------------
+      # Create export directory if necessary
+      # --------------------------------------------------------
+      
+      if (!dir.exists(export_dir)) {
+        
+        dir.create(
+          export_dir,
+          recursive = TRUE
+        )
+      }
+      
+      
+      # --------------------------------------------------------
+      # Find all map directories: 1, 2, 3, ...
+      # --------------------------------------------------------
+      
+      # --------------------------------------------------------
+      # Determine pipeline result directory
+      # --------------------------------------------------------
+      
+      result_dir <- pipeline_result()
+      
+      # After an app reload pipeline_result() is NULL.
+      # In this case use the newest existing pipeline output.
+      if (is.null(result_dir) || !nzchar(result_dir)) {
+        
+        config_data <- pipeline_config()
+        req(config_data)
+        
+        output_base <- config_data$Value[
+          config_data$Parameter == "dataOutputDir"
+        ]
+        
+        # Example:
+        # D:/test_eu/test/output_
+        
+        parent_dir <- dirname(output_base)
+        output_prefix <- basename(output_base)
+        
+        existing_outputs <- list.dirs(
+          parent_dir,
+          recursive = FALSE,
+          full.names = TRUE
+        )
+        
+        existing_outputs <- existing_outputs[
+          startsWith(
+            basename(existing_outputs),
+            output_prefix
+          )
+        ]
+        
+        if (length(existing_outputs) == 0) {
+          
+          showNotification(
+            "No previous pipeline output directory found.",
+            type = "error"
+          )
+          
+          return()
+        }
+        
+        # Newest output directory
+        dir_info <- file.info(existing_outputs)
+        
+        result_dir <- existing_outputs[
+          which.max(dir_info$mtime)
+        ]
+      }
+      
+      cat("Pipeline result directory:", result_dir, "\n")
+      
+      map_dirs <- list.dirs(
+        result_dir,
+        recursive = FALSE,
+        full.names = TRUE
+      )
+      
+      map_dirs <- map_dirs[
+        grepl("[/\\\\][0-9]+$", map_dirs)
+      ]
+      
+      
+      # --------------------------------------------------------
+      # Collect files from polygonize/pointFiltering
+      # --------------------------------------------------------
+      
+      files_to_copy <- character(0)
+      
+      for (map_dir in map_dirs) {
+        
+        polygonize_dir <- file.path(
+          map_dir,
+          "polygonize",
+          "pointFiltering"
+        )
+        
+        if (!dir.exists(polygonize_dir)) {
+          next
+        }
+        
+        current_files <- list.files(
+          polygonize_dir,
+          full.names = TRUE
+        )
+        
+        files_to_copy <- c(
+          files_to_copy,
+          current_files
+        )
+      }
+      
+      
+      # --------------------------------------------------------
+      # Nothing found
+      # --------------------------------------------------------
+      
+      if (length(files_to_copy) == 0) {
+        
+        showNotification(
+          "No shapefile files found.",
+          type = "warning"
+        )
+        
+        return()
+      }
+      
+      
+      # --------------------------------------------------------
+      # Copy files
+      # --------------------------------------------------------
+      
+      copied <- file.copy(
+        from = files_to_copy,
+        to = export_dir,
+        overwrite = TRUE
+      )
+      
+      
+      # --------------------------------------------------------
+      # Status
+      # --------------------------------------------------------
+      
+      n_copied <- sum(copied)
+      
+      cat("\n========== SHAPEFILE EXPORT ==========\n")
+      cat("Pipeline output:", result_dir, "\n")
+      cat("Export directory:", export_dir, "\n")
+      cat("Files found:", length(files_to_copy), "\n")
+      cat("Files copied:", n_copied, "\n")
+      cat("======================================\n\n")
+      
+      showNotification(
+        paste(
+          n_copied,
+          "files copied successfully."
+        ),
+        type = "message",
+        duration = 8
+      )
+    }
+  )
+  
+  
   # ==========================================================
   # Pipeline result / status
   # ==========================================================

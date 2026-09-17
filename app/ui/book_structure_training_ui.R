@@ -1,370 +1,165 @@
-# ============================================================
-# File: create_templates_ui.R
-#
-# Description:
-# UI for creating map templates and map symbol templates.
-# ============================================================
-
+# UI for map templates, distribution symbols and page-number training.
 book_structure_training_ui <- function(shinyfields1, workingDir) {
-  
+  template_save_help <- tags$div(
+    class = "dd-template-note",
+    p("Saving creates a TIFF file in the application folder shown below and downloads a copy through your browser."),
+    tags$code(file.path(workingDir, "data", "input", "templates")),
+    p("Use a new template number for each example. Reusing a number replaces the existing file; the number increases automatically after saving.")
+  )
+
   tabItem(
     tabName = "tab1",
-    
-    fluidRow(
-      
-      # ========================================================
-      # LEFT PANEL - CONTROLS AND INFORMATION
-      # ========================================================
-      
-      column(
-        width = 5,
-        
-        wellPanel(
-          
-          h3(
-            strong(
-              shinyfields1$head,
-              style = "color:black"
-            )
-          ),
-          
-          p(
-            shinyfields1$inf4,
-            style = "color:black"
-          ),
-          
-          fileInput(
-            "image",
-            label = h5(shinyfields1$lab1),
-            buttonLabel = "Browse...",
-            placeholder = "No file selected"
-          ),
-          
-          verbatimTextOutput("file_out"),
-          hr(),
-          
-          h4(
-            strong(
-              "Book structure training",
-              style = "color:black"
-            )
-          ),
-          
-          p(
-            "Select which structural element of the book you want to train.",
-            style = "color:black"
-          ),
-          
-          radioButtons(
-            "bookTrainingType",
-            label = NULL,
-            choices = c(
-              "Map template" = "map",
-              "Distribution symbol" = "symbol",
-              "Page number" = "page_number"
+    wellPanel(
+      h3("Create Templates"),
+      p("Create reference examples for finding maps, distribution symbols and printed page numbers in this book."),
+      tags$div(class = "dd-template-note",
+        strong("Read before creating templates"),
+        tags$ul(
+          tags$li(strong("Choose a clear, well-aligned scan. "), "Poor alignment can cause matching errors."),
+          tags$li(strong("Crop maps precisely. "), "Include the complete map border with a margin of no more than 5 pixels. Exclude surrounding page text and captions."),
+          tags$li(strong("Use the required folders. "), "Follow the map-type folder structure under 'Where to save your templates' below so the processing steps can find your files."),
+          tags$li(strong("Correct skewed templates before use. "),
+            "Use ", tags$a("ScanTailor", href = "https://scantailor.org/downloads/", target = "_blank"),
+            " or ", tags$a("GIMP", href = "https://www.gimp.org/downloads", target = "_blank"),
+            " and save the corrected files in the same folder structure. For alignment of extracted maps, use the alignment step in Map Matching."
+          )
+        )
+      ),
+      radioButtons(
+        "bookTrainingType", label = "1. Choose what to prepare",
+        choices = c("Map template" = "map", "Distribution symbol" = "symbol", "Page number" = "page_number"),
+        selected = "map", inline = TRUE
+      ),
+      p("Distribution symbol templates apply to Points / symbols, as selected in General Config.", class = "dd-template-help")
+    ),
+    conditionalPanel(
+      condition = "input.bookTrainingType != 'page_number'",
+      fluidRow(
+        column(5,
+          wellPanel(
+            h4("2. Choose a source page"),
+            p("Upload a clear, correctly aligned scan. Then drag on the page preview to select the region you need."),
+            fileInput("image", label = "Scanned book page", buttonLabel = "Browse...", placeholder = "No file selected"),
+            conditionalPanel(
+              condition = "input.bookTrainingType == 'map'",
+              p("For best results, create at least two map templates where possible, with separate examples for each map layout.", class = "dd-template-help")
             ),
-            selected = "map",
-            inline = FALSE
+            conditionalPanel(
+              condition = "input.bookTrainingType == 'symbol'",
+              tags$div(class = "dd-template-note",
+                strong("Symbol cropping checklist"),
+                tags$ul(
+                  tags$li("Select one complete point, circle, square or other distribution symbol."),
+                  tags$li("Crop closely around it and exclude surrounding map features."),
+                  tags$li("Create at least one example of each symbol type used in the book.")
+                )
+              )
+            )
+          ),
+          wellPanel(
+            conditionalPanel(
+              condition = "input.bookTrainingType == 'map'",
+              h4("4. Save the map template")
+            ),
+            conditionalPanel(
+              condition = "input.bookTrainingType == 'symbol'",
+              h4("4. Save the symbol template")
+            ),
+            p(strong("Read before saving"), class = "dd-template-note"),
+            h4("Where to save your templates"),
+            template_save_help,
+            conditionalPanel(
+              condition = "input.bookTrainingType == 'map'",
+              tags$div(class = "dd-template-note",
+                strong("Required folder structure for Map Matching"),
+                p("After saving, copy or move each map template into the maps subfolder of its map-type group. The Save button does not place files into these groups automatically."),
+                tags$code(file.path(workingDir, "data", "input", "templates", "1", "maps")),
+                p("For the first map type, place map_1.tif, map_2.tif and any additional examples in templates/1/maps/."),
+                p("If the book contains different map layouts, use a separate numbered group for each type: 1, 2, 3. Keep the same subfolder structure in each group and set Number of map types in General Config accordingly."),
+                tags$pre(paste(
+                  "templates/",
+                  "  1/",
+                  "    maps/",
+                  "      map_1.tif",
+                  "      map_2.tif",
+                  "    symbols/",
+                  "    geopoints/",
+                  "  2/",
+                  "    maps/",
+                  "      map_1.tif",
+                  "      map_2.tif",
+                  "    symbols/",
+                  "    geopoints/",
+                  sep = "\n"
+                )),
+                p(strong("Map Matching looks for map templates in these numbered maps folders. Files left directly in templates/ will not be used for matching."))
+              )
+            ),
+            conditionalPanel(
+              condition = "input.bookTrainingType == 'symbol'",
+              tags$div(class = "dd-template-note",
+                strong("Where to save symbol templates"),
+                p("After saving, copy or move each symbol template into the symbols subfolder of its map-type group. The Save button does not place files into these groups automatically."),
+                tags$code(file.path(workingDir, "data", "input", "templates", "1", "symbols")),
+                p("For the first map type, place symbol_1.tif, symbol_2.tif and any additional examples in templates/1/symbols/. For additional map types, use templates/2/symbols/, templates/3/symbols/ and so on, according to Number of map types in General Config."),
+                p("Save at least one example of each symbol type used by the corresponding map type."),
+                tags$pre(paste(
+                  "templates/",
+                  "  1/",
+                  "    maps/",
+                  "    symbols/",
+                  "      symbol_1.tif",
+                  "      symbol_2.tif",
+                  "    geopoints/",
+                  "  2/",
+                  "    maps/",
+                  "      map_1.tif",
+                  "      map_2.tif",
+                  "    symbols/",
+                  "      symbol_1.tif",
+                  "      symbol_2.tif",
+                  "    geopoints/",
+                  sep = "\n"
+                ))
+              )
+            ),
+            p("Check the selected-region preview before saving."),
+            conditionalPanel(
+              condition = "input.bookTrainingType == 'map'",
+              numericInput("imgIndexTemplate", "Map template number", value = 1, min = 1, step = 1),
+              p("File name: map_<number>.tif", class = "dd-template-help"),
+              downloadButton("saveTemplate", "Save map template", class = "btn-primary")
+            ),
+            conditionalPanel(
+              condition = "input.bookTrainingType == 'symbol'",
+              numericInput("imgIndexSymbol", "Symbol template number", value = 1, min = 1, step = 1),
+              p("File name: symbol_<number>.tif", class = "dd-template-help"),
+              downloadButton("saveSymbol", "Save symbol template", class = "btn-primary")
+            )
+          )
+        ),
+        column(7,
+          wellPanel(
+            h4("3. Select and review the region"),
+            p("Drag to draw a rectangle around the map or symbol. Adjust the rectangle until the preview contains exactly the area you want."),
+            tags$div(class = "dd-template-page-viewport",
+              imageOutput("plot", click = "plot_click",
+                hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
+                brush = brushOpts(id = "plot_brush"), width = "100%", height = "auto")
+            )
           ),
           conditionalPanel(
-            condition = "input.bookTrainingType == 'page_number'",
-            
-            tags$div(
-              style = "
-      margin-top:15px;
-      padding:10px;
-      border-left:4px solid #337ab7;
-      background:#f5f9fc;
-    ",
-              
-              h4(
-                strong("Page number training"),
-                style = "color:black;"
-              ),
-              
-              p(
-                paste(
-                  "Select the region containing the printed page number.",
-                  "Include the complete page number and any surrounding",
-                  "graphical elements that belong to it, such as a circle",
-                  "or frame."
-                ),
-                style = "color:black;"
-              ),
-              
-              p(
-                strong(
-                  "Select one page-number region per training page."
-                ),
-                style = "color:#337ab7;"
-              )
-            )
-          )
-        ),
-        
-        
-        # ======================================================
-        # MAP TEMPLATE INFORMATION
-        # Visible after a crop region has been selected
-        # ======================================================
-        # ======================================================
-        # MAP TEMPLATE INFORMATION
-        # ======================================================
-        
-        conditionalPanel(
-          condition = "input.bookTrainingType == 'map'",
-          
-          wellPanel(
-            
-            tags$p(
-              strong("⚠️ Important:")
-            ),
-            
-            tags$p(
-              paste(
-                "Please select only map pages that are already",
-                "well-scanned and correctly aligned. This will",
-                "significantly improve the accuracy of the",
-                "template matching process."
-              )
-            ),
-            
-            tags$p(
-              style = "font-weight:bold;",
-              paste(
-                "👉 When cropping the map area, make sure that",
-                "the entire map border is included, but extend",
-                "the selection only a few pixels beyond the frame.",
-                "No page text or captions should appear inside",
-                "the cropped template image."
-              )
-            ),
-            
-            tags$p(
-              style = "font-weight:bold;",
-              "👉 For best results, create at least two template maps."
-            ),
-            
-            tags$div(
-              style = "text-align:center; margin:10px 0;",
-              
-              tags$img(
-                src = "assets/templates_struct_1.JPG",
-                alt = "Template folder structure example",
-                style = paste(
-                  "max-width:100%;",
-                  "border:1px solid #ccc;",
-                  "border-radius:8px;"
-                )
-              )
-            ),
-            
-            tags$p(
-              paste(
-                "👉 If your book contains different types or",
-                "layouts of maps, create separate template groups",
-                "under the templates directory."
-              ),
-              tags$br(),
-              paste(
-                "Each group (e.g. t_1, t_2, t_3) should have",
-                "the same internal structure."
-              )
-            ),
-            
-            tags$div(
-              style = "text-align:center; margin:10px 0;",
-              
-              tags$img(
-                src = "assets/templates_struct_2.JPG",
-                alt = "Multiple template groups example",
-                style = paste(
-                  "max-width:100%;",
-                  "border:1px solid #ccc;",
-                  "border-radius:8px;"
-                )
-              )
-            ),
-            
-            hr(),
-            
-            h4(
-              strong(
-                shinyfields1$save_template,
-                style = "color:black"
-              )
-            ),
-            
-            numericInput(
-              "imgIndexTemplate",
-              label = "Map template number",
-              value = 1,
-              min = 1
-            ),
-            
-            downloadButton(
-              "saveTemplate",
-              "Save map template",
-              style = "color:#FFFFFF;background:#999999"
-            )
-          )
-        ),
-        # ======================================================
-        # DISTRIBUTION SYMBOL INFORMATION
-        # ======================================================
-        
-        conditionalPanel(
-          condition = "input.bookTrainingType == 'symbol'",
-          
-          wellPanel(
-            
-            h4(
-              strong(
-                "Distribution symbol training",
-                style = "color:black"
-              )
-            ),
-            
-            tags$p(
-              paste(
-                "Select one representative distribution symbol",
-                "from the map, such as a point, circle, square",
-                "or another symbol used to represent a species distribution."
-              )
-            ),
-            
-            tags$p(
-              style = "font-weight:bold;",
-              paste(
-                "👉 Draw the selection as closely as possible around",
-                "the symbol and avoid including surrounding map elements."
-              )
-            ),
-            
-            tags$p(
-              paste(
-                "If the book uses several different distribution symbols,",
-                "save at least one representative example of each type."
-              )
-            ),
-            
-            hr(),
-            
-            h4(
-              strong(
-                "Save distribution symbol template",
-                style = "color:black"
-              )
-            ),
-            
-            numericInput(
-              "imgIndexSymbol",
-              label = "Symbol template number",
-              value = 1,
-              min = 1
-            ),
-            
-            downloadButton(
-              "saveSymbol",
-              "Save symbol template",
-              style = "color:#FFFFFF;background:#999999"
-            )
-          )
-        ),
- 
-      ),
-      
-      
-      # ========================================================
-      # RIGHT PANEL - BOOK PAGE AND CROP PREVIEW
-      # ========================================================
-      
-      column(
-        width = 7,
-        
-        wellPanel(
-          
-          h4(
-            strong(
-              "Select template region",
-              style = "color:black"
-            )
-          ),
-          
-          p(
-            paste(
-              "Draw a rectangle around the map or distribution symbol",
-              "that you want to use as a template."
-            ),
-            style = "color:black"
-          ),
-          
-          p(
-            paste(
-              "The selected region will be shown below as a preview.",
-              "You can adjust the selection before saving the template."
-            ),
-            style = "color:#555;"
-          ),
-          
-          div(
-            style = paste0(
-              "width:100%;",
-              "max-height:750px;",
-              "overflow:auto;",
-              "border:1px solid #ddd;",
-              "background:white;"
-            ),
-            
-            plotOutput(
-              "plot",
-              click = "plot_click",
-              hover = hoverOpts(
-                id = "plot_hover",
-                delayType = "throttle"
-              ),
-              brush = brushOpts(
-                id = "plot_brush"
-              ),
-              width = "100%"
-            )
-          )
-        ),
-        
-        
-        # ------------------------------------------------------
-        # CROPPED PREVIEW
-        # ------------------------------------------------------
-        
-        conditionalPanel(
-          condition = "output.showCropHint",
-          
-          wellPanel(
-            
-            h4(
-              strong(
-                "Selected region",
-                style = "color:black"
-              )
-            ),
-            
-            div(
-              style = "width:60%; margin-left:0;",
-              
-              plotOutput(
-                "plot1",
-                width = "100%",
-                height = "350px"
+            condition = "output.showCropHint",
+            wellPanel(
+              h4("Selected-region preview"),
+              tags$div(class = "dd-template-crop-viewport",
+                plotOutput("plot1", width = "100%", height = "350px")
               )
             )
           )
         )
       )
     ),
-    # ========================================================
-    # PAGE NUMBER TRAINING
-    # ========================================================
-    
     conditionalPanel(
       condition = "input.bookTrainingType == 'page_number'",
       
@@ -381,8 +176,8 @@ book_structure_training_ui <- function(shinyfields1, workingDir) {
         
         p(
           paste(
-            "Select examples of printed page numbers from several pages.",
-            "These examples are used to learn where page numbers are",
+            "Select page-number examples from at least five different pages.",
+            "Check and correct every detected number before saving. These examples record where page numbers are",
             "located and how they are represented in this book."
           ),
           style = "color:black"
@@ -408,7 +203,7 @@ book_structure_training_ui <- function(shinyfields1, workingDir) {
             
             selectInput(
               "page_number_training_page",
-              label = "Select a page for training:",
+              label = "1. Choose a prepared page",
               choices = NULL
             ),
             
@@ -591,12 +386,12 @@ book_structure_training_ui <- function(shinyfields1, workingDir) {
             width = 5,
             
             h4(
-              strong("Selected page number region")
+              strong("2. Review and add the selected region")
             ),
             
             p(
               paste(
-                "Draw a blue rectangle around the printed page number.",
+                "Drag on the page to draw a rectangle around the complete printed page number.",
                 "After selecting the region, add it to the training examples."
               )
             ),
@@ -623,7 +418,7 @@ book_structure_training_ui <- function(shinyfields1, workingDir) {
             
             actionButton(
               "savePageNumberTraining",
-              "Save page number training data",
+              "3. Save page-number training data",
               class = "btn-success"
             )
           )

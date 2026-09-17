@@ -28,10 +28,7 @@ pipeline_ui <- function() {
           # HEADER
           # ====================================================
           
-          h3(
-            strong("Complete Pipeline"),
-            style = "color:black"
-          ),
+          h3("Complete Pipeline"),
           
           p(
             paste(
@@ -89,7 +86,7 @@ pipeline_ui <- function() {
           
           actionButton(
             "savePipelineConfig",
-            "SAVE ",
+            "Save changes",
             icon = icon("save"),
             style = "
               color:#FFFFFF;
@@ -108,7 +105,7 @@ pipeline_ui <- function() {
           ),
           actionButton(
             "startCompletePipeline",
-            "START ",
+            "Start pipeline",
             icon = icon("play"),
             style = "
               color:#FFFFFF;
@@ -160,23 +157,47 @@ pipeline_ui <- function() {
           uiOutput(
             "pipelineResult"
           ),
+          
           br(),
           uiOutput("pipelineMapSelector"),
+          
+         
           uiOutput(
             "pipelineResultActions"
           ),
           
           br(),
           
-          DT::DTOutput(
-            "pipelineResultTable"
-          ),
-          br(),
+          # ============================================================
+          # EXPORT SHAPEFILES
+          # ============================================================
           
-          leaflet::leafletOutput(
-            "pipelineResultMap",
-            height = 500
-          )
+          tags$hr(),
+          
+          h4(
+            "Export Shapefiles",
+            style = "color:black"
+          ),
+          
+          p(
+            paste(
+              "Download all generated shapefiles from the current",
+              "pipeline result as a ZIP archive."
+            ),
+            style = "color:black"
+          ),
+          
+          downloadButton(
+            "downloadShapefiles",
+            "Download shapefiles",
+            style = "
+    color:#FFFFFF;
+    background:#337ab7;
+    font-weight:bold;
+  "
+          ),
+          
+          tags$hr(),
         )
       )
     ),helpText(

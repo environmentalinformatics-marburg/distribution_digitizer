@@ -16,7 +16,8 @@ species_reading_server <- function(
     output,
     session,
     workingDir,
-    current_out_dir 
+    current_out_dir,
+    restoredSpeciesNameSource
 ) {
   
   # ============================================================
@@ -32,6 +33,11 @@ species_reading_server <- function(
     ),
     local = TRUE
   )
+  species_training_saved <- reactiveVal(has_saved_species_training(workingDir))
+  observe({
+    shinyjs::toggleState("processSpeciesTitles", condition = species_training_saved())
+  })
+
   species_training_pages <- reactiveVal(NULL)
   
   # Current rectangle drawn by the user,
@@ -196,9 +202,15 @@ species_reading_server <- function(
   # regions = species titles are detected directly on book pages
   # ============================================================
   
-  observeEvent(input$speciesNameSource, {
-    
-    req(input$speciesNameSource)
+  species_source_initialized <- reactiveVal(FALSE)
+  observeEvent(list(input$speciesNameSource, restoredSpeciesNameSource()), {
+    restored <- restoredSpeciesNameSource()
+    if (is.null(restored)) return()
+    if (!species_source_initialized()) {
+      if (identical(input$speciesNameSource, restored)) species_source_initialized(TRUE)
+      return()
+    }
+    req(input$speciesNameSource %in% c("legend", "regions"))
     
     cfg_path <- file.path(
       workingDir,
@@ -926,6 +938,7 @@ species_reading_server <- function(
         regions = regions,
         workingDir = workingDir
       )
+      species_training_saved(has_saved_species_training(workingDir))
       
       showNotification(
         paste(
@@ -1010,6 +1023,8 @@ species_reading_server <- function(
   # ============================================================
   
   observeEvent(input$processSpeciesTitles, {
+    species_training_saved(has_saved_species_training(workingDir))
+    req(species_training_saved())
     
     
     # ----------------------------------------------------------

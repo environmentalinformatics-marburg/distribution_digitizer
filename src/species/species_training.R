@@ -10,6 +10,32 @@
 # ============================================================
 
 
+species_training_file <- function(workingDir) {
+  file.path(workingDir, "training", "species_title_training.csv")
+}
+
+valid_species_training <- function(data) {
+  required <- c("page", "ocr_text", "confirmed_text", "x", "y", "width", "height",
+    "x_relative", "y_relative", "width_relative", "height_relative")
+  if (!is.data.frame(data) || !nrow(data) || !all(required %in% names(data))) return(FALSE)
+  pages <- trimws(as.character(data$page))
+  if (anyNA(pages) || any(!nzchar(pages)) || length(unique(pages)) < 2L) return(FALSE)
+  text <- ifelse(!is.na(data$confirmed_text) & nzchar(trimws(data$confirmed_text)),
+    data$confirmed_text, data$ocr_text)
+  if (anyNA(text) || any(!nzchar(trimws(text)))) return(FALSE)
+  for (name in c("x", "y", "width", "height", "x_relative", "y_relative", "width_relative", "height_relative")) {
+    values <- suppressWarnings(as.numeric(data[[name]]))
+    if (any(!is.finite(values)) || any(values < 0)) return(FALSE)
+    if (grepl("width|height", name) && any(values <= 0)) return(FALSE)
+  }
+  TRUE
+}
+
+has_saved_species_training <- function(workingDir) {
+  tryCatch(valid_species_training(read.csv(species_training_file(workingDir),
+    stringsAsFactors = FALSE, check.names = FALSE)), error = function(e) FALSE)
+}
+
 save_species_training <- function(
     regions,
     workingDir
@@ -33,6 +59,10 @@ save_species_training <- function(
     )
   }
   
+  if (!valid_species_training(regions)) {
+    stop("Training examples need readable or corrected species titles and valid regions on at least two pages.")
+  }
+
   # ----------------------------------------------------------
   # Read book configuration
   # ----------------------------------------------------------
@@ -135,22 +165,15 @@ save_species_training <- function(
     !is.na(training_data$confirmed_text) &
     nzchar(trimws(training_data$confirmed_text))
   
-  training_dir <- file.path(
-    workingDir,
-    "training"
-  )
-  
-  dir.create(
-    training_dir,
-    recursive = TRUE,
-    showWarnings = FALSE
-  )
-  
-  training_file <- file.path(
-    training_dir,
-    "species_title_training.csv"
-  )
-  
+  # Preserve the existing CSV template's column structure and order.
+  training_file <- species_training_file(workingDir)
+  if (!file.exists(training_file)) stop("The species title training CSV template was not found.")
+  template <- read.csv(training_file, nrows = 0L, check.names = FALSE)
+  if (!setequal(names(template), names(training_data))) {
+    stop("Training columns do not match the species title training CSV template.")
+  }
+  training_data <- training_data[, names(template), drop = FALSE]
+
   write.csv(
     training_data,
     training_file,

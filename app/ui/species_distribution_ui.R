@@ -11,41 +11,23 @@ species_distribution_ui <- function(
     # ============================================================
     # TOP: Info
     # ============================================================
-    fluidRow(
-      column(
-        12,
-        wellPanel(
-          h3(
-            strong(
-              "Species Distribution Detection",
-              style = "color:black"
-            )
-          ),
-          
-          p(
-            "Select how species distributions are represented on the maps.",
-            style = "color:black"
-          ),
-          
-          # ------------------------------------------------------
-          # NEW: Representation type
-          # ------------------------------------------------------
-          radioButtons(
-            "speciesRepresentation",
-            label = "Species distribution representation:",
-            choices = c(
-              "Points / symbols" = "point",
-              "Contours / areas" = "contour"
-            ),
-            selected = "point",
-            inline = TRUE
-          )
-        )
+    wellPanel(
+      h3("Species Distribution"),
+      p("Extract species distribution points or colored areas from aligned maps. Test the detection settings on an example and review the preview before processing all maps."),
+      conditionalPanel(
+        condition = "input.speciesRepresentation == 'point'",
+        p(strong("Selected in General Config: "), "Points / symbols. To detect colored contours or areas instead, change this selection in General Config.")
+      ),
+      conditionalPanel(
+        condition = "input.speciesRepresentation == 'contour'",
+        p(strong("Selected in General Config: "), "Contours / areas. To detect points or symbols instead, change this selection in General Config.")
+      ),
+      conditionalPanel(
+        condition = "!input.speciesRepresentation",
+        p(class = "dd-config-required-warning", "No representation selected. Please choose Points / symbols or Contours / areas in General Config.")
       )
     ),
-    
-    br(),
-    
+
     # ============================================================
     # POINT-BASED DISTRIBUTION
     # ============================================================
@@ -206,10 +188,7 @@ species_distribution_ui <- function(
           
           wellPanel(
             
-            h4(
-              "Species Area Detection",
-              style = "color:black"
-            ),
+            h3("1. Detect species areas"),
             
             p(
               paste(
@@ -252,7 +231,7 @@ species_distribution_ui <- function(
             ),
             
             p(
-              "Click on a species contour in the map to select its color.",
+              "Printing and scanning can produce different shades along the same contour. Click three different places on the species contour, sampling lighter and darker shades of its color. Avoid the background, labels and map borders. These samples help extract the contour more completely.",
               style = "color:black"
             ),
             
@@ -298,94 +277,65 @@ species_distribution_ui <- function(
               "clearContourColors",
               "Clear selected colors"
             ),
-            # ----------------------------------------------------
-            # Later: selected color + tolerance
-            # ----------------------------------------------------
+            br(),
+            br(),
             fluidRow(
-              
-              column(
-                6,
-                uiOutput("selectedContourColor")
-              ),
-              
-              column(
-                6,
+              column(6,
                 sliderInput(
                   "contourColorTolerance",
                   label = "Color tolerance:",
-                  min = 0,
-                  max = 100,
-                  value = 30,
-                  step = 1
+                  min = 0, max = 100, value = 30, step = 1
                 ),
+                p("Color tolerance includes shades close to your selected samples, compensating for printing and scanning variations. Increase it if parts of the contour are missing; decrease it if background or unrelated features are included. Check the preview after each adjustment.")
+              ),
+              column(6,
                 numericInput(
                   "contourBorderMargin",
                   label = "Ignore contours within border margin (pixels):",
-                  value = 10,
-                  min = 0,
-                  step = 1
-                )
+                  value = 10, min = 0, step = 1
+                ),
+                p("Contour pixels within this distance from the image border are ignored. Try different values and check the preview to exclude unwanted border marks without losing species contours.")
               )
             ),
-            
+
             tags$hr(),
             
             actionButton(
               "previewContourDetection",
               label = "Preview area detection",
-              style = "color:#FFFFFF;background:#999999"
+              class = "btn-primary"
             ),
             
             actionButton(
               "processAllContours",
               label = "Process all maps",
-              style = "color:#FFFFFF;background:#999999"
+              class = "btn-success"
             ),
             
-            conditionalPanel(
-              condition = "input.processAllContours > 0",
-              
-              tags$hr(),
-              
-              fluidRow(
-                
-                column(
-                  4,
-                  textInput(
-                    "range_list_Contours",
-                    label = HTML(shinyfields2$inf7),
-                    value = "1-2"
-                  )
-                ),
-                
-                column(
-                  4,
-                  selectInput(
-                    "map_type_Contours",
-                    label = "Select map type:",
-                    choices = mapTypes,
-                    selected = mapTypes[1]
-                  )
-                ),
-                
-                column(
-                  4,
-                  actionButton(
-                    "listContours",
-                    "List detected areas"
-                  )
-                )
-              )
-            ),
             tags$hr(),
-            
             uiOutput("contourPreview"),
+            h4("Browse detected areas"),
+            p("Choose a map to compare the aligned image with the detected areas or download the result."),
             fluidRow(
-              column(
-                4,
-                offset = 4,
-                uiOutput("listContoursOutput")
-              )
+              column(4, selectInput("map_type_Contours", "Map type", choices = mapTypes, selected = mapTypes[1])),
+              column(5, textInput("contour_results_search", "Search file name or page number", placeholder = "e.g. 0036 or map_5")),
+              column(3, actionButton("contour_results_refresh", "Refresh", icon = icon("refresh")))
+            ),
+            uiOutput("contour_results_gallery"),
+            div(class = "dd-align-pagination",
+              actionButton("contour_results_previous", "Previous"),
+              textOutput("contour_results_page_info", inline = TRUE),
+              actionButton("contour_results_next", "Next")
+            ),
+            conditionalPanel(
+              condition = "output.contour_results_has_selection === 'true'",
+              hr(),
+              h4(textOutput("contour_results_selected_name", inline = TRUE)),
+              fluidRow(
+                column(6, h4("Aligned map"), imageOutput("contour_results_original_preview", height = "auto")),
+                column(6, h4("Detected areas"), imageOutput("contour_results_selected_preview", height = "auto"))
+              ),
+              downloadButton("download_contour_result", "Download result PNG", class = "btn-primary")
             )
           )
         )

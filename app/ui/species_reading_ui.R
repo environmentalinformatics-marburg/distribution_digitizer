@@ -19,7 +19,8 @@
 
 species_reading_ui <- function(
     shinyfields2,
-    shinyfields6
+    shinyfields6,
+    config = list()
 ) {
   
   tabItem(
@@ -28,38 +29,28 @@ species_reading_ui <- function(
     # ============================================================
     # TOP: Species name source
     # ============================================================
-    fluidRow(
-      column(
-        12,
-        
-        wellPanel(
-          
-          h3(
-            strong("Species Reading"),
-            style = "color:black"
-          ),
-          
-          p(
-            "Select how species names are represented in the book.",
-            style = "color:black"
-          ),
-          
-          radioButtons(
-            "speciesNameSource",
-            label = "Species name source:",
-            choices = c(
-              "Species names in / below map legend" = "legend",
-              "Species names elsewhere on the page" = "regions"
-            ),
-            selected = "legend",
-            inline = TRUE
-          )
-        )
-      )
+    wellPanel(
+      h3("Read Species"),
+      p("This step defines how species names are identified in the book. Depending on the book structure, species information can either be obtained from a map legend and then linked to the full species title, or the full species title can be detected directly on the page.")
     ),
-    
-    br(),
-    
+    wellPanel(
+      h3("1. Select how species names are represented in the book"),
+      p("Select how species information is provided in the book. This determines which workflow is used to identify the complete species title."),
+      radioButtons(
+        "speciesNameSource",
+        label = "Species name source (required):",
+        choices = c(
+          "Please select" = "",
+          "Species referenced in a map legend" = "legend",
+          "Species identified directly from the title" = "regions"
+        ),
+        selected = if (isTRUE(config$speciesNameSource %in% c("legend", "regions"))) config$speciesNameSource else "",
+        inline = TRUE
+      ),
+      p(strong("Species referenced in a map legend: "), "Use this option when a legend associates symbols, points, colors, or other map representations with species names. The species name identified from the legend is used as a reference to locate the corresponding full species title in the book. The full title may include additional information, such as the species author name."),
+      p(strong("Species identified directly from the title: "), "Use this option when the complete species title can be identified directly on the page. In this workflow, no species reference from a map legend is required.")
+    ),
+
     # ============================================================
     # METHOD 1:
     # Existing legend-based species detection
@@ -79,36 +70,22 @@ species_reading_ui <- function(
         )
       ),
       
-      actionButton(
-        "listCropped",
-        label = "List cropped maps"
-      ),
-      
-      br(),
-      br(),
-      
       fluidRow(
         column(
-          4,
+          12,
           
           # ------------------------------------------------------
           # Species from map
           # ------------------------------------------------------
           wellPanel(
             
-            h3(
-              shinyfields2$head_species,
-              style = "color:black"
-            ),
+            h3("2. Define the species reference area near the map"),
             
-            p(
-              shinyfields2$inf4,
-              style = "color:black"
-            ),
+            p("Define the area relative to the detected map where the species name or reference from the legend should be read. The detected species name will later be used to find the corresponding full species title."),
             
             actionButton(
               "mapReadSpecies",
-              label = shinyfields2$start3,
+              label = "Read names from map legends",
               style = "color:#FFFFFF;background:#999999"
             )
           ),
@@ -118,19 +95,13 @@ species_reading_ui <- function(
           # ------------------------------------------------------
           wellPanel(
             
-            h3(
-              shinyfields2$head_page_species,
-              style = "color:black"
-            ),
+            h3("3. Define the species title area on the page"),
             
-            p(
-              shinyfields2$inf5,
-              style = "color:black"
-            ),
+            p("Define the page region in which the complete species title should be detected. In this legend-based workflow, the species reference read from the map is used to locate the corresponding full title."),
             
             actionButton(
               "pageReadSpecies",
-              label = shinyfields2$start4,
+              label = "Read names from pages",
               style = "color:#FFFFFF;background:#999999"
             )
           )
@@ -155,15 +126,13 @@ species_reading_ui <- function(
             # ----------------------------------------------------
             # Introduction
             # ----------------------------------------------------
-            h4(
-              "Create training examples for species title detection",
-              style = "color:black"
-            ),
+            h3("2. Define the species title area on the page"),
             
             p(
               paste(
-                "Select pages from the current book and mark examples of species titles.",
-                "These examples are used to learn how species titles are structured and positioned in this book."
+                "Define the page region in which the complete species title should be detected directly.",
+                "Choose an example page and draw a rectangle around the complete title, including the species author name where present, while avoiding unrelated text.",
+                "These examples guide direct title detection; no species reference from a map legend is required."
               ),
               style = "color:black"
             ),
@@ -179,11 +148,11 @@ species_reading_ui <- function(
               # Page selection and page preview
               # ==================================================
               column(
-                7,
+                6,
                 
                 selectInput(
                   "species_training_page",
-                  label = "Select a page for training:",
+                  label = "Choose an example page:",
                   choices = NULL
                 ),
                 
@@ -200,11 +169,14 @@ species_reading_ui <- function(
               # Selection controls and temporary training data
               # ==================================================
               column(
-                5,
+                6,
                 
+                h4("Select and review regions"),
+                p("Choose 'Species title', drag around the name on the page, then click 'Add title selection'. You can add up to two title regions per page."),
+                p("To link a map, choose 'Associated map' and draw around it. Use the assignment button on the appropriate title entry below to link that map to the title."),
                 radioButtons(
                   "species_selection_type",
-                  label = "Select region for:",
+                  label = "Region to select:",
                   choices = c(
                     "Species title" = "title",
                     "Associated map" = "map"
@@ -252,7 +224,7 @@ species_reading_ui <- function(
                 # ------------------------------------------------
                 actionButton(
                   "clearSpeciesTrainingRegions",
-                  "Clear all regions"
+                  "Clear regions on this page"
                 ),
                 
                 br(),
@@ -485,10 +457,12 @@ species_reading_ui <- function(
             
             tags$hr(),
             
+            h3("3. Save examples and read species names"),
+            p("Review the title regions and map assignments from at least two different pages, then save your training examples. Use 'Read species names' to run detection with the saved examples."),
             fluidRow(
               
               column(
-                3,
+                6,
                 
                 actionButton(
                   "saveSpeciesTraining",
@@ -501,11 +475,12 @@ species_reading_ui <- function(
               ),
               
               column(
-                3,
+                6,
                 
                 actionButton(
                   "processSpeciesTitles",
-                  "Process species titles",
+                  "Read species names",
+                  disabled = TRUE,
                   style = "
                     color:#FFFFFF;
                     background:#5cb85c;
@@ -520,10 +495,7 @@ species_reading_ui <- function(
             # ====================================================
             br(),
             
-            h4(
-              "Species titles automatically detected and assigned to maps",
-              style = "color:black"
-            ),
+            h3("4. Review detected species names"),
             
             p(
               paste(

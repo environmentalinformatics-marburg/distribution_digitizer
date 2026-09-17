@@ -84,29 +84,16 @@ if(!require(raster)){
   library(raster)
 }
 
-
-# optional Debug
 py_config()
-
 library(sf)
 
-# NOTHING related to workingDir here!
-# NOTHING related to loading config or shinyfields!
-# NOTHING related to get_app_dir()
-
 options(shiny.maxRequestSize = 500*1024^2)
-Sys.setenv(TESSDATA_PREFIX = "C:/Program Files/Tesseract-OCR/tessdata")
-
 processEventNumber <- 0
-
-# These depend on workingDir → OK, because global.R created it
 inputDir  <- file.path(workingDir, "data/input/")
 tempImage <- "temp.png"
 scale <- 20
 rescale <- 100 / scale
 
-# Setzt TESSDATA_PREFIX einmalig aus einem Pfad (aus Config),
-# egal ob dieser auf .../Tesseract-OCR oder .../tessdata zeigt.
 set_tessdata_prefix_from_config <- function(tess_path) {
   if (nzchar(Sys.getenv("TESSDATA_PREFIX"))) {
     message("TESSDATA_PREFIX already set to: ", Sys.getenv("TESSDATA_PREFIX"))
@@ -117,11 +104,7 @@ set_tessdata_prefix_from_config <- function(tess_path) {
     return(invisible(FALSE))
   }
   p <- normalizePath(tess_path, winslash = "/", mustWork = FALSE)
-  # Wenn Pfad direkt auf 'tessdata' zeigt → eine Ebene hoch
-  if (basename(p) %in% c("tessdata", "tessdata/")) {
-    p <- dirname(p)
-  }
-  # Prüfen, ob unter p tatsächlich ein 'tessdata' Ordner existiert
+  if (basename(p) %in% c("tessdata", "tessdata/")) p <- dirname(p)
   if (!dir.exists(file.path(p, "tessdata"))) {
     warning("No 'tessdata' directory found under: ", p)
     return(invisible(FALSE))
@@ -131,138 +114,100 @@ set_tessdata_prefix_from_config <- function(tess_path) {
   invisible(TRUE)
 }
 
-# ============================================================
-# Species Distribution Detection - Server Module
-# ============================================================
-# Loads the server-side logic for species distribution detection.
-# This includes functionality for both point-based and
-# contour/area-based species representations.
-# ============================================================
-
+source("server/book_structure_training_server.R")
+source("server/map_matching_server.R", local = TRUE)
 source("server/species_distribution_server.R", local = TRUE)
 source("server/species_reading_server.R", local = TRUE)
+source("server/georeferencing_server.R")
 source("server/pipeline_server.R")
-source("server/book_structure_training_server.R")
-
+source("server/points_matching_server.R", local = TRUE)
+source("server/masking_server.R", local = TRUE)
 
 server <- shinyServer(function(input, output, session) {
-  #addResourcePath("root", "D:/distribution_digitizer/www")
-  # ==========================================================
-  # CURRENT APPLICATION SETTINGS
-  # ==========================================================
-  
+  missingConfigFields <- reactive({
+    required <- c(
+      title = "Book Title", author = "Author", pYear = "Publication Year",
+      tesserAct = "Tesseract Path",
+      speciesRepresentation = "Points / symbols or Contours / areas",
+      speciesNameSource = "Species name source (Read Species tab)",
+      dataInputDir = "Input Directory", dataOutputDir = "Output Directory"
+    )
+    missing <- vapply(names(required), function(id) {
+      value <- input[[id]]
+      if (length(value) != 1L || is.na(value) || !nzchar(trimws(value))) return(TRUE)
+      (id == "speciesRepresentation" && !value %in% c("point", "contour")) ||
+        (id == "speciesNameSource" && !value %in% c("legend", "regions"))
+    }, logical(1))
+    unname(required[missing])
+  })
+
+  output$configRequiredWarning <- renderUI({
+    missing <- missingConfigFields()
+    if (!length(missing)) return(NULL)
+    tags$div(
+      class = "dd-config-required-warning", role = "status", `aria-live` = "polite",
+      tags$strong("Please complete the required fields before saving:"),
+      tags$ul(lapply(missing, tags$li))
+    )
+  })
+
+  observe({
+    shinyjs::toggleState("saveConfig", condition = length(missingConfigFields()) == 0L)
+  })
+
   currentSpeciesRepresentation <- reactive({
-    
-    if (!is.null(input$speciesRepresentation) &&
-        nzchar(input$speciesRepresentation)) {
-      
-      # Current selection made by the user
+    if (!is.null(input$speciesRepresentation) && nzchar(input$speciesRepresentation)) {
       input$speciesRepresentation
-      
     } else {
-      
-      # Saved value from config.csv
       config$speciesRepresentation
     }
   })
-  
-  # ============================================================
-  # Initialize Species Distribution Detection
-  # ============================================================
-  # Connects the Species Distribution UI with its server logic.
-  # The current output directory is passed to the module so that
-  # maps generated during the current processing run can be used.
-  # ============================================================
-  species_distribution_server(
-    input = input,
-    output = output,
-    session = session,
-    current_out_dir = outDir()
-  )
+
+  species_distribution_server(input = input, output = output, session = session, current_out_dir = outDir())
   cat("### species_distribution_server STARTED ###\n")
-  
-  # ============================================================
-  # Initialize Read Species
-  # ============================================================
-  species_reading_server(
-    input = input,
-    output = output,
-    session = session,
-    workingDir = workingDir,
-    current_out_dir = outDir()
-  )
+  restoredSpeciesNameSource <- reactiveVal(NULL)
+  species_reading_server(input = input, output = output, session = session, workingDir = workingDir, current_out_dir = outDir(), restoredSpeciesNameSource = restoredSpeciesNameSource)
   cat("### read_species__server STARTED ###\n")
   options(shiny.autoreload = FALSE)
   current_tab <- reactiveVal("tab0")
-  
-  observeEvent(input$tablist, {
-    current_tab(input$tablist)
-  })
- 
+  observeEvent(input$tablist, { current_tab(input$tablist) })
 
-  # Erlaube Navigieren auf bestimmten Laufwerken/Roots
-  #roots <- c(Home = "~", D = "D:/")  # passe an: C="C:/", Netzlaufwerke etc.
-  # --- Input Directory ---
-  # --- Input Directory ---
   observeEvent(input$dataInputDir_open, {
     dir_path <- input$dataInputDir
     if (nzchar(dir_path) && dir.exists(dir_path)) {
-      # Variante mit system2 (bringt Explorer ins Vordergrund)
       shell(paste("start explorer /e,", shQuote(normalizePath(dir_path))), wait = FALSE)
     } else {
       showNotification("⚠️ Folder not found or invalid path.", type = "error")
     }
   })
-  
-  # --- Output Directory ---
+
   observeEvent(input$dataOutputDir_open, {
     dir_path <- input$dataOutputDir
     if (nzchar(dir_path) && dir.exists(dir_path)) {
-      # Variante mit system2 (bringt Explorer ins Vordergrund)
       shell(paste("start explorer /e,", shQuote(normalizePath(dir_path))), wait = FALSE)
     } else {
       showNotification("⚠️ Folder not found or invalid path.", type = "error")
     }
   })
-  
-  pipeline_server(
-    input = input,
-    output = output,
-    session = session,
-    workingDir = workingDir
-  )
-  
-  # Dateiauswahl mit Startordner
+
+  pipeline_server(input = input, output = output, session = session, workingDir = workingDir, info = info, shinyfields2 = shinyfields2)
+
   shinyFileChoose(
     input, "pick_file",
     roots = roots,
     defaultRoot = "D",
     defaultPath = "distribution_digitizer/www/data",
-    filetypes = c("", "tif", "tiff", "png", "jpg")  # Filter optional
+    filetypes = c("", "tif", "tiff", "png", "jpg")
   )
-  
+
   sel_files <- reactive({
     req(input$pick_file)
     parseFilePaths(roots, input$pick_file)$datapath
   })
-  
   output$file_out <- renderPrint(sel_files())
-  
-  
+
   open_dir <- function(path) {
     p <- normalizePath(path, winslash = "/", mustWork = FALSE)
-    if (.Platform$OS.type == "windows") {
-      shell.exec(p)                # Windows: Explorer
-    } else if (Sys.info()[["sysname"]] == "Darwin") {
-      system2("open", p)           # macOS: Finder
-    } else {
-      system2("xdg-open", p)       # Linux: Dateimanager
-    }
-  }
-  
-  open_dir <- function(path) {
-    p <- normalizePath(path, winslash = "/", mustWork = FALSE)
-    
     if (.Platform$OS.type == "windows") {
       shell.exec(p)
     } else if (Sys.info()[["sysname"]] == "Darwin") {
@@ -273,30 +218,21 @@ server <- shinyServer(function(input, output, session) {
   }
 
   observeEvent(input$open_output, {
-    
-    # Template-Ordner bestimmen (z. B. 1 oder 2)
-    template_dir <- file.path(outDir(), input$map_type)
-    
-    # Falls nicht existiert → Meldung
-    if (!dir.exists(template_dir)) {
-      showNotification(
-        paste("Ordner existiert nicht:", template_dir),
-        type = "error", duration = 5
-      )
+    output_dir <- outDir()
+    if (is.null(output_dir) || !nzchar(output_dir) || !dir.exists(output_dir)) {
+      showNotification(paste("Ordner existiert nicht:", output_dir), type = "error", duration = 5)
       return()
     }
-    
-    open_dir(template_dir)
+    open_dir(output_dir)
   })
   
-  print(set_tessdata_prefix_from_config)
   print(class(set_tessdata_prefix_from_config))
   
-  cat("DEBUG tesseract_path:\n")
-  print(config$tesseract_path)
-  print(class(config$tesseract_path))
+  cat("DEBUG tesserAct:\n")
+  print(config$tesserAct)
+  print(class(config$tesserAct))
   
-  set_tessdata_prefix_from_config(config$tesseract_path)
+  set_tessdata_prefix_from_config(config$tesserAct)
   
   cat("DEBUG TESSDATA_PREFIX:\n")
   print(Sys.getenv("TESSDATA_PREFIX"))
@@ -331,6 +267,13 @@ server <- shinyServer(function(input, output, session) {
     cfg_path <- file.path(workingDir, "config", "config.csv")
     if (file.exists(cfg_path)) {
       cfg <- read_config(cfg_path)
+      restored_source <- if (isTRUE(cfg$speciesNameSource %in% c("legend", "regions"))) cfg$speciesNameSource else ""
+      restoredSpeciesNameSource(restored_source)
+      updateRadioButtons(session, "speciesNameSource", selected = restored_source)
+      # Restore the latest saved representation for every new browser session.
+      if (isTRUE(cfg$speciesRepresentation %in% c("point", "contour"))) {
+        updateRadioButtons(session, "speciesRepresentation", selected = cfg$speciesRepresentation)
+      }
       # Run-Ordner aus der Config in die Reactive übernehmen
       if (!is.null(cfg$dataOutputDir) && nzchar(cfg$dataOutputDir)) {
         outDir(cfg$dataOutputDir)
@@ -388,20 +331,55 @@ server <- shinyServer(function(input, output, session) {
   to_chr <- function(x) if (is.null(x) || is.na(x)) "" else as.character(x)
   
   observeEvent(input$saveConfig, ignoreInit = TRUE, {
+    # Also reject incomplete submissions on the server before any files are written.
+    missing <- missingConfigFields()
+    if (length(missing)) {
+      showNotification(
+        paste("Please complete the required fields:", paste(missing, collapse = ", ")),
+        type = "warning", duration = 8
+      )
+      return()
+    }
     
     tryCatch({
       # ---------- VORPRÜFUNGEN ----------
-      req(nzchar(input$dataInputDir), dir.exists(input$dataInputDir))
-      req(nzchar(input$dataOutputDir))
+      if (is.null(input$speciesRepresentation) || !nzchar(input$speciesRepresentation)) {
+        showNotification(
+          "Please choose how species distributions are represented before saving.",
+          type = "error",
+          duration = 8
+        )
+        return()
+      }
+      if (is.null(input$dataInputDir) || !nzchar(input$dataInputDir) || !dir.exists(input$dataInputDir)) {
+        showNotification(
+          "Please provide a valid input folder.",
+          type = "error",
+          duration = 8
+        )
+        return()
+      }
+      required1 <- c("pages", "templates")
+      folders1 <- list.dirs(input$dataInputDir, full.names = FALSE, recursive = FALSE)
+      missing1 <- setdiff(required1, folders1)
+      if (length(missing1) > 0) {
+        showNotification(
+          paste("The input folder is missing:", paste(missing1, collapse = ", ")),
+          type = "error",
+          duration = 8
+        )
+        return()
+      }
+      if (is.null(input$dataOutputDir) || !nzchar(input$dataOutputDir)) {
+        showNotification(
+          "Please provide an output folder before saving.",
+          type = "error",
+          duration = 8
+        )
+        return()
+      }
       
       # optional: vorherige Meldungen leeren
-      output$message <- renderPrint(NULL)
-      
-      required1 <- c("pages", "templates")
-      folders1  <- list.dirs(input$dataInputDir, full.names = FALSE, recursive = FALSE)
-      if (!all(required1 %in% folders1)) {
-        stop(sprintf("Missing folders in dataInputDir: %s", paste(setdiff(required1, folders1), collapse = ", ")))
-      }
       
       #required2 <- c("align_ref", "maps", "symbols", "geopoints")
       #folders2  <- list.dirs(file.path(input$dataInputDir, "templates"), full.names = FALSE, recursive = FALSE)
@@ -434,111 +412,56 @@ server <- shinyServer(function(input, output, session) {
         pYear          = to_chr(input$pYear),
         tesserAct      = to_chr(input$tesserAct),
         nMapTypes      = to_chr(input$nMapTypes),
-        
-        # SPECIES DISTRIBUTION 
         speciesRepresentation = to_chr(input$speciesRepresentation),
-        
-        # NEU SPECIES NAME LOCATION
         speciesNameSource = to_chr(input$speciesNameSource),
-        
         dataInputDir   = to_chr(input$dataInputDir),
         dataOutputDir  = run_out,
         pFormat        = to_chr(input$pFormat),
         pColor         = to_chr(input$pColor),
-        
-        # NEU SPECIES TITLE
         specieTitleKeyword = to_chr(input$specieTitleKeyword),
-        specieTitleKeywordBefore      = to_chr(input$specieTitleKeywordBefore),
-        specieTitleKeywordThen        = to_chr(input$specieTitleKeywordThen),
-        # LEGEND
-        legendKeywords       = to_chr(input$legendKeywords),
-        
-        # wichtig: Boolean → sauber als Text speichern
-        middle             = ifelse(isTRUE(input$middle), "TRUE", "FALSE")
+        specieTitleKeywordBefore = to_chr(input$specieTitleKeywordBefore),
+        specieTitleKeywordThen = to_chr(input$specieTitleKeywordThen),
+        legendKeywords = to_chr(input$legendKeywords),
+        middle = ifelse(isTRUE(input$middle), "TRUE", "FALSE")
       )
       
       df <- data.frame(key = names(cfg), value = unname(unlist(cfg, use.names = FALSE)), stringsAsFactors = FALSE)
-      
-      # ---------- SCHREIBEN ----------
       write.table(df, cfg_path, sep = ";", row.names = FALSE, col.names = FALSE, quote = FALSE)
       if (!file.exists(cfg_path)) stop("Config file not found after write: ", cfg_path)
       
-      # ---------- REAKTIVEN STATE SETZEN ----------
       outDir(run_out)
       isolate({
         freezeReactiveValue(input, "dataOutputDir")
         updateTextInput(session, "dataOutputDir", value = outDir())
       })
       Sys.sleep(0.5)
-  
-      # ---------- ERFOLGSMODAL ----------
+      
       showModal(
         modalDialog(
           title = span("✅ Configuration saved successfully"),
-          
           tags$div(
             style = "font-size:15px; line-height:1.5;",
-            
             "All configuration data were saved successfully.",
-            
-            tags$br(),
-            tags$br(),
-            
+            tags$br(), tags$br(),
             tags$b("Test mode: "),
             "To keep the interactive workflow fast, only the first ",
-            tags$b("10 pages"),
-            " of the book are converted from ",
-            tags$b(".tif"),
-            " to ",
-            tags$b(".png"),
-            " and prepared for use in the app.",
-            
-            tags$br(),
-            tags$br(),
-            
+            tags$b("10 pages"), " of the book are converted from ",
+            tags$b(".tif"), " to ", tags$b(".png"), " and prepared for use in the app.",
+            tags$br(), tags$br(),
             "The complete book will be processed later during the ",
-            tags$b("full processing pipeline"),
-            "."
+            tags$b("full processing pipeline"), "."
           ),
-          
           easyClose = TRUE,
           footer = modalButton("Close")
         )
       )
-      
     })
     shinyjs::show("open_output")
   })
   
-  
-  observeEvent(input$tablist, {
-    
-    if (input$tablist == "tab4" &&
-        config$speciesRepresentation == "contour") {
-      
-      showModal(
-        modalDialog(
-          title = "Masking not required",
-          
-          p(
-            "Contour masks are already generated during contour detection."
-          ),
-          
-          p(
-            "No additional masking step is required. Continue with Georeferencing."
-          ),
-          
-          easyClose = TRUE,
-          footer = modalButton("OK")
-        )
-      )
-    }
-  })
-  
   ####################
-  # 1. Create Templates #----------------------------------------------------------------------#
+  # 2. Maps matching
   ####################
-  
   book_structure_training_server(
     input = input,
     output = output,
@@ -547,675 +470,40 @@ server <- shinyServer(function(input, output, session) {
     tempImage = tempImage,
     speciesRepresentation = currentSpeciesRepresentation
   )
-  
-  ####################
-  # 2. Maps matching #----------------------------------------------------------------------#
-  ####################
-  
-  # START th template matching 
-  observeEvent(input$templateMatching, {
-    current_out_dir <- outDir()
-    # Falls leer → rotes Feld + Meldung + Abbruch
-    if (is.null(input$range_matching) || trimws(input$range_matching) == "") {
-      
-      shinyjs::runjs("$('#range_matching').css('border-color', 'red')")
-      output$range_warning <- renderText("⚠️ Please fill in 'range matching' before starting.")
-      
-      return()  # ❌ stoppe hier – kein Matching!
-    }
-    # ----------------------------------------------------------
-    # Save tested map matching settings to config.csv
-    # ----------------------------------------------------------
-    
-    cfg_path <- file.path(
-      workingDir,
-      "config",
-      "config.csv"
-    )
-    
-    cfg <- read.table(
-      cfg_path,
-      sep = ";",
-      header = FALSE,
-      stringsAsFactors = FALSE,
-      fill = TRUE
-    )
-    
-    colnames(cfg) <- c("key", "value")
-    
-    settings <- c(
-      threshold_for_TM = as.character(input$threshold_for_TM),
-      sNumberPosition  = as.character(input$sNumberPosition),
-      matchingType     = as.character(input$matchingType)
-    )
-    
-    for (key in names(settings)) {
-      
-      if (key %in% cfg$key) {
-        
-        cfg$value[cfg$key == key] <- settings[[key]]
-        
-      } else {
-        
-        cfg <- rbind(
-          cfg,
-          data.frame(
-            key   = key,
-            value = settings[[key]],
-            stringsAsFactors = FALSE
-          )
-        )
-      }
-    }
-    
-    write.table(
-      cfg,
-      cfg_path,
-      sep = ";",
-      row.names = FALSE,
-      col.names = FALSE,
-      quote = FALSE
-    )
-    # Wenn alles OK → Standardfarbe + Hinweis entfernen
-    shinyjs::runjs("$('#range_matching').css('border-color', '')")
-    output$range_warning <- renderText("")
-    # call the function for map matching 
-    manageProcessFlow(
-      processing    = "mapMatching",
-      allertText1   = "map matching",
-      allertText2   = "matching",
-      input         = input,
-      session       = session,
-      current_out_dir = current_out_dir     # << HIER!
-    )
-    shinyjs::show("matching_results_block")
-  })
-  
-  observeEvent(input$listMatchingButton, {
-    output$listMaps <- renderUI({
-      prepareImageView(
-        dirName   = "matching_png",
-        map_type  = input$map_type_matching,
-        range_str = input$range_list_matching
-      )
-    })
-  })
-  
-  observeEvent(input$listMTemplates, {
-    output$listMapTemplates = renderUI({
-      # Check if the directory already exists
-      findTemplateResult = paste0(workingDir, "/data/input/templates/maps/")
-      prepareImageView("/map_templates_png/", '.png')
-    })
-  })
-  
-  observeEvent(input$showRecords, {
-    wd <- if (is.function(workingDir)) workingDir() else workingDir
-    csv <- file.path(wd, "www", "records.csv")
-    
-    output$records_tbl <- DT::renderDataTable({
-      validate(need(file.exists(csv), "records.csv not found yet."))
-      # Trenner automatisch erkennen (, oder ;)
-      first <- readLines(csv, n = 1, warn = FALSE)
-      sep <- if (grepl(";", first, fixed = TRUE)) ";" else ","
-      df <- utils::read.table(csv, header = TRUE, sep = sep, quote = "",
-                              stringsAsFactors = FALSE, check.names = FALSE, comment.char = "")
-      DT::datatable(df, options = list(pageLength = 25, scrollX = TRUE), rownames = FALSE)
-    })
-  })
-  
-  observeEvent(input$listSTemplates, {
-    output$listSymbolTemplates = renderUI({
-      
-      findTemplateResult = paste0(workingDir, "/data/input/templates/symbols/")
-      prepareImageView("/symbol_templates_png/", '.png')
-    })
-  })
+
+  map_matching_server(
+    input = input,
+    output = output,
+    session = session,
+    workingDir = workingDir,
+    outDir = outDir 
+  )
   ####################
   # 2.1 Maps align #----------------------------------------------------------------------#
   ####################
-  
-  # Start Align maps 
-  observeEvent(input$alignMaps, {
-     current_out_dir <- outDir()
-    # Falls leer → rotes Feld + Meldung + Abbruch
-    if (is.null(input$range_matching) || trimws(input$range_matching) == "") {
-      
-      shinyjs::runjs("$('#range_matching').css('border-color', 'red')")
-      output$range_warning <- renderText("⚠️ Please fill in 'range matching' before starting.")
-      
-      return()  # ❌ stoppe hier – kein Matching!
-    }
-    
-    # Wenn alles OK → Standardfarbe + Hinweis entfernen
-    shinyjs::runjs("$('#range_matching').css('border-color', '')")
-    output$range_warning <- renderText("")
-    # call the function for align maps 
-    manageProcessFlow(
-      processing    = "alignMaps",
-      allertText1   = "align maps",
-      allertText2   = "allign",
-      input         = input,
-      session       = session,
-      current_out_dir = current_out_dir     # << HIER!
-    ) 
-    shinyjs::show("align_results_block")
-  })
-  
-  # List align maps
-  observeEvent(input$listAlignButton, {
-    output$listAlign <- renderUI({
-      prepareImageView(
-        dirName   = "align_png",
-        map_type  = input$map_type_align,
-        range_str = input$range_list_align
-      )
-    })
-  })
-  
-  observeEvent(input$showMatchingRecords, {
-    
-    req(input$map_type_matching)
-    
-    map_type <- input$map_type_matching
-    
-    records_file <- file.path(
-      outDir(),
-      map_type,
-      "records.csv"
-    )
-    
-    print(
-      paste(
-        "Records file:",
-        records_file
-      )
-    )
-    
-    if (!file.exists(records_file)) {
-      
-      showNotification(
-        paste(
-          "No records.csv found for map type",
-          map_type
-        ),
-        type = "warning"
-      )
-      
-      return()
-    }
-    
-    shinyjs::show("matching_records_block")
-  })
-  
-  
-  output$matchingRecords <- DT::renderDT({
-    
-    req(input$map_type_matching)
-    
-    records_file <- file.path(
-      outDir(),
-      input$map_type_matching,
-      "records.csv"
-    )
-    
-    req(file.exists(records_file))
-    
-    records <- read.csv(
-      records_file,
-      stringsAsFactors = FALSE
-    )
-    
-    DT::datatable(
-      records,
-      selection = "single",
-      rownames = FALSE,
-      options = list(
-        pageLength = 10
-      )
-    )
-  })
-
-  selected_matching_record <- reactiveVal(NULL)
-  
-  observeEvent(input$matchingRecords_rows_selected, {
-    
-    row <- input$matchingRecords_rows_selected
-    req(length(row) == 1)
-    
-    records_file <- file.path(
-      outDir(),
-      input$map_type_matching,
-      "records.csv"
-    )
-    
-    records <- read.csv(
-      records_file,
-      stringsAsFactors = FALSE
-    )
-    
-    selected <- records[row, ]
-    
-    # -------------------------------------------------------
-    # ORIGINAL PAGE
-    # -------------------------------------------------------
-    
-    page_file <- gsub("\\\\", "/", selected$file_name)
-    page_file <- basename(page_file)
-    
-    page_png <- paste0(
-      tools::file_path_sans_ext(page_file),
-      ".png"
-    )
-    
-    page_url <- paste0(
-      "pages/",
-      page_png
-    )
-    
-    
-    # -------------------------------------------------------
-    # MATCHED MAP
-    # -------------------------------------------------------
-    
-    map_file <- gsub("\\\\", "/", selected$map_name)
-    map_file <- basename(map_file)
-    
-    map_png <- paste0(
-      tools::file_path_sans_ext(map_file),
-      ".png"
-    )
-    
-    map_url <- paste0(
-      "output/",
-      input$map_type_matching,
-      "/matching_png/",
-      map_png
-    )
-    
-    
-    # -------------------------------------------------------
-    # SHOW PAGE + MAP
-    # -------------------------------------------------------
-    
-    output$selected_matching_result_ui <- renderUI({
-      
-      fluidRow(
-        
-        column(
-          6,
-          h4("Original page"),
-          
-          tags$img(
-            src = page_url,
-            style = "
-            width:100%;
-            height:auto;
-            border:1px solid #ccc;
-          "
-          )
-        ),
-        
-        column(
-          6,
-          h4("Detected map"),
-          
-          tags$img(
-            src = map_url,
-            style = "
-            width:100%;
-            height:auto;
-            border:1px solid #ccc;
-          "
-          )
-        )
-      )
-    })
-    
-    shinyjs::show("selected_matching_result")
-    
-  })
-  
-  
-  ####################
-  # 2. Points Matching  #----------------------------------------------------------------------#
-  ####################
-  
-  # Start points detection with matching 
-  observeEvent(input$pointMatching, {
-    current_out_dir <- outDir()
-    # call the function for cropping
-    manageProcessFlow(
-      processing    = "pointMatching",
-      allertText1   = "points matching",
-      allertText2   = "pointMatching",
-      input         = input,
-      session       = session,
-      current_out_dir = current_out_dir     # << HIER!
-    ) 
-  })
-  
-  observeEvent(input$listPointsM, {
-    #print(input$siteNumberPointsMatching)
-    output$listPM = renderUI({
-      prepareImageView(
-        dirName   = "pointMatching_png",
-        map_type  = input$map_type_PointsMatching,
-        range_str = input$range_list_PointsMatching
-      )
-     # prepareImageView("/output/pointMatching_png/", input$siteNumberPointsMatching,range_list_PointsMatching)
-    })
-  })
-  
-  
-  
-  ####################
-  # 2.1 Points Filtering  #----------------------------------------------------------------------#
-  ####################
-  # Start Process point filtering 
-  
-  observeEvent(input$pointFiltering, {
-    # call the function for filtering
-    #manageProcessFlow("pointFiltering", "points filtering", "pointFiltering")
-    current_out_dir <- outDir()
-    # call the function for cropping
-    manageProcessFlow(
-      processing    = "pointFiltering",
-      allertText1   = "points filtering",
-      allertText2   = "pointFiltering",
-      input         = input,
-      session       = session,
-      current_out_dir = current_out_dir     # << HIER!
-    )
-  })
-  
-  observeEvent(input$listPointsF, {
-    output$listPF = renderUI({
-      prepareImageView(
-        dirName   = "pointFiltering_png",
-        map_type  = input$map_type_PointsFiltering,
-        range_str = input$range_list_PointsFiltering
-      )
-      # prepareImageView("/output/pointMatching_png/", input$siteNumberPointsMatching,range_list_PointsMatching)
-    })
-  })
-  
-  # List matching maps
-  observeEvent(input$listMapsMatching2, {
-    if(input$siteNumberPointsMatching != ''){
-      output$listMapsMatching2 = renderUI({
-        prepareImageView("/output/matching_png/", input$siteNumberPointsMatching)
-      })
-    }
-    else{
-      output$listMapsMatching2 = renderUI({
-        prepareImageView("/output/matching_png/", '.png')
-      })
-    }
-  })
-  
-  
-  ####################
-  # 4. Masking #----------------------------------------------------------------------#
-  ####################
-  
-  observeEvent(input$masking, {
-    # call the function for filtering
-    manageProcessFlow(
-      processing = "masking",
-      allertText1 = "masking white background",
-      allertText2 = "masking",
-      input = input,  # ✅ input muss übergeben werden
-      session = session,
-      current_out_dir = outDir()
-    )
-  })
-  
-  ####################
-  # 4.1 Masking centroids #----------------------------------------------------------------------#
-  ####################
-  
-  
-  observeEvent(input$maskingCentroids, {
-    # call the function for masking centroids
-    manageProcessFlow(
-      processing = "maskingCentroids",
-      allertText1 = "masking centroids",
-      allertText2 = "maskingCentroids",
-      input = input,  # ✅ input muss übergeben werden
-      session = session,
-      current_out_dir = outDir()
-    )
-  })
-  
-  observeEvent(input$listMasks, {
-    output$listMS = renderUI({
-      #prepareImageView("/output/masking_png/", input$siteNumberMasks)
-      prepareImageView(
-        dirName   = "masking_png",
-        map_type  = input$map_type_Masks,
-        range_str = input$range_list_Masks
-      )
-    })
-  })
-  
-  # observeEvent(input$listMasksB, {
-  #   output$listMSB = renderUI({
-  #     prepareImageView(
-  #       dirName   = "masking_black_png",
-  #       map_type  = input$map_type_Masks,
-  #       range_str = input$range_list_Masks
-  #     )
-  #     #prepareImageView("/output/masking_black_png/", input$siteNumberMasks)
-  #   })
-  # })
-  
-  observeEvent(input$listMasksCD, {
-     output$listMCD = renderUI({
-       prepareImageView(
-         dirName   = "maskingCentroids_png",
-         map_type  = input$map_type_MasksCentroids,
-         range_str = input$range_list_MasksCentroids
-       )
-       #prepareImageView("/output/maskingCentroids/", input$siteNumberMasks)
-     })
-
-   })
-  
-  ####################
-  # 2.2 Circle Detection  #----------------------------------------------------------------------#
-  ####################
-  # Process circle detection
-  
-  observeEvent(input$pointCircleDetection, {
-    # call the function for circle detection
-    manageProcessFlow("pointCircleDetection", "points circle detection", "pointCircleDetection")
-    
-  })
-  
-  observeEvent(input$listPointsCD, {
-    if(input$siteNumberPointsMatching != ''){
-      output$listPCD = renderUI({
-        prepareImageView("/output/CircleDetection_png/", input$siteNumberPointsMatching)
-      })
-    }
-    else{
-      output$listPCD = renderUI({
-        prepareImageView("/output/CircleDetection_png/", '.png')
-      })
-    }
-    
-  })
-  
-
-  
-  
-  ####################
-  # 3.3 Crop species name of the page content copy to species_reading_server.R#----------------------------------------------------------------------#
-  ####################
-  
-
 
   
   ####################
   # 5. Georeferencing #----------------------------------------------------------------------#
   ####################
-  
-  # Start
-  # GCP points extraction
-  #observeEvent(input$pointextract, {
-   # current_out_dir <- outDir()
-    ##Processing georeferencing
-    #fname=paste0(workingDir, "/", "src/georeferencing/geo_points_extraction.py")
-    #source_python(fname)
-    #maingeopointextract(workingDir,current_out_dir, input$filterm)
-    #cat("\nSuccessfully executed")
-  #})
-  
-  observeEvent(input$georeferencing, {
-    
-    if (input$georef_mask_type == "point") {
-      
-      manageProcessFlow(
-        processing = "georeferencing",
-        allertText1 = "georeferencing",
-        allertText2 = "georeferencing",
-        input = input,
-        session = session,
-        current_out_dir = outDir()
-      )
-      
-    } else if (input$georef_mask_type == "contour") {
-      
-      manageProcessFlow(
-        processing = "georeferencing_contour",
-        allertText1 = "georeferencing",
-        allertText2 = "georeferencing",
-        input = input,
-        session = session,
-        current_out_dir = outDir()
-      )
-      
-    }
-    
-  })
-  
-  
-  observeEvent(input$listGeoreferencing, {
-    
-    current_out_dir <- outDir()
-    mapType <- input$map_type_Georeferencing
-    rangeFilter <- input$range_list_Georeferencing
-    
-    #shinyalert(
-    #  text = paste("Process Georeferencing started on:", format(Sys.time(), "%H:%M:%S")),
-    #  type = "info",
-    #  showConfirmButton = FALSE
-    #)
-    
-    # -------------------------------------------------
-    # NEW Multi-MapType PATH
-    # -------------------------------------------------
-    geoPath <- file.path(
-      current_out_dir,
-      mapType,
-      "georeferencing",
-      "masks",
-      "pointFiltering"
-    )
-    
-    cat("\nLooking geo tif in:", geoPath)
-    if(!dir.exists(geoPath)){
-      cat("\nDirectory does NOT exist!\n")
-      return(NULL)
-    }
-    # Range filter
-    pattern <- "\\.tif$"
-    
-    listgeoTiffiles <- list.files(
-      geoPath,
-      full.names = TRUE,
-      pattern = pattern
-    )
-    
-    if(length(listgeoTiffiles) == 0){
-      shinyalert("No georeferenced maps found!", type = "warning")
-      closeAlert()
-      return(NULL)
-    }
-    cat("\nlistgeoTiffiles:", listgeoTiffiles)
-    # -------------------------------------------------
-    # PNG PATH (already in www)
-    # -------------------------------------------------
-    pngPath <- file.path(
-      workingDir,
-      "app",
-      "www",
-      "output",
-      mapType,
-      "georeferencing_png"
-    )
-    cat("\nLooking in www:", pngPath)
-    listPng <- list.files(
-      pngPath,
-      full.names = FALSE,
-      pattern = ".png"
-    )
-    cat("\nFound TIFFs:\n")
-    print(listgeoTiffiles)
-    
-    cat("\nFound PNGs:\n")
-    print(listPng)
-    # -------------------------------------------------
-    # Dynamic Leaflet UI
-    # -------------------------------------------------
-    output$leaflet_outputs_GEO <- renderUI({
-      do.call(tagList,
-              lapply(seq_along(listgeoTiffiles), function(i) {
-                leafletOutput(outputId = paste0("map_geo_", i))
-              })
-      )
-    })
-    
-    leaflet_list_GEO <- lapply(seq_along(listgeoTiffiles), function(i) {
-      
-      r <- terra::rast(listgeoTiffiles[i])
-      
-      # ganz wichtig
-      r <- terra::rectify(r)
-      
-      leaflet() %>%
-        addProviderTiles("OpenStreetMap.Mapnik") %>%
-        addRasterImage(r, opacity = 0.4) %>%
-        fitBounds(
-          terra::xmin(r),
-          terra::ymin(r),
-          terra::xmax(r),
-          terra::ymax(r)
-        )
-    })
-    
-    lapply(seq_along(leaflet_list_GEO), function(i) {
-      output[[paste0("map_geo_", i)]] <- renderLeaflet({
-        leaflet_list_GEO[[i]]
-      })
-    })
-    
-    closeAlert()
-    shinyalert(
-      text = paste("Georeferencing successfully loaded!", format(Sys.time(), "%H:%M:%S")),
-      type = "success"
-    )
-    
-  })
+  georeferencing_server(
+    input = input,
+    output = output,
+    session = session,
+    workingDir = workingDir,
+    current_out_dir = outDir,
+    speciesRepresentation = currentSpeciesRepresentation
+  )
+
   
   ####################
   # 6. Polygonize #----------------------------------------------------------------------#
   ####################
   
   observeEvent(input$polygonize, {
+    req(currentSpeciesRepresentation() %in% c("point", "contour"), outDir())
     
-    if (input$polygonize_mask_type == "point") {
+    if (currentSpeciesRepresentation() == "point") {
       
       manageProcessFlow(
         processing = "polygonize",
@@ -1226,7 +514,7 @@ server <- shinyServer(function(input, output, session) {
         current_out_dir = outDir()
       )
       
-    } else if (input$polygonize_mask_type == "contour") {
+    } else if (currentSpeciesRepresentation() == "contour") {
       
       manageProcessFlow(
         processing = "polygonize_contour",
@@ -1239,10 +527,118 @@ server <- shinyServer(function(input, output, session) {
       
     }
     
+    polygon_revision(polygon_revision() + 1L)
   })
   
   
-  observeEvent(input$listPolygonize, ignoreInit = TRUE, {
+  # Browse vector results using the same controls and styles as Align.
+  # Read the active run rather than the shared PNG preview folder.
+  polygon_revision <- reactiveVal(0L)
+  polygon_page <- reactiveVal(1L)
+  polygon_selected <- reactiveVal(NULL)
+  polygon_cache <- new.env(parent = emptyenv())
+  polygon_files <- reactive({
+    polygon_revision()
+    root <- outDir()
+    type <- input$map_type_Polygonize
+    if (is.null(root) || !nzchar(root) || is.null(type) ||
+        !grepl("^[0-9]+$", type)) return(character())
+    files <- sort(list.files(file.path(root, type, "polygonize", "pointFiltering"),
+      pattern = "\\.shp$", full.names = TRUE, ignore.case = TRUE))
+    files[!grepl("filtered", basename(files), ignore.case = TRUE)]
+  })
+  polygon_filtered <- reactive({
+    files <- polygon_files()
+    query <- trimws(if (is.null(input$polygon_search)) "" else input$polygon_search)
+    if (nzchar(query)) files <- files[grepl(tolower(query), tolower(basename(files)), fixed = TRUE)]
+    files
+  })
+  observeEvent(list(outDir(), input$map_type_Polygonize, polygon_revision()), {
+    polygon_selected(NULL)
+    rm(list = ls(polygon_cache), envir = polygon_cache)
+  }, ignoreNULL = FALSE)
+  observeEvent(polygon_filtered(), { polygon_page(1L) }, ignoreNULL = FALSE)
+  observeEvent(input$polygon_refresh, { polygon_revision(polygon_revision() + 1L) })
+  polygon_page_count <- reactive(max(1L, ceiling(length(polygon_filtered()) / 12L)))
+  observeEvent(input$polygon_previous, { polygon_page(max(1L, polygon_page() - 1L)) })
+  observeEvent(input$polygon_next, { polygon_page(min(polygon_page_count(), polygon_page() + 1L)) })
+  polygon_thumbnail <- function(path) {
+    info <- file.info(path)
+    key <- paste(path, info$size, as.numeric(info$mtime), sep = "|")
+    if (exists(key, envir = polygon_cache, inherits = FALSE)) return(get(key, envir = polygon_cache))
+    uri <- tryCatch({
+      shape <- sf::st_read(path, quiet = TRUE)
+      tmp <- tempfile(fileext = ".png")
+      on.exit(unlink(tmp), add = TRUE)
+      grDevices::png(tmp, width = 320, height = 220)
+      device <- grDevices::dev.cur()
+      tryCatch({
+        par(mar = c(1, 1, 1, 1))
+        plot(sf::st_geometry(shape), col = "#337ab7", border = "#245580")
+      }, finally = grDevices::dev.off(device))
+      base64enc::dataURI(file = tmp, mime = "image/png")
+    }, error = function(e) NULL)
+    assign(key, uri, envir = polygon_cache)
+    uri
+  }
+  output$polygon_gallery <- renderUI({
+    files <- polygon_filtered()
+    if (!length(files)) return(p(
+      if (length(polygon_files())) "No maps match your search." else
+        "No polygonized maps in the current output folder. Run polygonization or choose another map type.",
+      class = "dd-align-empty"))
+    page <- min(polygon_page(), polygon_page_count())
+    visible <- seq.int((page - 1L) * 12L + 1L, min(page * 12L, length(files)))
+    all_files <- polygon_files()
+    div(class = "dd-align-grid", lapply(visible, function(i) {
+      path <- files[i]
+      uri <- polygon_thumbnail(path)
+      tags$button(type = "button",
+        class = paste("dd-align-card", if (identical(path, polygon_selected())) "is-selected" else ""),
+        onclick = sprintf("Shiny.setInputValue('polygon_pick', %d, {priority: 'event'});", match(path, all_files)),
+        if (is.null(uri)) div(class = "dd-align-empty", "Preview unavailable") else
+          tags$img(src = uri, alt = basename(path)),
+        tags$span(basename(path))
+      )
+    }))
+  })
+  output$polygon_page_info <- renderText({
+    sprintf("Page %d of %d - %d maps", min(polygon_page(), polygon_page_count()),
+      polygon_page_count(), length(polygon_filtered()))
+  })
+  observeEvent(input$polygon_pick, {
+    index <- suppressWarnings(as.integer(input$polygon_pick))
+    files <- polygon_files()
+    if (length(index) == 1L && !is.na(index) && index >= 1L && index <= length(files))
+      polygon_selected(files[index])
+  })
+  polygon_selection <- reactive({
+    path <- polygon_selected()
+    req(length(path) == 1L, path %in% polygon_files(), file.exists(path))
+    path
+  })
+  output$polygon_has_selection <- renderText({
+    path <- polygon_selected()
+    if (length(path) == 1L && path %in% polygon_files() && file.exists(path)) "true" else "false"
+  })
+  outputOptions(output, "polygon_has_selection", suspendWhenHidden = FALSE)
+  output$polygon_selected_name <- renderText(basename(polygon_selection()))
+  output$download_polygon_map <- downloadHandler(
+    filename = function() paste0(tools::file_path_sans_ext(basename(polygon_selection())), ".zip"),
+    contentType = "application/zip",
+    content = function(file) {
+      path <- polygon_selection()
+      candidates <- list.files(dirname(path), full.names = TRUE)
+      stem <- tools::file_path_sans_ext(basename(path))
+      extensions <- tolower(tools::file_ext(candidates))
+      companions <- candidates[
+        tools::file_path_sans_ext(basename(candidates)) == stem &
+        extensions %in% c("shp", "shx", "dbf", "prj", "cpg", "qix", "sbn", "sbx")]
+      zip::zipr(file, files = companions, include_directories = FALSE)
+    }
+  )
+
+  observeEvent(polygon_selection(), ignoreInit = TRUE, {
     
     tryCatch({
       
@@ -1281,18 +677,9 @@ server <- shinyServer(function(input, output, session) {
         )
       }
       
-      # 3) Shapefiles sammeln
-      shp <- unlist(lapply(map_dirs, function(dir_i) {
-        
-        shp_dir <- file.path(dir_i, "polygonize", "pointFiltering")
-        
-        if (!dir.exists(shp_dir)) return(NULL)
-        
-        list.files(shp_dir,
-                   pattern = "\\.shp$",
-                   full.names = TRUE)
-      }))
-      
+      # The explorer selects one shapefile for the existing map/detail view.
+      shp <- polygon_selection()
+
       validate(
         need(length(shp) > 0, "Keine Shapefiles gefunden.")
       )
@@ -1462,7 +849,7 @@ server <- shinyServer(function(input, output, session) {
                 leaflet::providers$OpenStreetMap
               )
             
-            if (input$polygonize_mask_type == "contour") {
+            if (currentSpeciesRepresentation() == "contour") {
               
               map <- map %>%
                 leaflet::addPolygons(
@@ -1751,8 +1138,9 @@ server <- shinyServer(function(input, output, session) {
   ####################
   
   observeEvent(input$startSpatialDataComputing, {
+    req(currentSpeciesRepresentation() %in% c("point", "contour"))
     
-    if (input$spatial_representation == "point") {
+    if (currentSpeciesRepresentation() == "point") {
       
       manageProcessFlow(
         processing = "spatial_data_computing",
@@ -1763,7 +1151,7 @@ server <- shinyServer(function(input, output, session) {
         current_out_dir = outDir()
       )
       
-    } else if (input$spatial_representation == "contour") {
+    } else if (currentSpeciesRepresentation() == "contour") {
       
       manageProcessFlow(
         processing = "spatial_data_computing_contour",
@@ -2210,6 +1598,25 @@ server <- shinyServer(function(input, output, session) {
     })
   }
   
+  points_matching_server(
+    input = input,
+    output = output,
+    session = session,
+    outDir = outDir,
+    manageProcessFlow = manageProcessFlow,
+    prepareImageView = prepareImageView
+  )
+
+  masking_server(
+    input = input,
+    output = output,
+    session = session,
+    outDir = outDir,
+    manageProcessFlow = manageProcessFlow,
+    prepareImageView = prepareImageView,
+    speciesRepresentation = currentSpeciesRepresentation
+  )
+
   
  
   observe({
