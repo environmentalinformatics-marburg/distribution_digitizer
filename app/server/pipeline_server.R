@@ -167,10 +167,47 @@ pipeline_server <- function(
       # ------------------------------------------------------
       
       result_dir <- pipeline_result()
-      
-      
-      if (is.null(result_dir) || !nzchar(result_dir) || !dir.exists(result_dir)) {
-        stop("No active pipeline result is available. View a pipeline result first.")
+
+      is_valid_pipeline_result <- function(candidate) {
+        if (is.null(candidate) || length(candidate) != 1L ||
+            !nzchar(trimws(as.character(candidate))) ||
+            !dir.exists(candidate)) {
+          return(FALSE)
+        }
+
+        numeric_map_dirs <- list.dirs(
+          candidate,
+          recursive = FALSE,
+          full.names = TRUE
+        )
+        numeric_map_dirs <- numeric_map_dirs[
+          grepl("[/\\\\][0-9]+$", numeric_map_dirs)
+        ]
+
+        length(numeric_map_dirs) > 0L && any(
+          file.exists(file.path(numeric_map_dirs, "spatial_data_final.csv"))
+        )
+      }
+
+      if (!is_valid_pipeline_result(result_dir)) {
+        saved_result_dir <- trimws(input$savedPipelineOutputDir %||% "")
+        if (is_valid_pipeline_result(saved_result_dir)) {
+          result_dir <- normalizePath(
+            saved_result_dir,
+            winslash = "/",
+            mustWork = TRUE
+          )
+        } else {
+          showNotification(
+            "Please select a valid saved pipeline result directory before downloading shapefiles.",
+            type = "error",
+            duration = NULL
+          )
+          stop(
+            "No valid pipeline result is available. Select a saved pipeline result directory first.",
+            call. = FALSE
+          )
+        }
       }
       
       
