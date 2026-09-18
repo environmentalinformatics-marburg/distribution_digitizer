@@ -18,12 +18,11 @@
 # Returns:
 # Logical value (TRUE/FALSE) indicating whether Tesseract is available.
 # ------------------------------------------------------------
-checkTesseractWindows <- function() {
-  candidates <- c(
-    "C:/Program Files/Tesseract-OCR/tesseract.exe",
-    "C:/Program Files (x86)/Tesseract-OCR/tesseract.exe"
-  )
-  any(file.exists(candidates))
+checkTesseractWindows <- function(tesseract_path = config$tesserAct) {
+  # Validate the configured installation through the central helper. No
+  # machine-specific fallback paths are used here.
+  resolve_tesseract_installation(tesseract_path)
+  TRUE
 }
 
 

@@ -17,22 +17,24 @@ data/input/templates/**/geopoints/
 data/input/templates/**/symbols/
 
 # --- Shiny generated / runtime data ---
-www/pages/
-www/data/
-www/align_png/
-www/matching_png/
-www/png/
-www/generated/
+app/www/output/
+app/www/pages/
+app/www/data/
+app/www/align_png/
+app/www/matching_png/
+app/www/png/
+app/www/generated/
 
-# --- Allow other assets in www (CSS, JS, images etc.) ---
-!www/
-!www/*.css
-!www/*.js
-!www/*.html
-!www/*.png
-!www/*.jpg
-!www/*.svg
-!www/README.pdf
+# --- Allow other assets in app/www (CSS, JS, images etc.) ---
+!app/www/
+!app/www/*.css
+!app/www/*.js
+!app/www/*.html
+!app/www/*.png
+!app/www/*.jpg
+!app/www/*.svg
+!app/www/README.pdf
+
 
 # --- R temporary & IDE files ---
 .Rhistory

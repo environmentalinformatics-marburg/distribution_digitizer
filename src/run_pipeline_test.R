@@ -107,6 +107,9 @@ use_condaenv(
   conda = "C:/ProgramData/miniconda3/condabin/conda.bat"
 )
 
+source(file.path(workingDir, "app", "functions", "tesseract_config.R"), local = TRUE)
+configure_tesseract(config$tesserAct)
+
 
 # ============================================================
 # STEP 1: MAP MATCHING

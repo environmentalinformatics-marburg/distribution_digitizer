@@ -39,47 +39,27 @@ import pandas as pd
 import pytesseract
 import os
 
-TESSERACT_EXE = "C:/Program Files/Tesseract-OCR/tesseract.exe"
-
-if os.path.exists(TESSERACT_EXE):
-    pytesseract.pytesseract.tesseract_cmd = TESSERACT_EXE
-    print("Tesseract fixed to:", TESSERACT_EXE)
-    
-    
 # ------------------------------------------------------------
 # Reads a configuration value from a CSV file.
 # Used to retrieve paths (e.g., Tesseract installation)
 # required for OCR processing.
 # ------------------------------------------------------------
-def read_config(file_path, key):
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-        headers = lines[0].strip().split(';')
-        values = lines[1].strip().split(';')
-        config = dict(zip(headers, values))
-        return config.get(key, None)
+'''REMOVED_DUPLICATE_CONFIG_BLOCK'''
+"""
 
 
 
 # ------------------------------------------------------------
-# Sets the TESSDATA_PREFIX environment variable once,
 # based on a configuration file.
 #
 # Ensures that Tesseract OCR uses the correct language data
 # directory without repeatedly resetting the environment.
 # Includes safety checks for missing or invalid paths.
 # ------------------------------------------------------------
-# Use a global variable to track if TESSDATA_PREFIX is already set
-tessdata_prefix_set = False
 
-def set_tessdata_prefix_once(workingDir, key="tesserAct"):
-    global tessdata_prefix_set
+def _legacy_disabled_tesseract_config(workingDir, key="tesserAct"):
 
-    if tessdata_prefix_set:
-        print("TESSDATA_PREFIX already set – skipping")
-        return
-
-    config_file_path = os.path.join(workingDir, "config", "config.csv")
+    # Legacy configuration code retained only as inert documentation.
 
     try:
         with open(config_file_path, 'r') as config_file:
@@ -93,26 +73,19 @@ def set_tessdata_prefix_once(workingDir, key="tesserAct"):
         # 🔑 ENTSCHEIDENDER GUARD
         if not tess_path or tess_path == "None":
             print("No Tesseract path in config – using existing setup")
-            tessdata_prefix_set = True
             return
 
         if not os.path.exists(tess_path):
             print(f"Tesseract path does not exist: {tess_path} – skipping override")
-            tessdata_prefix_set = True
             return
 
-        os.environ['TESSDATA_PREFIX'] = os.path.join(tess_path, "tessdata")
-        print("TESSDATA_PREFIX set to:", os.environ['TESSDATA_PREFIX'])
-
-        tessdata_prefix_set = True
-
     except Exception as e:
-        print("Failed to set TESSDATA_PREFIX, continuing safely")
+        print("Failed to configure Tesseract, continuing safely")
         print(e)
-        tessdata_prefix_set = True
         return
 
       
+"""
 def analyze_year_corrections(training_df):
     """
     Learn OCR year patterns from user-corrected training titles.
@@ -303,8 +276,6 @@ def find_species_context(workingDir="", page_path="", words_to_find="", previous
         legendKeywords = [legendKeywords]
 
     legendKeywords = [l.lower().strip().split()[0] for l in legendKeywords]
-    set_tessdata_prefix_once(workingDir, key="tesserAct")
-
     image = Image.open(page_path)
 
     words = words_to_find.split("_")

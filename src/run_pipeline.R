@@ -45,17 +45,6 @@ run_complete_pipeline <- function(
   
   
   # ----------------------------------------------------------
-  # Python environment
-  # ----------------------------------------------------------
-  
-  reticulate::use_condaenv(
-    "distribution_digitizer_env",
-    required = TRUE,
-    conda = "C:/ProgramData/miniconda3/condabin/conda.bat"
-  )
-  
-  
-  # ----------------------------------------------------------
   # Create new output directory
   # ----------------------------------------------------------
   
@@ -118,6 +107,9 @@ run_complete_pipeline <- function(
     required = TRUE,
     conda = "C:/ProgramData/miniconda3/condabin/conda.bat"
   )
+
+  source(file.path(workingDir, "app", "functions", "tesseract_config.R"), local = TRUE)
+  configure_tesseract(config$tesserAct)
   
   
   # ============================================================
@@ -875,4 +867,3 @@ run_complete_pipeline <- function(
   return(pipeline_out_dir)
 
 }
-  

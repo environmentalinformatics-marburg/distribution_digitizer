@@ -1,45 +1,6 @@
-/* Erhöhe die Spezifität der Selektoren */
-.content-wrappe {
-  background-color: lightblue !important;
-}
-
-.main-header {
-  color: darkblue !important;
-  font-size: 2em !important; /* !important für höhere Priorität */
-}
-
-.infobox_tab_0 {
-  display:none; 
-  position:absolute; 
-  background-color: #02f0f0 !important;
-  padding: 25px; 
-  border: 1px solid #ccc; 
-  border-radius: 4px; 
-  color: black;
-  z-index: 999;
-}
-
 .sidebar-menu li > a {
   position: relative;
   font-size: 15px;
-}
-/* Für das h2-Element die Schriftart und Größe ändern */
-h2 {
-  font-family: 'Yusei Magic', sans-serif !important;
-  font-size: 2.35em !important;
-}
-
-/* Columngrößen anpassen */
-.row .col-sm-3 {
-  width: 99% !important;
-}
-
-.col-sm-4 {
-  width: 29% !important;
-}
-
-.col-sm-3 #working_dir {
-  width: 100% !important;
 }
 
 .form-control {
@@ -71,23 +32,6 @@ h2 {
 
 #plot {
   float: left !important;
-}
-
-.col-sm-3 {
-  width: 90% !important;
-  display: block !important;
-}
-
-.h3, h3 {
-  font-size: 15px !important;
-  width: max-content !important;
-}
-
-/* TAB 1 spetial */
-.col-sm-11{
-  width: 20% !important;
-  background-color: #f5f5f5 !important;
-  border: 1px solid #99f;
 }
 
 /* ===========================================================
@@ -151,21 +95,397 @@ h2 {
   margin-top:10px;
 }
 
-/* InfoBox standardmäßig unsichtbar */
+/* Distribution Digitizer shared visual system */
+:root {
+  --dd-ink: #243447;
+  --dd-muted: #607080;
+  --dd-border: #d9e1e8;
+  --dd-surface: #ffffff;
+  --dd-surface-soft: #f5f8fa;
+  --dd-page: #eef3f6;
+  --dd-primary: #176b87;
+  --dd-primary-dark: #0f5269;
+  --dd-success: #2f7d5a;
+  --dd-shadow: 0 2px 12px rgba(36, 52, 71, 0.08);
+}
+
+html,
+body,
+.wrapper,
+.content-wrapper {
+  background: var(--dd-page) !important;
+  color: var(--dd-ink);
+}
+
+body,
+.form-control,
+.btn,
+.selectize-input,
+.selectize-dropdown {
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+.main-header .logo {
+  background: var(--dd-primary-dark) !important;
+  color: #fff !important;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.main-header .navbar,
+.main-header .navbar-custom-menu {
+  background: var(--dd-primary) !important;
+}
+
+.sidebar-menu li > a {
+  color: #dbe8ed !important;
+  font-size: 14px;
+  line-height: 1.35;
+  padding: 12px 15px;
+  white-space: normal;
+}
+
+.sidebar-menu li > a:hover,
+.sidebar-menu li.active > a {
+  background: #245d70 !important;
+  color: #fff !important;
+}
+
+.content {
+  padding: 24px 28px 40px;
+}
+
+.content h3,
+.content h4,
+.content h5 {
+  color: var(--dd-ink) !important;
+  line-height: 1.3;
+  width: auto !important;
+}
+
+.content h3 {
+  font-size: 21px !important;
+  margin: 8px 0 12px;
+}
+
+.content h4 {
+  font-size: 16px !important;
+  margin: 8px 0 10px;
+}
+
+.content h5 {
+  font-size: 14px !important;
+  margin: 8px 0;
+}
+
+.content p {
+  color: var(--dd-muted);
+  line-height: 1.55;
+}
+
+.well {
+  background: var(--dd-surface) !important;
+  border: 1px solid var(--dd-border) !important;
+  border-radius: 6px !important;
+  box-shadow: var(--dd-shadow);
+  margin-bottom: 18px;
+  padding: 20px;
+}
+
+.well > h3:first-child,
+.well > h4:first-child {
+  border-bottom: 1px solid var(--dd-border);
+  padding-bottom: 10px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.control-label {
+  color: var(--dd-ink);
+  font-weight: 600;
+}
+
+.form-control,
+.selectize-input {
+  border-color: #c7d2da;
+  border-radius: 4px;
+  box-shadow: none;
+  min-height: 38px;
+}
+
+.form-control:focus,
+.selectize-input.focus {
+  border-color: var(--dd-primary);
+  box-shadow: 0 0 0 2px rgba(23, 107, 135, 0.12);
+}
+
+.btn {
+  border-radius: 4px;
+  font-weight: 600;
+  min-height: 38px;
+  padding: 8px 14px;
+}
+
+.btn-default {
+  background: #fff;
+  border-color: #b9c7d0;
+  color: var(--dd-ink);
+}
+
+.btn-default:hover,
+.btn-default:focus {
+  background: var(--dd-surface-soft);
+  border-color: var(--dd-primary);
+  color: var(--dd-primary-dark);
+}
+
+.btn-primary,
+.btn-info {
+  background: var(--dd-primary) !important;
+  border-color: var(--dd-primary) !important;
+}
+
+.btn-success {
+  background: var(--dd-success) !important;
+  border-color: var(--dd-success) !important;
+}
+
+hr {
+  border-top: 1px solid var(--dd-border);
+  margin: 22px 0;
+}
+
+.shiny-map-image,
+.leaflet,
+.dataTables_wrapper,
+.shiny-plot-output,
+.shiny-html-output {
+  border-radius: 4px;
+}
+
+.shiny-map-image {
+  background: var(--dd-surface-soft);
+  border: 1px solid var(--dd-border);
+  margin: 10px 0;
+  padding: 10px;
+}
+
+.shiny-map-image img {
+  max-width: 100%;
+  height: auto;
+}
+
+.leaflet,
+.shiny-plot-output,
+.dataTables_wrapper {
+  border: 1px solid var(--dd-border);
+  overflow: hidden;
+}
+
+.dataTables_wrapper {
+  background: var(--dd-surface);
+  padding: 10px;
+}
+
+.dataTable thead th {
+  background: var(--dd-surface-soft);
+  color: var(--dd-ink);
+}
+
 .infobox_tab_0 {
   display: none;
   position: absolute;
   top: 100%;
   left: 0;
-  background: #e7f0ff;
-  color: #004085;
-  border: 1px solid #b8daffdd;
-  border-radius: 6px;
-  padding: 10px 10px;
-  font-size: 100%;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  background: #edf7fa;
+  border: 1px solid #b9dce5;
+  border-radius: 4px;
+  box-shadow: var(--dd-shadow);
+  color: #245d70;
+  font-size: 13px;
+  max-width: 360px;
+  padding: 10px 12px;
   z-index: 1000;
-  transition: opacity 0.2s ease-in-out;
+}
+
+.start_instructions {
+  background: #e8f1f4;
+  border: 1px solid #c7dce2;
+  border-radius: 4px;
+  color: var(--dd-ink);
+  margin-bottom: 20px;
+  padding: 14px 16px;
+}
+
+.dd-species-title-primary {
+  background: var(--dd-surface-soft);
+  border-left: 3px solid var(--dd-primary);
+  border-radius: 4px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+}
+
+.dd-species-title-primary .shiny-input-container {
+  width: auto;
+  margin-bottom: 0;
+}
+
+.dd-species-title-primary .checkbox label {
+  font-weight: 600;
+}
+
+.dd-species-title-optional {
+  border: 1px solid var(--dd-border);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.dd-species-title-optional h5 {
+  margin-top: 0;
+}
+
+.dd-optional-label {
+  color: var(--dd-muted);
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.dd-config-required-warning {
+  background: #fff3e0;
+  border: 1px solid #e69532;
+  border-left: 4px solid #d97706;
+  border-radius: 4px;
+  color: #8a4300;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+}
+
+.dd-config-required-warning ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+#saveConfig:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dd-representation-block {
+  background: var(--dd-surface-soft);
+  border: 1px solid var(--dd-border);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.dd-section-label {
+  color: var(--dd-ink);
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.dd-section-help {
+  margin-bottom: 8px;
+}
+
+.dd-representation-selector {
+  margin-top: 4px;
+}
+
+.dd-representation-selector .shiny-input-container {
+  width: auto;
+  margin-bottom: 0;
+}
+
+.dd-representation-selector .shiny-options-group {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 auto;
+  max-width: 620px;
+}
+
+.dd-representation-selector .radio-inline {
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: var(--dd-ink);
+  display: flex;
+  font-weight: 600;
+  margin: 0 !important;
+  min-width: 0;
+  padding: 8px 10px;
+  position: relative;
+}
+
+.dd-representation-selector .radio-inline > span {
+  display: block;
+  min-width: 0;
+  flex: 1;
+}
+
+.dd-representation-option {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  min-width: 0;
+  text-align: center;
+}
+
+.dd-representation-title {
+  color: var(--dd-primary-dark);
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  padding: 0 18px;
+}
+
+.dd-representation-option img.dd-representation-image {
+  align-self: start;
+  border: 1px solid #c7d2da;
+  border-radius: 4px;
+  display: block;
+  box-sizing: border-box;
+  height: auto;
+  margin: 0 auto 6px;
+  max-width: 100%;
+  padding: 4px;
+  width: 270px;
+}
+
+.dd-representation-caption {
+  color: var(--dd-muted);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.dd-representation-selector .radio-inline > input {
+  position: absolute;
+  top: 12px;
+  left: 10px;
+  margin: 0;
+}
+
+.dd-representation-selector .radio-inline:has(input:checked) {
+  border-color: var(--dd-primary-dark);
+  box-shadow: inset 0 0 0 1px var(--dd-primary-dark);
+}
+
+.dd-representation-selector .radio-inline:focus-within {
+  outline: 2px solid var(--dd-primary-dark);
+  outline-offset: 2px;
+}
+
+@media (max-width: 991px) {
+  .content {
+    padding: 18px 15px 28px;
+  }
 }
 
 /* Zeige InfoBox, wenn der vorherige div (position:relative) gehovt wird */
@@ -174,11 +494,150 @@ div[style*='position:relative']:hover + .infobox_tab_0 {
   opacity: 1;
 }
 
+/* Create Templates: keep these rules local to this tab. */
+#shiny-tab-tab1 .dd-template-help {
+  font-size: 13px;
+  margin: 8px 0;
+}
 
-.start_instructions {
-  border-color: #554445;
-  background: #505050;
-  color: #fff;
-  padding: 10px;
-  padding-left: 5px;
-  margin-bottom: 32px;
+#shiny-tab-tab1 .dd-template-note {
+  background: var(--dd-surface-soft);
+  border-left: 3px solid var(--dd-primary);
+  border-radius: 4px;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+
+#shiny-tab-tab1 .dd-template-note ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+#shiny-tab-tab1 .dd-template-note li + li {
+  margin-top: 6px;
+}
+
+#shiny-tab-tab1 .dd-template-note code {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  margin-bottom: 10px;
+}
+
+#shiny-tab-tab1 .dd-template-save-details {
+  margin-top: 16px;
+}
+
+#shiny-tab-tab1 .dd-template-save-details summary {
+  color: var(--dd-primary-dark);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#shiny-tab-tab1 .dd-template-page-viewport {
+  max-height: 750px;
+  overflow: auto;
+  border: 1px solid var(--dd-border);
+  background: var(--dd-surface);
+}
+
+#shiny-tab-tab1 .dd-template-crop-viewport {
+  overflow: auto;
+}
+
+#shiny-tab-tab1 #plot,
+#shiny-tab-tab1 #plot1 {
+  float: none !important;
+  margin: 0 !important;
+}
+
+#shiny-tab-tab1 #image {
+  background-image: none !important;
+}
+
+/* renderImage uses the page's natural display dimensions for brush coordinates. */
+#shiny-tab-tab1 #plot {
+  overflow: visible;
+}
+
+#shiny-tab-tab1 #plot > img {
+  display: block;
+  max-width: none;
+  max-height: none;
+}
+
+/* Required fields in General Config. */
+#shiny-tab-tab0 .dd-required-star {
+  color: #c62828;
+  font-weight: 700;
+}
+
+/* Give the map detection results a clear section heading. */
+#shiny-tab-tab2 .dd-matching-results-heading {
+  font-size: 18px !important;
+}
+
+/* Aligned-map browser */
+:is(#shiny-tab-tab2, #shiny-tab-tab3, #shiny-tab-tab6, #shiny-tab-tab7) .dd-align-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 16px;
+  margin: 12px 0 18px;
+}
+:is(#shiny-tab-tab2, #shiny-tab-tab3, #shiny-tab-tab6, #shiny-tab-tab7) .dd-align-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--dd-surface);
+  color: var(--dd-ink);
+  border: 1px solid var(--dd-border);
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+}
+:is(#shiny-tab-tab2, #shiny-tab-tab3, #shiny-tab-tab6, #shiny-tab-tab7) .dd-align-card:hover,
+:is(#shiny-tab-tab2, #shiny-tab-tab3, #shiny-tab-tab6, #shiny-tab-tab7) .dd-align-card:focus-visible,
+:is(#shiny-tab-tab2, #shiny-tab-tab3, #shiny-tab-tab6, #shiny-tab-tab7) .dd-align-card.is-selected {
+  outline: 2px solid #337ab7;
+  outline-offset: 2px;
+}
+:is(#shiny-tab-tab2, #shiny-tab-tab3, #shiny-tab-tab6, #shiny-tab-tab7) .dd-align-card img { width: 100%; height: 180px; object-fit: contain; }
+:is(#shiny-tab-tab2, #shiny-tab-tab3, #shiny-tab-tab6, #shiny-tab-tab7) .dd-align-card span { overflow-wrap: anywhere; font-size: 13px; }
+:is(#shiny-tab-tab2, #shiny-tab-tab3, #shiny-tab-tab6, #shiny-tab-tab7) .dd-align-pagination { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+:is(#shiny-tab-tab2, #shiny-tab-tab3, #shiny-tab-tab6, #shiny-tab-tab7) .dd-align-empty { padding: 20px 0; color: var(--dd-muted); }
+#align_original_preview img, #align_selected_preview img { max-width: 100%; height: auto; }
+#download_aligned_map { margin-top: 18px; }
+
+/* Species Distribution controls and result previews. */
+#shiny-tab-tab3 #previewContourDetection,
+#shiny-tab-tab3 #processAllContours { color: #fff !important; }
+#shiny-tab-tab3 #contour_results_original_preview img,
+#shiny-tab-tab3 #contour_results_selected_preview img { max-width: 100%; height: auto; }
+#shiny-tab-tab3 #download_contour_result { margin-top: 18px; }
+
+/* Shared action colors for Bootstrap buttons, including training rows. */
+.btn.btn-primary, .btn.btn-primary:hover, .btn.btn-primary:focus { color: #fff !important; }
+.btn.btn-danger, .btn.btn-danger:hover, .btn.btn-danger:focus {
+  background: #c62828 !important;
+  border-color: #c62828 !important;
+  color: #fff !important;
+}
+
+#shiny-tab-tab6 #georef_selected_preview img { max-width: 100%; height: auto; }
+#shiny-tab-tab6 #download_georef_map { margin-top: 18px; }
+
+#shiny-tab-tab7 #download_polygon_map { margin-top: 18px; }
+
+/* Keep the pipeline table's inline editors readable while focused. */
+#pipelineConfigTable input,
+#pipelineConfigTable textarea,
+#pipelineConfigTable select,
+#pipelineConfigTable input:focus,
+#pipelineConfigTable textarea:focus,
+#pipelineConfigTable select:focus {
+  color: #263238 !important;
+  background-color: #fff !important;
+  -webkit-text-fill-color: #263238;
+  caret-color: #263238;
+}

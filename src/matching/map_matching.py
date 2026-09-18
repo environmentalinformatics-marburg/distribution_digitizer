@@ -62,13 +62,6 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 # and tessdata directory is set. This is required for reliable
 # OCR-based page number detection.
 # ------------------------------------------------------------
-# Set path to tesseract.exe
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
-# Optional: set tessdata prefix if needed
-os.environ["TESSDATA_PREFIX"] = r"C:\Program Files\Tesseract-OCR\tessdata"
-
-
 start_time = time.time()
 # Last successfully detected printed page number
 previous_printed_page_number = None
@@ -1052,7 +1045,25 @@ def match_template(previous_page_path, next_page_path, current_page_path,
             img_save_path = os.path.join(output_dir, base_name + ".tif")
             csv_save_path = os.path.join(output_page_records, base_name + ".csv")
 
-            extra_h = int(h * 0.1)
+            # Extend the crop below the detected map only for the
+            # legend-based species workflow.  Read the existing project
+            # configuration without changing the matching interface.
+            config_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_page_path)))),
+                "config",
+                "config.csv"
+            )
+            species_name_source = ""
+            try:
+                with open(config_path, "r", encoding="utf-8-sig", newline="") as config_file:
+                    for config_row in csv.reader(config_file, delimiter=";"):
+                        if len(config_row) >= 2 and config_row[0].strip() == "speciesNameSource":
+                            species_name_source = config_row[1].strip().lower()
+                            break
+            except (OSError, UnicodeError):
+                species_name_source = ""
+
+            extra_h = int(h * 0.1) if species_name_source == "legend" else 0
             y_end = min(y + h + extra_h, imgc.shape[0])
             crop = imgc[y:y_end, x:x + w, :]
 
@@ -1526,7 +1537,25 @@ def match_template_contours(previous_page_path, next_page_path, current_page_pat
                 csv_path = os.path.join(output_page_records, base_name + ".csv")
 
                 # SAME crop behaviour as template matching
-                extra_h = int(h * 0.1)
+                # Extend the crop below the detected map only for the
+                # legend-based species workflow.  Read the existing project
+                # configuration without changing the matching interface.
+                config_path = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_page_path)))),
+                    "config",
+                    "config.csv"
+                )
+                species_name_source = ""
+                try:
+                    with open(config_path, "r", encoding="utf-8-sig", newline="") as config_file:
+                        for config_row in csv.reader(config_file, delimiter=";"):
+                            if len(config_row) >= 2 and config_row[0].strip() == "speciesNameSource":
+                                species_name_source = config_row[1].strip().lower()
+                                break
+                except (OSError, UnicodeError):
+                    species_name_source = ""
+
+                extra_h = int(h * 0.1) if species_name_source == "legend" else 0
                 y_end = min(y + h + extra_h, img_color.shape[0])
 
                 crop = img_color[y:y_end, x:x + w]

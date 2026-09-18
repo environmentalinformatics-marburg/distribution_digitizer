@@ -94,26 +94,6 @@ tempImage <- "temp.png"
 scale <- 20
 rescale <- 100 / scale
 
-set_tessdata_prefix_from_config <- function(tess_path) {
-  if (nzchar(Sys.getenv("TESSDATA_PREFIX"))) {
-    message("TESSDATA_PREFIX already set to: ", Sys.getenv("TESSDATA_PREFIX"))
-    return(invisible(FALSE))
-  }
-  if (is.null(tess_path) || !nzchar(tess_path)) {
-    warning("No Tesseract path provided.")
-    return(invisible(FALSE))
-  }
-  p <- normalizePath(tess_path, winslash = "/", mustWork = FALSE)
-  if (basename(p) %in% c("tessdata", "tessdata/")) p <- dirname(p)
-  if (!dir.exists(file.path(p, "tessdata"))) {
-    warning("No 'tessdata' directory found under: ", p)
-    return(invisible(FALSE))
-  }
-  Sys.setenv(TESSDATA_PREFIX = p)
-  message("TESSDATA_PREFIX set to: ", p)
-  invisible(TRUE)
-}
-
 source("server/book_structure_training_server.R")
 source("server/map_matching_server.R", local = TRUE)
 source("server/species_distribution_server.R", local = TRUE)
@@ -225,17 +205,6 @@ server <- shinyServer(function(input, output, session) {
     }
     open_dir(output_dir)
   })
-  
-  print(class(set_tessdata_prefix_from_config))
-  
-  cat("DEBUG tesserAct:\n")
-  print(config$tesserAct)
-  print(class(config$tesserAct))
-  
-  set_tessdata_prefix_from_config(config$tesserAct)
-  
-  cat("DEBUG TESSDATA_PREFIX:\n")
-  print(Sys.getenv("TESSDATA_PREFIX"))
   
   # ganz oben im server:
   outDir <- reactiveVal(NULL)

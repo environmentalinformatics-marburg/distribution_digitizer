@@ -32,14 +32,6 @@ Sys.unsetenv("RETICULATE_PYTHON_ENV")
 
 library(reticulate)
 
-use_condaenv(
-  "distribution_digitizer_env",
-  conda = "C:/ProgramData/miniconda3/Scripts/conda.exe",
-  required = TRUE
-)
-
-message("GLOBAL:: Python initialized successfully")
-
 # conda_path <- "C:/ProgramData/miniconda3/Scripts/conda.exe"
 # conda_env_name <- "distribution_digitizer_env"
 # 
@@ -134,6 +126,16 @@ load_key_value_config <- function(path) {
 
 # Globale config.csv laden
 config <- load_key_value_config(file.path(configDir, "config.csv"))
+
+# Select Python before configuring modules that depend on pytesseract.
+use_condaenv(
+  "distribution_digitizer_env",
+  conda = "C:/ProgramData/miniconda3/Scripts/conda.exe",
+  required = TRUE
+)
+
+configure_tesseract(config$tesserAct)
+message("GLOBAL:: Python initialized and Tesseract configured")
 
 # Anzahl der Map-Typen aus config
 numMapTypes <- as.integer(config$nMapTypes %||% 1)

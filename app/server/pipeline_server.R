@@ -38,24 +38,48 @@ pipeline_server <- function(
   # ==========================================================
   
   pipeline_config <- reactiveVal(NULL)
-  
-  selected_pipeline_map <- reactive({
-    
-    config_data <- pipeline_config()
-    
-    n_maps <- as.integer(
-      config_data$Value[
-        config_data$Parameter == "nMapTypes"
-      ]
+
+  # getVolumes() returns a function in shinyFiles; call that function once
+  # more to obtain the actual named roots expected by shinyDirChoose.
+  saved_result_roots <- shinyFiles::getVolumes()()
+  shinyFiles::shinyDirChoose(
+    input,
+    "savedPipelineOutputDirPicker",
+    roots = saved_result_roots,
+    session = session,
+    allowDirCreate = FALSE
+  )
+
+  observeEvent(input$savedPipelineOutputDirPicker, {
+    selected_dir <- shinyFiles::parseDirPath(
+      saved_result_roots,
+      input$savedPipelineOutputDirPicker
     )
-    
-    if (n_maps <= 1) {
-      return(1L)
+
+    if (length(selected_dir) == 1L && nzchar(selected_dir)) {
+      updateTextInput(session, "savedPipelineOutputDir", value = selected_dir)
     }
-    
-    req(input$pipelineMapType)
-    
-    as.integer(input$pipelineMapType)
+  })
+
+  available_pipeline_map_types <- reactive({
+    result_dir <- pipeline_result()
+    req(result_dir, dir.exists(result_dir))
+
+    map_dirs <- list.dirs(result_dir, recursive = FALSE, full.names = TRUE)
+    map_dirs <- map_dirs[grepl("[/\\\\][0-9]+$", map_dirs)]
+    map_types <- basename(map_dirs)
+
+    map_types[file.exists(file.path(map_dirs, "spatial_data_final.csv"))]
+  })
+
+  selected_pipeline_map <- reactive({
+    map_types <- available_pipeline_map_types()
+    req(length(map_types) > 0)
+
+    selected <- if (is.null(input$pipelineMapType)) "" else as.character(input$pipelineMapType)
+    if (selected %in% map_types) return(as.integer(selected))
+
+    as.integer(map_types[1])
   })
   # ==========================================================
   # Read original config.csv
@@ -94,6 +118,27 @@ pipeline_server <- function(
     }
     config_data
   }
+
+  # Preserve every current config.csv entry when saving pipeline-specific
+  # changes. This also keeps fields added after a pipeline session began.
+  merge_pipeline_config <- function(pipeline_data) {
+    base_data <- read_pipeline_config()
+    req(base_data, pipeline_data)
+
+    common_keys <- intersect(base_data$Parameter, pipeline_data$Parameter)
+    for (key in common_keys) {
+      base_data$Value[base_data$Parameter == key] <-
+        pipeline_data$Value[pipeline_data$Parameter == key][1]
+    }
+
+    additional_rows <- pipeline_data[
+      !pipeline_data$Parameter %in% base_data$Parameter,
+      ,
+      drop = FALSE
+    ]
+
+    rbind(base_data, additional_rows)
+  }
   
  
   # ==========================================================
@@ -124,42 +169,8 @@ pipeline_server <- function(
       result_dir <- pipeline_result()
       
       
-      # After an app reload pipeline_result() may be NULL.
-      # In this case use the newest existing pipeline output.
-      if (is.null(result_dir) || !nzchar(result_dir)) {
-        
-        config_data <- pipeline_config()
-        req(config_data)
-        
-        output_base <- config_data$Value[
-          config_data$Parameter == "dataOutputDir"
-        ]
-        
-        parent_dir <- dirname(output_base)
-        output_prefix <- basename(output_base)
-        
-        existing_outputs <- list.dirs(
-          parent_dir,
-          recursive = FALSE,
-          full.names = TRUE
-        )
-        
-        existing_outputs <- existing_outputs[
-          startsWith(
-            basename(existing_outputs),
-            output_prefix
-          )
-        ]
-        
-        if (length(existing_outputs) == 0) {
-          stop("No previous pipeline output directory found.")
-        }
-        
-        dir_info <- file.info(existing_outputs)
-        
-        result_dir <- existing_outputs[
-          which.max(dir_info$mtime)
-        ]
+      if (is.null(result_dir) || !nzchar(result_dir) || !dir.exists(result_dir)) {
+        stop("No active pipeline result is available. View a pipeline result first.")
       }
       
       
@@ -187,92 +198,142 @@ pipeline_server <- function(
       
       
       # ------------------------------------------------------
-      # Collect files from polygonize/pointFiltering
+      # Prepare renamed download files without changing originals
       # ------------------------------------------------------
-      
-      files_to_export <- character(0)
-      
-      for (map_dir in map_dirs) {
-        
-        polygonize_dir <- file.path(
-          map_dir,
-          "polygonize",
-          "pointFiltering"
+
+      selected_tokens <- input$downloadFilenameTokens
+      if (is.null(selected_tokens)) selected_tokens <- character(0)
+      selected_tokens <- unique(c("page", "y", "x", selected_tokens))
+
+      parse_filename_tokens <- function(shape_path) {
+        stem <- tools::file_path_sans_ext(basename(shape_path))
+        stem <- sub("_filtered$", "", stem)
+        parts <- strsplit(stem, "_", fixed = TRUE)[[1]]
+        first_part <- if (length(parts)) parts[1] else ""
+        y_index <- which(grepl("^y[^_]*$", parts))[1]
+        x_index <- which(grepl("^x[^_]*$", parts))[1]
+        n_index <- which(grepl("^n[^_]*$", parts))[1]
+
+        list(
+          page = sub("-thr.*$", "", first_part),
+          threshold = sub("^[^-]*-", "", first_part),
+          page_id = if (length(parts) >= 2) parts[2] else "",
+          map_id = if (!is.na(y_index) && y_index > 3) paste(parts[3:(y_index - 1)], collapse = "_") else "",
+          y = if (!is.na(y_index)) parts[y_index] else "",
+          x = if (!is.na(x_index)) parts[x_index] else "",
+          sequence = if (!is.na(n_index)) parts[n_index] else ""
         )
-        
-        if (!dir.exists(polygonize_dir)) {
-          next
+      }
+
+      resolve_shape_file <- function(row, map_dir) {
+        candidates <- character(0)
+        for (column in c("shape_file", "map_name", "File", "file_name")) {
+          if (column %in% names(row)) {
+            value <- as.character(row[[column]][1])
+            if (!is.na(value) && nzchar(value)) candidates <- c(candidates, value)
+          }
         }
-        
-        current_files <- list.files(
-          polygonize_dir,
-          full.names = TRUE
-        )
-        
-        files_to_export <- c(
-          files_to_export,
-          current_files
-        )
+
+        shape_dir <- file.path(map_dir, "polygonize", "pointFiltering")
+        for (candidate in candidates) {
+          if (file.exists(candidate) && grepl("\\.shp$", candidate, ignore.case = TRUE)) {
+            return(normalizePath(candidate, winslash = "/", mustWork = TRUE))
+          }
+          candidate_base <- tools::file_path_sans_ext(basename(candidate))
+          candidate_base <- sub("_filtered$", "", candidate_base)
+          for (shape_name in c(paste0(candidate_base, "_filtered.shp"), paste0(candidate_base, ".shp"))) {
+            shape_path <- file.path(shape_dir, shape_name)
+            if (file.exists(shape_path)) return(normalizePath(shape_path, winslash = "/", mustWork = TRUE))
+          }
+        }
+        NA_character_
       }
-      
-      
-      if (length(files_to_export) == 0) {
-        stop("No shapefile files found.")
+
+      build_download_basename <- function(tokens) {
+        token_values <- unlist(tokens[selected_tokens], use.names = FALSE)
+        token_values <- token_values[nzchar(token_values)]
+        paste(token_values, collapse = "_")
       }
-      
-      
-      cat("Files found:", length(files_to_export), "\n")
-      
-      
-      # ------------------------------------------------------
-      # Create temporary directory
-      # ------------------------------------------------------
-      
-      temp_export_dir <- tempfile(
-        pattern = "shapefile_export_"
-      )
-      
-      dir.create(
-        temp_export_dir,
-        recursive = TRUE
-      )
-      
-      
-      # ------------------------------------------------------
-      # Copy files into temporary directory
-      # ------------------------------------------------------
-      
-      copied <- file.copy(
-        from = files_to_export,
-        to = temp_export_dir,
-        overwrite = TRUE
-      )
-      
-      if (!all(copied)) {
-        stop("Some shapefile files could not be copied.")
+
+      temp_download <- file.path(result_dir, "temp_download")
+      if (dir.exists(temp_download)) unlink(temp_download, recursive = TRUE, force = TRUE)
+      dir.create(temp_download, recursive = TRUE, showWarnings = FALSE)
+
+      download_rows <- list()
+      copied_count <- 0L
+
+      for (map_dir in map_dirs) {
+        spatial_data_file <- file.path(map_dir, "spatial_data_final.csv")
+        if (!file.exists(spatial_data_file)) next
+        records <- read.csv(spatial_data_file, stringsAsFactors = FALSE, check.names = FALSE)
+        map_download_dir <- file.path(temp_download, basename(map_dir), "polygonize", "pointFiltering")
+        dir.create(map_download_dir, recursive = TRUE, showWarnings = FALSE)
+        used_names <- character(0)
+
+        for (row_index in seq_len(nrow(records))) {
+          row <- records[row_index, , drop = FALSE]
+          source_shape <- resolve_shape_file(row, map_dir)
+          row$download_shape_file <- NA_character_
+
+          if (!is.na(source_shape) && file.exists(source_shape)) {
+            tokens <- parse_filename_tokens(source_shape)
+            new_base <- build_download_basename(tokens)
+            if (!nzchar(new_base)) new_base <- tools::file_path_sans_ext(basename(source_shape))
+            if (new_base %in% used_names) {
+              duplicate_index <- sum(used_names == new_base) + 1L
+              new_base <- paste0(new_base, "_dup", duplicate_index)
+            }
+            used_names <- c(used_names, new_base)
+
+            source_stem <- tools::file_path_sans_ext(basename(source_shape))
+            companion_files <- list.files(
+              dirname(source_shape),
+              full.names = TRUE
+            )
+            companion_files <- companion_files[
+              tools::file_path_sans_ext(basename(companion_files)) == source_stem
+            ]
+
+            for (companion in companion_files) {
+              extension <- tools::file_ext(companion)
+              destination <- file.path(map_download_dir, paste0(new_base, ".", extension))
+              if (file.copy(companion, destination, overwrite = TRUE)) copied_count <- copied_count + 1L
+            }
+
+            row$download_shape_file <- file.path(
+              basename(map_dir),
+              "polygonize",
+              "pointFiltering",
+              paste0(new_base, ".shp")
+            )
+          }
+          download_rows[[length(download_rows) + 1L]] <- row
+        }
       }
-      
-      
-      # ------------------------------------------------------
-      # Create ZIP
-      # ------------------------------------------------------
-      
+
+      if (!length(download_rows) || copied_count == 0L) {
+        stop("No shapefile records could be prepared for download.")
+      }
+
+      download_data <- do.call(rbind, download_rows)
+      write.csv(
+        download_data,
+        file.path(temp_download, "spatial_data_final_download.csv"),
+        row.names = FALSE,
+        na = ""
+      )
+
       old_wd <- getwd()
-      
-      on.exit(
-        setwd(old_wd),
-        add = TRUE
-      )
-      
-      setwd(temp_export_dir)
-      
-      utils::zip(
-        zipfile = file,
-        files = list.files(temp_export_dir)
+      on.exit(setwd(old_wd), add = TRUE)
+      setwd(temp_download)
+      zip::zipr(
+        file,
+        files = list.files(".", recursive = TRUE),
+        include_directories = FALSE
       )
       
       
-      cat("Files exported:", length(files_to_export), "\n")
+      cat("Files exported:", copied_count, "\n")
       cat("ZIP created:", file, "\n")
       cat("========================================\n\n")
     },
@@ -483,8 +544,9 @@ pipeline_server <- function(
       # Use exactly the configuration currently shown in the UI
       # --------------------------------------------------------
       
-      config_data <- pipeline_config()
+      config_data <- merge_pipeline_config(pipeline_config())
       req(config_data)
+      pipeline_config(config_data)
       
       pipeline_config_file <- file.path(
         workingDir,
@@ -756,6 +818,23 @@ pipeline_server <- function(
           removeModal()
           
           pipeline_result(output_dir)
+
+          # Store the actual output directory created for this run in the
+          # pipeline-specific configuration file.
+          saved_pipeline_config <- merge_pipeline_config(pipeline_config())
+          output_row <- match("dataOutputDir", saved_pipeline_config$Parameter)
+          if (!is.na(output_row)) {
+            saved_pipeline_config$Value[output_row] <- output_dir
+            pipeline_config(saved_pipeline_config)
+            write.table(
+              saved_pipeline_config,
+              pipeline_config_file,
+              sep = ";",
+              row.names = FALSE,
+              col.names = FALSE,
+              quote = FALSE
+            )
+          }
           
           showNotification(
             "Complete pipeline finished successfully.",
@@ -806,25 +885,58 @@ pipeline_server <- function(
       show_pipeline_results(TRUE)
     }
   )
+
+  observeEvent(input$viewSavedPipelineResults, {
+    result_dir <- trimws(input$savedPipelineOutputDir %||% "")
+
+    if (!nzchar(result_dir) || !dir.exists(result_dir)) {
+      showNotification(
+        "Enter a valid previously completed pipeline output folder.",
+        type = "warning"
+      )
+      return()
+    }
+
+    # Users may choose either the full pipeline output folder or one map
+    # type subfolder, such as .../full_output_<book>/<map type>/.
+    if (
+      grepl("^[0-9]+$", basename(result_dir)) &&
+        file.exists(file.path(result_dir, "spatial_data_final.csv"))
+    ) {
+      result_dir <- dirname(result_dir)
+    }
+
+    map_dirs <- list.dirs(result_dir, recursive = FALSE, full.names = TRUE)
+    has_result_data <- any(
+      grepl("[/\\\\][0-9]+$", map_dirs) &
+        file.exists(file.path(map_dirs, "spatial_data_final.csv"))
+    )
+
+    if (!has_result_data) {
+      showNotification(
+        "No spatial_data_final.csv file was found in this output folder.",
+        type = "warning"
+      )
+      return()
+    }
+
+    result_dir <- normalizePath(result_dir, winslash = "/", mustWork = TRUE)
+    updateTextInput(session, "savedPipelineOutputDir", value = result_dir)
+    pipeline_result(result_dir)
+    show_pipeline_results(TRUE)
+  })
   
   output$pipelineMapSelector <- renderUI({
     
     req(pipeline_result())
-    req(pipeline_config())
-    
-    config_data <- pipeline_config()
-    
-    n_maps <- as.integer(
-      config_data$Value[
-        config_data$Parameter == "nMapTypes"
-      ]
-    )
+    map_types <- available_pipeline_map_types()
+    req(length(map_types) > 0)
 
     selectInput(
       "pipelineMapType",
       "Select map type:",
-      choices = seq_len(n_maps),
-      selected = 1
+      choices = map_types,
+      selected = map_types[1]
     )
   })
   

@@ -25,12 +25,6 @@ nMapTypes  <- 2
 # 🔗 Python Environment
 # ------------------------------------------------------------
 
-use_condaenv(
-  "distribution_digitizer_env",
-  required = TRUE,
-  conda = "C:/ProgramData/miniconda3/condabin/conda.bat"
-)
-
 # ------------------------------------------------------------
 # CONFIG READER
 # ------------------------------------------------------------
@@ -55,6 +49,15 @@ read_config <- function(config_path) {
 config_path <- file.path(workingDir, "config", "config.csv")
 
 config <- read_config(config_path)
+
+use_condaenv(
+  "distribution_digitizer_env",
+  required = TRUE,
+  conda = "C:/ProgramData/miniconda3/condabin/conda.bat"
+)
+
+source(file.path(workingDir, "app", "functions", "tesseract_config.R"), local = TRUE)
+configure_tesseract(config$tesserAct)
 
 time_step <- function(step_name, expr) {
   cat("\n====================================\n")

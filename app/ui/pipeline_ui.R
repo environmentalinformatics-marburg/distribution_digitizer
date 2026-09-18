@@ -165,9 +165,102 @@ pipeline_ui <- function() {
           uiOutput(
             "pipelineResultActions"
           ),
+
+          fluidRow(
+            column(
+              6,
+              textInput(
+                "savedPipelineOutputDir",
+                "Previously completed pipeline output folder:",
+                placeholder = "Paste the full output folder path"
+              )
+            ),
+            column(
+              3,
+              br(),
+              shinyFiles::shinyDirButton(
+                "savedPipelineOutputDirPicker",
+                "Choose folder",
+                "Choose a completed pipeline output folder or a map type folder"
+              )
+            ),
+            column(
+              3,
+              br(),
+              actionButton(
+                "viewSavedPipelineResults",
+                "View saved results",
+                icon = icon("folder-open"),
+                class = "btn-primary"
+              )
+            )
+          ),
+
+          conditionalPanel(
+            condition = "input.showPipelineResults > 0",
+            tags$hr(),
+            h4("Pipeline results", style = "color:black"),
+            p("Select a result row to view its polygon on the map.", style = "color:black"),
+            DT::DTOutput("pipelineResultTable"),
+            br(),
+            leaflet::leafletOutput("pipelineResultMap", height = 600)
+          ),
           
           br(),
           
+          # ============================================================
+          # USER QUALITY FOR THE RESULTS
+          # ============================================================
+
+          tags$hr(),
+
+          h4(
+            "User Quality for the Results",
+            style = "color:black"
+          ),
+
+          p(
+            "Choose which optional components should be kept in the shapefile names prepared for download. Page number, y coordinate, and x coordinate are always included.",
+            style = "color:black"
+          ),
+
+          tags$div(
+            tags$strong("Mandatory components (always included):"),
+            tags$div(
+              class = "checkbox",
+              tags$label(
+                tags$input(type = "checkbox", checked = "checked", disabled = "disabled"),
+                " Page number"
+              )
+            ),
+            tags$div(
+              class = "checkbox",
+              tags$label(
+                tags$input(type = "checkbox", checked = "checked", disabled = "disabled"),
+                " Y coordinate"
+              )
+            ),
+            tags$div(
+              class = "checkbox",
+              tags$label(
+                tags$input(type = "checkbox", checked = "checked", disabled = "disabled"),
+                " X coordinate"
+              )
+            )
+          ),
+
+          checkboxGroupInput(
+            "downloadFilenameTokens",
+            "Optional filename components:",
+            choices = c(
+              "Threshold" = "threshold",
+              "Scanned page ID" = "page_id",
+              "Map/template identifier" = "map_id",
+              "Existing identifier (n)" = "sequence"
+            ),
+            selected = c("threshold", "page_id", "map_id", "sequence")
+          ),
+
           # ============================================================
           # EXPORT SHAPEFILES
           # ============================================================
