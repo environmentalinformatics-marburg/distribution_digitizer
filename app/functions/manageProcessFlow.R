@@ -69,7 +69,16 @@ checkTesseractWindows <- function(tesseract_path = config$tesserAct) {
 # No explicit return value; results are written to output directories
 # and communicated via Shiny UI
 # ------------------------------------------------------------
-manageProcessFlow <- function(processing, allertText1, allertText2, input, session, current_out_dir, contour_colors) {
+manageProcessFlow <- function(processing, allertText1, allertText2, input, session, current_out_dir, contour_colors,
+                              apply_calibration = FALSE, calibration_config = NULL) {
+
+  # Interactive choice only: an empty Python dict bypasses automatic config
+  # loading without changing saved calibration or the Complete Pipeline.
+  if (processing %in% c("georeferencing", "georeferencing_contour")) {
+    if (isTRUE(apply_calibration) && is.null(calibration_config))
+      stop("A validated saved calibration is required for this execution.")
+    georeferencing_config <- if (isTRUE(apply_calibration)) calibration_config else reticulate::dict()
+  }
 
   print(paste("DEBUG nMapTypes =", input$nMapTypes))
   print(paste("DEBUG current_out_dir =", current_out_dir))
@@ -878,7 +887,8 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       #mainmaskgeoreferencingMaps_CD(workingDir, current_out_dir)
       #mainmaskgeoreferencingMasks(workingDir, current_out_dir)
       #mainmaskgeoreferencingMasks_CD(workingDir, current_out_dir)
-      mainmaskgeoreferencingMasks_PF(workingDir, current_out_dir,  nMapTypes = as.integer(input$nMapTypes)
+      mainmaskgeoreferencingMasks_PF(workingDir, current_out_dir,  nMapTypes = as.integer(input$nMapTypes),
+        config = georeferencing_config
       )
       print(" Process rectifying python script:")
       # processing rectifying
@@ -929,7 +939,8 @@ manageProcessFlow <- function(processing, allertText1, allertText2, input, sessi
       mainmaskgeoreferencingMasks_PF(
         workingDir,
         current_out_dir,
-        nMapTypes = as.integer(input$nMapTypes)
+        nMapTypes = as.integer(input$nMapTypes),
+        config = georeferencing_config
       )
       
       

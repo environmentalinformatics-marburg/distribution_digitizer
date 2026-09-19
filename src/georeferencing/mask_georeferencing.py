@@ -27,6 +27,196 @@ from osgeo import gdal, osr
 import pandas as pd
 import os, glob
 import sys
+import csv
+import math
+import hashlib
+import statistics
+import base64
+import uuid
+import json
+
+
+def calibration_srs(crs):
+    if crs and crs.startswith("base64:"):
+        crs = base64.b64decode(crs[7:]).decode("utf-8")
+    srs = osr.SpatialReference()
+    if not crs or srs.SetFromUserInput(crs) != 0:
+        raise ValueError("Invalid calibration CRS")
+    # GCP mapX/mapY and GDAL rasters use X/Y, including lon/lat for EPSG:4326.
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    if not (srs.IsProjected() or srs.IsGeographic()):
+        raise ValueError("Calibration requires a projected or geographic CRS")
+    return srs
+
+
+def points_hash(path):
+    with open(path, "rb") as stream:
+        return hashlib.sha256(stream.read()).hexdigest()
+
+
+def finite_xy(x, y):
+    values = float(x), float(y)
+    if not all(math.isfinite(v) for v in values):
+        raise ValueError("X and Y corrections must be finite numbers")
+    return values
+
+
+def read_calibration_config(working_dir):
+    path = os.path.join(working_dir, "config", "config.csv")
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8-sig", newline="") as stream:
+        return dict(csv.reader(stream, delimiter=";", quoting=csv.QUOTE_NONE))
+
+
+def configured_correction(config, map_type):
+    prefix = "georefCalibration_" + str(map_type) + "_"
+    if str(config.get(prefix + "enabled", "false")).lower() != "true":
+        return None
+    return {key: config.get(prefix + key) for key in ("x", "y", "crs", "gcpHash")}
+
+
+def validate_correction(correction, crs, points):
+    if correction is None:
+        return 0.0, 0.0
+    xy = finite_xy(correction["x"], correction["y"])
+    if not calibration_srs(crs).IsSame(calibration_srs(correction["crs"])):
+        raise ValueError("Calibration CRS differs from the GCP CRS; recalibrate this map type")
+    if correction.get("gcpHash") != points_hash(points):
+        raise ValueError("GCP file changed since calibration; recalibrate this map type")
+    return xy
+
+
+def calibration_context(working_dir, map_type):
+    if not str(map_type).isdigit():
+        raise ValueError("Select a map type")
+    paths = glob.glob(os.path.join(working_dir, "data", "input", "templates",
+                                   str(map_type), "geopoints", "*.points"))
+    if len(paths) != 1:
+        raise ValueError("Calibration requires exactly one .points file in this map type's geopoints folder")
+    path = paths[0]
+    for encoding in ("utf-8-sig", "cp1252"):
+        try:
+            frame = pd.read_csv(path, comment="#", encoding=encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    values = frame[["mapX", "mapY", "sourceX", "sourceY"]].astype(float)
+    if len(values) < 3 or not all(math.isfinite(v) for v in values.to_numpy().flat):
+        raise ValueError("The .points file needs at least three finite GCPs")
+    gcps = [gdal.GCP(row.mapX, row.mapY, 1, row.sourceX, -row.sourceY)
+            for row in values.itertuples()]
+    affine = gdal.GCPsToGeoTransform(gcps)
+    if affine is None or abs(affine[1] * affine[5] - affine[2] * affine[4]) == 0:
+        raise ValueError("The .points file does not define a valid two-dimensional transformation")
+    # Legacy files may omit CRS; an explicitly invalid declaration is not legacy.
+    with open(path, encoding="utf-8", errors="replace") as stream:
+        for line in stream:
+            if line.startswith("#CRS:"):
+                calibration_srs(line[5:].strip())
+    crs = read_crs_from_points(path)
+    srs = calibration_srs(crs)
+    return {"points": path, "crs": crs, "gcpHash": points_hash(path),
+            "units": srs.GetAngularUnitsName() if srs.IsGeographic() else srs.GetLinearUnitsName(),
+            "name": srs.GetName()}
+
+
+def calibration_raster(path, context):
+    ds = gdal.Open(path)
+    if ds is None or ds.GetGeoTransform(can_return_null=True) is None:
+        raise ValueError("Select a rectified geospatial TIFF")
+    if not calibration_srs(ds.GetProjection()).IsSame(calibration_srs(context["crs"])):
+        raise ValueError("TIFF CRS differs from the current .points CRS; rerun georeferencing")
+    metadata = ds.GetMetadataItem("DD_CALIBRATION")
+    baseline = json.loads(metadata) if metadata else None
+    if baseline is not None:
+        validate_correction(baseline, context["crs"], context["points"])
+    return ds, baseline or {"x": 0.0, "y": 0.0}
+
+
+def calibration_initial(path, context):
+    ds, baseline = calibration_raster(path, context)
+    return {"x": float(baseline["x"]), "y": float(baseline["y"])}
+
+
+def calibration_center(ds, baseline, x, y):
+    gt = ds.GetGeoTransform()
+    return (gt[0] + ds.RasterXSize * gt[1] / 2 + ds.RasterYSize * gt[2] / 2 + x - float(baseline["x"]),
+            gt[3] + ds.RasterXSize * gt[4] / 2 + ds.RasterYSize * gt[5] / 2 + y - float(baseline["y"]))
+
+
+def calibration_move(path, context, x, y, east, north):
+    """Convert a local metre displacement to a native-CRS translation at the centre."""
+    x, y = finite_xy(x, y)
+    east, north = finite_xy(east, north)
+    ds, baseline = calibration_raster(path, context)
+    cx, cy = calibration_center(ds, baseline, x, y)
+    native, wgs = calibration_srs(context["crs"]), calibration_srs("EPSG:4326")
+    lon, lat, _ = osr.CoordinateTransformation(native, wgs).TransformPoint(cx, cy)
+    local = calibration_srs(f"+proj=aeqd +lat_0={lat} +lon_0={lon} +datum=WGS84 +units=m")
+    nx, ny, _ = osr.CoordinateTransformation(local, native).TransformPoint(east, north)
+    nx, ny = finite_xy(x + nx - cx, y + ny - cy)
+    return {"x": nx, "y": ny}
+
+
+def calibration_preview(path, context, x, y):
+    """Translate in the GCP CRS, then warp a bounded preview to Leaflet's Mercator."""
+    x, y = finite_xy(x, y)
+    ds, baseline = calibration_raster(path, context)
+    # A VRT avoids loading the original large raster or modifying it on disk.
+    shifted = gdal.Translate("", ds, format="VRT")
+    gt = list(ds.GetGeoTransform())
+    gt[0] += x - float(baseline["x"])
+    gt[3] += y - float(baseline["y"])
+    shifted.SetGeoTransform(gt)
+    warped = gdal.Warp("", shifted, format="MEM", dstSRS="EPSG:3857",
+                       width=900, height=900, dstAlpha=True, srcNodata=0)
+    if warped is None:
+        raise ValueError("Could not project this TIFF for OpenStreetMap")
+    gt = warped.GetGeoTransform()
+    transform = osr.CoordinateTransformation(calibration_srs("EPSG:3857"), calibration_srs("EPSG:4326"))
+    west, north, _ = transform.TransformPoint(gt[0], gt[3])
+    east, south, _ = transform.TransformPoint(gt[0] + 900 * gt[1], gt[3] + 900 * gt[5])
+    if not all(math.isfinite(v) for v in (west, south, east, north)) or max(abs(north), abs(south)) > 85.0512:
+        raise ValueError("Overlay is outside the OpenStreetMap latitude range")
+    name = "/vsimem/calibration_" + uuid.uuid4().hex + ".png"
+    try:
+        png = gdal.Translate(name, warped, format="PNG", outputType=gdal.GDT_Byte)
+        if png is None:
+            raise ValueError("Could not render overlay")
+        png = None
+        data = bytes(gdal.VSIGetMemFileBuffer_unsafe(name))
+        return {"uri": "data:image/png;base64," + base64.b64encode(data).decode("ascii"),
+                "bounds": [[south, west], [north, east]]}
+    finally:
+        gdal.Unlink(name)
+        gdal.Unlink(name + ".aux.xml")
+
+
+def calibration_summary(paths, xs, ys, context):
+    if len(paths) != 3 or len(set(os.path.realpath(p) for p in paths)) != 3 or len(xs) != 3 or len(ys) != 3:
+        raise ValueError("Save positions for three different training maps")
+    pairs = [finite_xy(x, y) for x, y in zip(xs, ys)]
+    x, y = statistics.median(v[0] for v in pairs), statistics.median(v[1] for v in pairs)
+    # Compare differences in local metres, including angular/feet-based CRSs.
+    # Warn above 5 km or 25% of the median movement, whichever is greater.
+    distances, movements = [], []
+    native, wgs = calibration_srs(context["crs"]), calibration_srs("EPSG:4326")
+    for path, (dx, dy) in zip(paths, pairs):
+        ds, baseline = calibration_raster(path, context)
+        cx, cy = calibration_center(ds, baseline, 0, 0)
+        lon, lat, _ = osr.CoordinateTransformation(native, wgs).TransformPoint(cx, cy)
+        local = calibration_srs(f"+proj=aeqd +lat_0={lat} +lon_0={lon} +datum=WGS84 +units=m")
+        transform = osr.CoordinateTransformation(native, local)
+        mx, my, _ = transform.TransformPoint(cx + x, cy + y)
+        tx, ty, _ = transform.TransformPoint(cx + dx, cy + dy)
+        distances.append(math.hypot(tx - mx, ty - my))
+        movements.append(math.hypot(mx, my))
+    if not all(math.isfinite(v) for v in distances + movements):
+        raise ValueError("Correction is outside this CRS's valid extent")
+    spread = max(distances)
+    return {"x": x, "y": y, "spreadMetres": spread,
+            "warning": spread > max(5000, 0.25 * statistics.median(movements))}
 #os.environ['PROJ_LIB'] = "C:/ProgramData/miniconda3/Library/share/proj"
 #os.environ['PROJ_LIB'] = "C:/Users/user/miniconda3/Library/share/proj/"
 
@@ -53,7 +243,7 @@ def read_crs_from_points(gcp_points):
 
                         srs = osr.SpatialReference()
 
-                        if srs.ImportFromWkt(crs_wkt) == 0:
+                        if srs.SetFromUserInput(crs_wkt) == 0:
                             print("GCP CRS found:", srs.GetName())
                             return srs.ExportToWkt()
 
@@ -90,7 +280,7 @@ def read_crs_from_points(gcp_points):
 # - This does NOT yet warp the image
 #   → only assigns spatial reference and GCPs
 # ------------------------------------------------------------
-def maskgeoreferencing(input_raster, output_raster, gcp_points):
+def maskgeoreferencing(input_raster, output_raster, gcp_points, correction=None):
 
     try:
         os.makedirs(output_raster, exist_ok=True)
@@ -132,6 +322,14 @@ def maskgeoreferencing(input_raster, output_raster, gcp_points):
         if df.empty:
             print("⚠️ No valid GCP points found")
             return
+
+        dest_wkt = read_crs_from_points(gcp_points)
+        dx, dy = validate_correction(correction, dest_wkt, gcp_points)
+        # Translate world coordinates, never source pixels. This precedes Warp
+        # and polygonization so every downstream representation inherits it.
+        if dx != 0 or dy != 0:
+            df['mapX'] = df['mapX'] + dx
+            df['mapY'] = df['mapY'] + dy
 
         # --------------------------------------------------------
         # Open input raster
@@ -176,11 +374,17 @@ def maskgeoreferencing(input_raster, output_raster, gcp_points):
 
         dst_ds.SetProjection(dest_wkt)
         dst_ds.SetGCPs(gcp_list, dest_wkt)
+        if correction is not None:
+            dst_ds.SetMetadataItem("DD_CALIBRATION", json.dumps({
+                "x": dx, "y": dy, "crs": dest_wkt,
+                "gcpHash": points_hash(gcp_points)}))
 
         print("✅ Georeferencing successful:", out_file)
 
     except Exception as e:
         print("❌ ERROR in maskgeoreferencing:", e)
+        if correction is not None:
+            raise
 
     finally:
         try:
@@ -254,10 +458,12 @@ def mainmaskgeoreferencingMasks_CD(workingDir, outDir):
 # ------------------------------------------------------------
 # Georeferencing masks (generic)
 # ------------------------------------------------------------
-def mainmaskgeoreferencingMasks_PF(workingDir, outDir, nMapTypes=1):
+def mainmaskgeoreferencingMasks_PF(workingDir, outDir, nMapTypes=1, config=None):
     print("workingDir =", workingDir)
     print("Full GCP path =", os.path.join(workingDir, "data", "input", "templates", "1", "geopoints"))
     workingDir = workingDir.strip()  # ← entfernt unsichtbare Zeichen
+    if config is None:
+        config = read_calibration_config(workingDir)
     g_base = os.path.normpath(os.path.join(workingDir, "data", "input", "templates"))
 
     print(f"DEBUG: nMapTypes = {nMapTypes}")
@@ -291,10 +497,15 @@ def mainmaskgeoreferencingMasks_PF(workingDir, outDir, nMapTypes=1):
             continue
 
         gcp_points = gcp_files[0]   # normalerweise nur eine Datei pro MapType
+        correction = configured_correction(config, i)
+        if correction is not None:
+            if len(gcp_files) != 1:
+                raise ValueError("Calibration requires exactly one .points file per map type")
+            validate_correction(correction, read_crs_from_points(gcp_points), gcp_points)
 
         for input_raster in tif_files:
             print("Processing:", input_raster)
-            maskgeoreferencing(input_raster, output_raster, gcp_points)
+            maskgeoreferencing(input_raster, output_raster, gcp_points, correction)
                 
 
 #mainmaskgeoreferencingMasks_PF(" D:/distribution_digitizer/", "D:/test/output_2026-02-20_08-40-28/", 2)

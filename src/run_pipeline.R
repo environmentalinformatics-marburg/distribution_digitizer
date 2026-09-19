@@ -609,7 +609,8 @@ run_complete_pipeline <- function(
   mainmaskgeoreferencingMasks_PF(
     workingDir,
     pipeline_out_dir,
-    nMapTypes = as.integer(config$nMapTypes)
+    nMapTypes = as.integer(config$nMapTypes),
+    config = config
   )
   
   cat("\nGeoreferencing finished.\n")

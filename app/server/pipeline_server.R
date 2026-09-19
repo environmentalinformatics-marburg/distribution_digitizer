@@ -125,7 +125,10 @@ pipeline_server <- function(
     base_data <- read_pipeline_config()
     req(base_data, pipeline_data)
 
-    common_keys <- intersect(base_data$Parameter, pipeline_data$Parameter)
+    # Calibration is trained in Georeferencing. A stale pipeline table must not
+    # restore an older correction when saving or starting a subsequent run.
+    common_keys <- setdiff(intersect(base_data$Parameter, pipeline_data$Parameter),
+      grep("^georefCalibration_[0-9]+_", base_data$Parameter, value = TRUE))
     for (key in common_keys) {
       base_data$Value[base_data$Parameter == key] <-
         pipeline_data$Value[pipeline_data$Parameter == key][1]
@@ -716,6 +719,12 @@ pipeline_server <- function(
           "Value"
         ),
         check.names = FALSE
+      )
+      calibration_data <- read_pipeline_config()
+      calibration_rows <- grepl("^georefCalibration_[0-9]+_", calibration_data$Parameter)
+      config_data <- rbind(
+        config_data[!grepl("^georefCalibration_[0-9]+_", config_data$Parameter), , drop = FALSE],
+        calibration_data[calibration_rows, , drop = FALSE]
       )
       
       config <- as.list(

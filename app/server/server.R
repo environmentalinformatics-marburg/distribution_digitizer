@@ -394,6 +394,12 @@ server <- shinyServer(function(input, output, session) {
         middle = ifelse(isTRUE(input$middle), "TRUE", "FALSE")
       )
       
+      # Calibration belongs to each map type and survives ordinary config saves.
+      if (file.exists(cfg_path)) {
+        previous <- read_config(cfg_path)
+        calibration_keys <- grep("^georefCalibration_[0-9]+_", names(previous), value = TRUE)
+        cfg[calibration_keys] <- previous[calibration_keys]
+      }
       df <- data.frame(key = names(cfg), value = unname(unlist(cfg, use.names = FALSE)), stringsAsFactors = FALSE)
       write.table(df, cfg_path, sep = ";", row.names = FALSE, col.names = FALSE, quote = FALSE)
       if (!file.exists(cfg_path)) stop("Config file not found after write: ", cfg_path)

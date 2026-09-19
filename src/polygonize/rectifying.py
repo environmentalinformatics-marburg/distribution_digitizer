@@ -55,6 +55,7 @@ import sys
 import rasterio
 from osgeo import gdal, osr
 import os, glob
+import uuid
 
 # ------------------------------------------------------------
 # Rectifying workflow for Contour / Area Detection
@@ -183,12 +184,39 @@ def rectifying(input_raster, output_raster):
     
     try:
         # Ausführen der Rektifizierung mit gdal.Warp()
-        dst_ds = gdal.Warp(dst_path, src_ds)
+        calibration = src_ds.GetMetadataItem("DD_CALIBRATION")
+        previous_calibration = None
+        if os.path.exists(dst_path):
+            previous = gdal.Open(dst_path)
+            if previous is not None:
+                previous_calibration = previous.GetMetadataItem("DD_CALIBRATION")
+            previous = None
+        # Warp into an existing TIFF retains its old extent. A calibrated rerun
+        # (including disabling calibration) must compute a fresh destination.
+        # Keep the original path exactly for never-calibrated processing.
+        fresh_path = (dst_path + "." + uuid.uuid4().hex + ".tif"
+                      if calibration or previous_calibration else dst_path)
+        dst_ds = gdal.Warp(fresh_path, src_ds)
+        # Preserve the absolute trained offset for later recalibration; never
+        # add a second translation here (the GCPs already contain it).
+        if calibration and dst_ds is not None:
+            dst_ds.SetMetadataItem("DD_CALIBRATION", calibration)
+        if dst_ds is None:
+            raise RuntimeError("GDAL could not rectify " + input_raster)
         dst_ds = None
         src_ds = None
+        if fresh_path != dst_path:
+            os.replace(fresh_path, dst_path)
         print(f"Rektifizierte Datei gespeichert: {dst_path}")
     except Exception as e:
         print(f"Fehler bei der Rektifizierung: {e}")
+        if calibration or previous_calibration:
+            raise
+    finally:
+        dst_ds = None
+        src_ds = None
+        if 'fresh_path' in locals() and fresh_path != dst_path and os.path.exists(fresh_path):
+            os.remove(fresh_path)
 
 #input_raster = "D:/test/output_2024-07-12_08-18-21/georeferencing/maps/pointFiltering"
 
